@@ -176,8 +176,11 @@ function initStokOpnamePage() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                showToast('Stok opname berhasil disimpan!');
-                window.location.href = `${basePath}/stok`; // Arahkan kembali ke daftar stok
+                showToast('Stok opname berhasil disimpan!', 'success');
+                // Beri jeda agar toast terlihat sebelum navigasi
+                setTimeout(() => {
+                    navigate(`${basePath}/stok`); // Gunakan fungsi navigate dari SPA
+                }, 1000);
             } else {
                 throw new Error(data.message || 'Terjadi kesalahan.');
             }

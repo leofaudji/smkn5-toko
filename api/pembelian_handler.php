@@ -97,29 +97,24 @@ try {
             $header = $stmt_header->get_result()->fetch_assoc();
             $stmt_header->close();
             if (!$header) throw new Exception("Pembelian tidak ditemukan.");
-
-            $stmt_details = $conn->prepare("SELECT * FROM pembelian_details WHERE pembelian_id = ?");
+            
+            // Perbaiki query untuk mengambil detail item dengan benar
+            $stmt_details = $conn->prepare(
+                "SELECT 
+                    pd.id, 
+                    pd.item_id, 
+                    i.nama_barang, 
+                    pd.quantity, 
+                    pd.price, 
+                    pd.subtotal 
+                FROM pembelian_details pd 
+                JOIN items i ON pd.item_id = i.id 
+                WHERE pd.pembelian_id = ?"
+            );
             $stmt_details->bind_param('i', $id);
             $stmt_details->execute();
             $details = $stmt_details->get_result()->fetch_all(MYSQLI_ASSOC);
             $stmt_details->close();
-
-            // Modifikasi: Ubah detail agar sesuai dengan format item
-            $item_details = [];
-            if (!empty($details)) {
-                $detail_ids = array_column($details, 'id');
-                $placeholders = implode(',', array_fill(0, count($detail_ids), '?'));
-                $types = str_repeat('i', count($detail_ids));
-
-                // Ambil item_id dari pembelian_details (perlu ditambahkan kolomnya)
-                // Untuk sekarang, kita asumsikan account_id adalah inventory_account_id dan kita cari item_id nya
-                $stmt_items = $conn->prepare("SELECT pd.id, pd.jumlah, i.id as item_id, (pd.jumlah / i.harga_beli) as quantity, i.harga_beli as price FROM pembelian_details pd JOIN items i ON pd.account_id = i.inventory_account_id WHERE pd.id IN ($placeholders)");
-                $stmt_items->bind_param($types, ...$detail_ids);
-                $stmt_items->execute();
-                $item_results = $stmt_items->get_result()->fetch_all(MYSQLI_ASSOC);
-                $stmt_items->close();
-                $details = $item_results; // Ganti detail lama dengan detail item
-            }
 
             echo json_encode(['status' => 'success', 'data' => ['header' => $header, 'details' => $details]]);
         } else {
@@ -167,19 +162,22 @@ try {
                 } elseif ($payment_method === 'cash') {
                     // Jika tunai, harus ada akun kas/bank yang dipilih
                     $credit_account_id = (int)($data['kas_account_id'] ?? 0);
-                     if ($credit_account_id === 0) {
+                    if ($credit_account_id === 0) {
                         throw new Exception("Untuk pembayaran tunai, Anda harus memilih 'Akun Kas/Bank Pembayaran'.");
                     }
                 } else {
                     throw new Exception("Metode pembayaran tidak valid.");
                 }
 
+                // Tentukan status berdasarkan metode pembayaran
+                $status = ($payment_method === 'cash') ? 'paid' : 'open';
+
                 // 3. Hitung Total dan Validasi Baris
                 $total_pembelian = 0;
                 foreach ($lines as &$line) { // Gunakan reference (&) untuk menambahkan data ke line
                     if (empty($line['item_id']) || !isset($line['quantity']) || (float)$line['quantity'] <= 0) {
                         throw new Exception("Setiap baris harus memiliki Barang dan Kuantitas yang valid.");
-                    }
+                    }                    $line['subtotal'] = (float)$line['price'] * (int)$line['quantity'];
                     $total_pembelian += (float)$line['subtotal'];
 
                     // Ambil inventory_account_id dari item
@@ -189,11 +187,19 @@ try {
                     $item_account = $stmt_item_acc->get_result()->fetch_assoc();
                     $stmt_item_acc->close();
 
-                    if (!$item_account || empty($item_account['inventory_account_id'])) {
-                        throw new Exception("Barang yang dipilih tidak memiliki pemetaan 'Akun Persediaan'. Harap atur di halaman Barang & Stok.");
+                    $inventory_account_id = null;
+                    if ($item_account && !empty($item_account['inventory_account_id'])) {
+                        $inventory_account_id = $item_account['inventory_account_id'];
+                    } else {
+                        // Jika akun persediaan di item kosong, ambil dari pengaturan default
+                        $inventory_account_id = (int)get_setting('default_inventory_account', 0, $conn);
+                    }
+
+                    if (empty($inventory_account_id)) {
+                        throw new Exception("Akun persediaan untuk barang tidak diatur dan tidak ada 'Akun Persediaan Default' yang diatur di Pengaturan > Akuntansi.");
                     }
                     // Tambahkan account_id ke array $line untuk digunakan nanti
-                    $line['inventory_account_id'] = $item_account['inventory_account_id'];
+                    $line['inventory_account_id'] = $inventory_account_id;
                 }
                 unset($line); // Hapus reference
 
@@ -235,18 +241,18 @@ try {
 
                     // Update header
                     $stmt_pembelian = $conn->prepare(
-                        "UPDATE pembelian SET supplier_id=?, tanggal_pembelian=?, jatuh_tempo=?, total=?, keterangan=?, payment_method=?, credit_account_id=?, updated_by=? WHERE id=? AND user_id=?"
+                        "UPDATE pembelian SET supplier_id=?, tanggal_pembelian=?, jatuh_tempo=?, total=?, keterangan=?, status=?, payment_method=?, credit_account_id=?, updated_by=? WHERE id=? AND user_id=?"
                     );
-                    $stmt_pembelian->bind_param('issdssiiii', $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $payment_method, $credit_account_id, $user_id, $id, $user_id);
+                    $stmt_pembelian->bind_param('issdsssiiiii', $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $status, $payment_method, $credit_account_id, $user_id, $id, $user_id);
                 } else { // add
                     // Insert header
                     $stmt_pembelian = $conn->prepare(
-                        "INSERT INTO pembelian (user_id, supplier_id, tanggal_pembelian, jatuh_tempo, total, keterangan, payment_method, credit_account_id, created_by) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                        "INSERT INTO pembelian (user_id, supplier_id, tanggal_pembelian, jatuh_tempo, total, keterangan, status, payment_method, credit_account_id, created_by) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                     );
                     $stmt_pembelian->bind_param(
-                        'iissdssii',
-                        $user_id, $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $payment_method, $credit_account_id, $user_id
+                        'iissdsssii',
+                        $user_id, $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $status, $payment_method, $credit_account_id, $user_id
                     );
                 }
                 
@@ -254,7 +260,9 @@ try {
                     $conn->rollback();
                     throw new Exception("Gagal menyimpan header pembelian: " . $stmt_pembelian->error);
                 }
-                $pembelian_id = $conn->insert_id;
+                if ($action === 'add') {
+                    $pembelian_id = $conn->insert_id;
+                }
                 $stmt_pembelian->close();
 
                 // 6. Insert ke `pembelian_details` dan `general_ledger`
@@ -262,8 +270,8 @@ try {
                     "INSERT INTO pembelian_details (pembelian_id, item_id, quantity, price, subtotal, account_id) VALUES (?, ?, ?, ?, ?, ?)"
                 );
                 $stmt_gl = $conn->prepare(
-                    "INSERT INTO general_ledger (user_id, tanggal, keterangan, account_id, debit, kredit, ref_id, ref_type, created_by, updated_by) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, 'pembelian', ?, ?)"
+                    "INSERT INTO general_ledger (user_id, tanggal, keterangan, account_id, debit, kredit, ref_id, ref_type, created_by) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 'pembelian', ?)"
                 );
 
                 // Jurnal Sisi Debit (untuk setiap baris item)
@@ -286,12 +294,12 @@ try {
 
                     // Insert ke GL (Debit)
                     $zero = 0.00;
-                    $stmt_gl->bind_param('issiddiii', $user_id, $tanggal_pembelian, $keterangan, $inventory_account_id, $subtotal, $zero, $pembelian_id, $user_id, $user_id);
+                    $stmt_gl->bind_param('issiddii', $user_id, $tanggal_pembelian, $keterangan, $inventory_account_id, $subtotal, $zero, $pembelian_id, $user_id);
                     $stmt_gl->execute();
                 }
 
                 // Jurnal Sisi Kredit (satu kali untuk total)
-                $stmt_gl->bind_param('issiddiii', $user_id, $tanggal_pembelian, $keterangan, $credit_account_id, $zero, $total_pembelian, $pembelian_id, $user_id, $user_id);
+                $stmt_gl->bind_param('issiddii', $user_id, $tanggal_pembelian, $keterangan, $credit_account_id, $zero, $total_pembelian, $pembelian_id, $user_id);
                 $stmt_gl->execute();
 
                 $stmt_details->close();
@@ -357,7 +365,7 @@ try {
     }
 } catch (Exception $e) {
     // Jika terjadi error dan sedang dalam transaksi, batalkan
-    if (isset($conn) && $conn->in_transaction) {
+    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) {
         $conn->rollback();
     }
     http_response_code(400);

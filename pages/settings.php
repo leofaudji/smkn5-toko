@@ -78,6 +78,42 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
             <div class="card-body">
                 <form id="accounting-settings-form">
                     <div id="accounting-settings-container">
+                        <div class="mb-3">
+                            <label for="retained_earnings_account_id" class="form-label">Akun Laba Ditahan (Retained Earnings)</label>
+                            <select class="form-select" id="retained_earnings_account_id" name="retained_earnings_account_id" required>
+                                <!-- Opsi dimuat oleh JS -->
+                            </select>
+                            <div class="form-text">Akun ini digunakan untuk menyimpan laba bersih pada saat proses tutup buku.</div>
+                        </div>
+                        <hr>
+                        <h6 class="text-muted">Default Penjualan</h6>
+                        <div class="mb-3">
+                            <label for="default_sales_cash_account_id" class="form-label">Akun Kas/Bank Default untuk Penjualan</label>
+                            <select class="form-select" id="default_sales_cash_account_id" name="default_sales_cash_account_id"></select>
+                            <div class="form-text">Pilih akun kas/bank yang akan menerima uang dari transaksi penjualan.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="default_sales_revenue_account_id" class="form-label">Akun Pendapatan Default untuk Penjualan</label>
+                            <select class="form-select" id="default_sales_revenue_account_id" name="default_sales_revenue_account_id"></select>
+                            <div class="form-text">Akun pendapatan yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="default_cogs_account_id" class="form-label">Akun HPP/Beban Pokok Penjualan Default</label>
+                            <select class="form-select" id="default_cogs_account_id" name="default_cogs_account_id"></select>
+                            <div class="form-text">Akun HPP yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="default_cogs_account_id" class="form-label">Akun HPP/Beban Pokok Penjualan Default</label>
+                            <select class="form-select" id="default_cogs_account_id" name="default_cogs_account_id"></select>
+                            <div class="form-text">Akun HPP yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</div>
+                        </div>
+                        <hr>
+                        <h6 class="text-muted">Default Persediaan</h6>
+                        <div class="mb-3">
+                            <label for="default_inventory_account_id" class="form-label">Akun Persediaan Default</label>
+                            <select class="form-select" id="default_inventory_account_id" name="default_inventory_account_id"></select>
+                            <div class="form-text">Akun persediaan yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</div>
+                        </div>
                         <div class="text-center p-5"><div class="spinner-border" role="status"><span class="visually-hidden">Memuat...</span></div></div>
                     </div>
                     <hr>

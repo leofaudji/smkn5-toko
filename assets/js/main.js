@@ -85,7 +85,25 @@ function updateActiveSidebarLink(path) {
         const cleanCurrentPath = path.length > 1 ? path.replace(/\/$/, "") : path;
         const cleanLinkPath = linkPath.length > 1 ? linkPath.replace(/\/$/, "") : linkPath;
         if (cleanLinkPath === cleanCurrentPath) {
+            // Tandai link yang aktif
             link.classList.add('active');
+
+            // Cek apakah link ini ada di dalam submenu yang collapsible
+            const parentCollapse = link.closest('.collapse');
+            if (parentCollapse) {
+                // Buka collapse-nya
+                const bsCollapse = new bootstrap.Collapse(parentCollapse, {
+                    toggle: false // Jangan toggle, hanya buka
+                });
+                bsCollapse.show();
+
+                // Tandai juga menu induknya sebagai aktif
+                const parentTrigger = document.querySelector(`a[data-bs-target="#${parentCollapse.id}"]`);
+                if (parentTrigger) {
+                    parentTrigger.classList.add('active');
+                    parentTrigger.setAttribute('aria-expanded', 'true');
+                }
+            }
         }
     });
 }
@@ -261,6 +279,18 @@ function runPageScripts(path) {
     } else if (cleanPath === '/laporan-pertumbuhan-persediaan') {
         loadScript(`${basePath}/assets/js/laporan_pertumbuhan_persediaan.js`)
             .then(() => initLaporanPertumbuhanPersediaanPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/laporan-penjualan-item') {
+        loadScript(`${basePath}/assets/js/laporan_penjualan_item.js`)
+            .then(() => initLaporanPenjualanItemPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/laporan-penjualan') {
+        loadScript(`${basePath}/assets/js/laporan_penjualan.js`)
+            .then(() => initLaporanPenjualanPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/penjualan') {
+        loadScript(`${basePath}/assets/js/penjualan.js`)
+            .then(() => initPenjualanPage())
             .catch(err => console.error(err));
     }else if (cleanPath === '/buku-panduan') {
         // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
@@ -5090,38 +5120,76 @@ function initSettingsPage() {
     async function loadAccountingSettings() {
         if (!accountingSettingsContainer) return;
         try {
-            const [settingsRes, equityAccRes] = await Promise.all([
+            const [settingsRes, accountsRes] = await Promise.all([
                 fetch(`${basePath}/api/settings`),
-                fetch(`${basePath}/api/settings?action=get_equity_accounts`)
+                fetch(`${basePath}/api/settings?action=get_accounts_for_accounting`)
             ]);
             const settingsResult = await settingsRes.json();
-            const equityAccResult = await equityAccRes.json();
+            const accountsResult = await accountsRes.json();
 
-            if (settingsResult.status !== 'success' || equityAccResult.status !== 'success') {
-                throw new Error(settingsResult.message || equityAccResult.message);
+            if (settingsResult.status !== 'success' || accountsResult.status !== 'success') {
+                throw new Error(settingsResult.message || accountsResult.message);
             }
 
             const settings = settingsResult.data;
-            const equityAccounts = equityAccResult.data;
+            const { equity: equityAccounts, cash: cashAccounts, revenue: revenueAccounts, cogs: cogsAccounts, inventory: inventoryAccounts } = accountsResult.data;
 
             let equityOptions = equityAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
+            let cashOptions = cashAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
+            let revenueOptions = revenueAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
+            let cogsOptions = cogsAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
+            let inventoryOptions = inventoryAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
 
             accountingSettingsContainer.innerHTML = `
-                <h5 class="mb-3">Pengaturan Jurnal Penutup</h5>
-                <div class="row">
-                    <div class="col-md-8 mb-3">
-                        <label for="retained_earnings_account_id" class="form-label">Akun Laba Ditahan (Retained Earnings)</label>
-                        <select class="form-select" id="retained_earnings_account_id" name="retained_earnings_account_id">
-                            <option value="">-- Pilih Akun Ekuitas --</option>
-                            ${equityOptions}
-                        </select>
-                        <div class="form-text">Akun ini akan digunakan untuk menampung laba/rugi bersih saat proses tutup buku.</div>
-                    </div>
+                <div class="mb-3">
+                    <label for="retained_earnings_account_id" class="form-label">Akun Laba Ditahan (Retained Earnings)</label>
+                    <select class="form-select" id="retained_earnings_account_id" name="retained_earnings_account_id" required>
+                        <option value="">-- Pilih Akun Ekuitas --</option>
+                        ${equityOptions}
+                    </select>
+                    <div class="form-text">Akun ini digunakan untuk menyimpan laba bersih pada saat proses tutup buku.</div>
+                </div>
+                <hr>
+                <h6 class="text-muted">Default Penjualan</h6>
+                <div class="mb-3">
+                    <label for="default_sales_cash_account_id" class="form-label">Akun Kas/Bank Default untuk Penjualan</label>
+                    <select class="form-select" id="default_sales_cash_account_id" name="default_sales_cash_account_id">
+                        <option value="">-- Pilih Akun Kas/Bank --</option>
+                        ${cashOptions}
+                    </select>
+                    <div class="form-text">Pilih akun kas/bank yang akan menerima uang dari transaksi penjualan.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="default_sales_revenue_account_id" class="form-label">Akun Pendapatan Default untuk Penjualan</label>
+                    <select class="form-select" id="default_sales_revenue_account_id" name="default_sales_revenue_account_id">
+                        <option value="">-- Pilih Akun Pendapatan --</option>
+                        ${revenueOptions}
+                    </select>
+                    <div class="form-text">Akun pendapatan yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</div>
+                </div>
+                <hr>
+                <h6 class="text-muted">Default Persediaan</h6>
+                <div class="mb-3">
+                    <label for="default_inventory_account_id" class="form-label">Akun Persediaan Default</label>
+                    <select class="form-select" id="default_inventory_account_id" name="default_inventory_account_id">
+                        <option value="">-- Pilih Akun Aset --</option>
+                        ${inventoryOptions}
+                    </select>
+                    <div class="form-text">Akun persediaan yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</div>
                 </div>
             `;
             // Set selected value
             if (settings.retained_earnings_account_id) {
                 document.getElementById('retained_earnings_account_id').value = settings.retained_earnings_account_id;
+            }
+            if (settings.default_sales_cash_account_id) {
+                document.getElementById('default_sales_cash_account_id').value = settings.default_sales_cash_account_id;
+            }
+            if (settings.default_sales_revenue_account_id) {
+                document.getElementById('default_sales_revenue_account_id').value = settings.default_sales_revenue_account_id;
+            }
+            if (settings.default_inventory_account_id) {
+                document.getElementById('default_inventory_account_id').value = settings.default_inventory_account_id;
             }
 
         } catch (error) {
@@ -5730,6 +5798,18 @@ function initPembelianPage() {
         addPembelianLine();
     });
 
+    // Event listener untuk mengubah tampilan berdasarkan metode pembayaran
+    const paymentMethodSelect = document.getElementById('payment_method');
+    const kasAccountContainer = document.getElementById('kas-account-container');
+    const kasAccountSelect = document.getElementById('kas_account_id');
+
+    paymentMethodSelect?.addEventListener('change', (e) => {
+        const isCash = e.target.value === 'cash';
+        kasAccountContainer.style.display = isCash ? 'block' : 'none';
+        kasAccountSelect.required = isCash;
+    });
+
+
     // Event listener untuk menghapus baris (delegasi event)
     document.getElementById('pembelian-lines-body')?.addEventListener('click', (e) => {
         if (e.target && e.target.closest('.remove-pembelian-line-btn')) {
@@ -5753,6 +5833,20 @@ function initPembelianPage() {
     document.getElementById('search-pembelian')?.addEventListener('input', filterHandler);
     ['filter-supplier', 'filter-bulan', 'filter-tahun', 'filter-limit'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', filterHandler);
+    });
+
+    // Event delegation untuk tombol edit & hapus pada daftar pembelian
+    document.getElementById('pembelian-table-body')?.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-pembelian-btn');
+        if (editBtn) {
+            handleEditPembelian(editBtn.dataset.id);
+            return; // Hentikan eksekusi setelah menangani edit
+        }
+
+        const deleteBtn = e.target.closest('.delete-pembelian-btn');
+        if (deleteBtn) {
+            handleDeletePembelian(deleteBtn.dataset.id);
+        }
     });
 }
 
@@ -5789,6 +5883,19 @@ async function loadPembelianFormData() {
                 if (supplierFilter) supplierFilter.innerHTML += optionHtml;
             });
         }
+
+        // Ambil daftar akun kas untuk pembayaran tunai
+        const cashAccRes = await fetch(basePath + '/api/settings?action=get_cash_accounts');
+        const cashAccData = await cashAccRes.json();
+        const kasAccountSelect = document.getElementById('kas_account_id');
+        if (cashAccData.status === 'success' && kasAccountSelect) {
+            kasAccountSelect.innerHTML = '<option value="">-- Pilih Akun Kas --</option>';
+            cashAccData.data.forEach(acc => {
+                kasAccountSelect.innerHTML += `<option value="${acc.id}">${acc.nama_akun}</option>`;
+            });
+        }
+
+
 
         // Populate filter bulan dan tahun
         const bulanFilter = document.getElementById('filter-bulan');
@@ -5908,6 +6015,7 @@ async function savePembelian() {
         keterangan: document.getElementById('keterangan').value,
         jatuh_tempo: document.getElementById('jatuh_tempo').value,
         payment_method: document.getElementById('payment_method').value,
+        kas_account_id: document.getElementById('kas_account_id').value, // Tambahkan ini
         lines: []
     };
 
@@ -6040,6 +6148,14 @@ async function handleEditPembelian(id) {
         document.getElementById('jatuh_tempo').value = header.jatuh_tempo;
         document.getElementById('payment_method').value = header.payment_method;
 
+        // Tampilkan/sembunyikan field akun kas berdasarkan metode pembayaran
+        const kasAccountContainer = document.getElementById('kas-account-container');
+        const kasAccountSelect = document.getElementById('kas_account_id');
+        const isCash = header.payment_method === 'cash';
+        kasAccountContainer.style.display = isCash ? 'block' : 'none';
+        kasAccountSelect.required = isCash;
+        if (isCash) kasAccountSelect.value = header.credit_account_id; // Di backend, credit_account_id diisi dengan kas_account_id saat tunai
+
         // Hapus baris default dan isi dengan detail dari database
         // NOTE: Ini memerlukan perubahan di backend untuk 'get_single' agar mengembalikan item_id, qty, price
         document.getElementById('pembelian-lines-body').innerHTML = '';
@@ -6091,10 +6207,6 @@ async function handleDeletePembelian(id) {
 // =================================================================
 
 function initStokPage() {
-    // Muat data awal
-    loadItemsList();
-    loadAccountsForItemModal();
-
     // Event listener untuk filter
     let debounceTimer;
     const filterHandler = () => {
@@ -6103,23 +6215,34 @@ function initStokPage() {
     };
     document.getElementById('search-item')?.addEventListener('input', filterHandler);
     document.getElementById('filter-stok')?.addEventListener('change', filterHandler);
+    document.getElementById('filter-category')?.addEventListener('change', filterHandler);
     document.getElementById('filter-limit')?.addEventListener('change', filterHandler);
 
     // Event listener untuk modal
     const itemModalEl = document.getElementById('itemModal');
     if (itemModalEl) {
+        // Pindahkan pemanggilan loadAccountsForItemModal ke sini
+        // Ini memastikan akun hanya dimuat saat modal akan ditampilkan
+        itemModalEl.addEventListener('show.bs.modal', loadAccountsForItemModal);
+
+        // Tambahkan pemanggilan untuk memuat kategori saat modal ditampilkan
+        itemModalEl.addEventListener('show.bs.modal', loadCategoriesForItemModal);
+
         itemModalEl.addEventListener('show.bs.modal', (e) => {
             const button = e.relatedTarget;
             const form = document.getElementById('item-form');
             form.reset();
             form.classList.remove('was-validated');
-            document.getElementById('item-id').value = '';
-            document.getElementById('item-action').value = 'save';
-            document.getElementById('stok').disabled = false;
-            document.getElementById('stok').parentElement.querySelector('.form-text').textContent = 'Masukkan jumlah stok saat ini. Untuk mengubah stok, gunakan fitur "Penyesuaian Stok".';
 
-            if (button && button.dataset.action === 'add') {
+            if (button && button.classList.contains('edit-item-btn')) {
+                // Panggil fungsi untuk mengisi data saat tombol edit diklik
+                handleEditItem(button.dataset.id);
+            } else { // This handles the "add" case
                 document.getElementById('itemModalLabel').textContent = 'Tambah Barang Baru';
+                document.getElementById('item-id').value = '';
+                document.getElementById('item-action').value = 'save';
+                document.getElementById('stok').disabled = false;
+                document.getElementById('stok').parentElement.querySelector('.form-text').textContent = 'Masukkan jumlah stok saat ini. Untuk mengubah stok, gunakan fitur "Penyesuaian Stok".';
             }
         });
 
@@ -6138,10 +6261,6 @@ function initStokPage() {
 
     // Event delegation untuk tombol edit & hapus
     document.getElementById('items-table-body')?.addEventListener('click', (e) => {
-        const editBtn = e.target.closest('.edit-item-btn');
-        if (editBtn) {
-            handleEditItem(editBtn.dataset.id);
-        }
         const deleteBtn = e.target.closest('.delete-item-btn');
         if (deleteBtn) {
             handleDeleteItem(deleteBtn.dataset.id, deleteBtn.dataset.nama);
@@ -6156,6 +6275,9 @@ function initStokPage() {
 
     // Event listener untuk tombol simpan penyesuaian
     document.getElementById('save-adjustment-btn')?.addEventListener('click', saveAdjustment);
+     // Muat data awal untuk daftar barang
+    loadItemsList();
+    loadCategoriesForFilter(); // Panggil fungsi untuk memuat kategori
 }
 
 async function saveAdjustment() {
@@ -6243,9 +6365,10 @@ async function loadItemsList(page = 1) {
     const limit = document.getElementById('filter-limit').value;
     const search = document.getElementById('search-item').value;
     const stokFilter = document.getElementById('filter-stok').value;
-
-    const params = new URLSearchParams({ page, limit, search, stok_filter: stokFilter });
-    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
+    const categoryFilter = document.getElementById('filter-category').value;
+    
+    const params = new URLSearchParams({ page, limit, search, stok_filter: stokFilter, category_filter: categoryFilter });
+    tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
 
     try {
         const response = await fetch(`${basePath}/api/stok?${params.toString()}`);
@@ -6260,6 +6383,7 @@ async function loadItemsList(page = 1) {
                     <tr>
                         <td>${item.nama_barang}</td>
                         <td>${item.sku || '-'}</td>
+                        <td><span class="badge bg-secondary">${item.nama_kategori || 'Tanpa Kategori'}</span></td>
                         <td class="text-end">${formatCurrencyAccounting(item.harga_beli)}</td>
                         <td class="text-end">${formatCurrencyAccounting(item.harga_jual)}</td>
                         <td class="text-end fw-bold">${item.stok}</td>
@@ -6269,7 +6393,7 @@ async function loadItemsList(page = 1) {
                                 <button class="btn btn-info btn-sm adjustment-btn" data-id="${item.id}" data-nama="${item.nama_barang}" data-stok="${item.stok}" title="Penyesuaian Stok">
                                     <i class="bi bi-arrow-left-right"></i>
                                 </button>
-                                <button class="btn btn-warning btn-sm edit-item-btn" data-id="${item.id}" title="Edit Barang">
+                                <button class="btn btn-warning btn-sm edit-item-btn" data-id="${item.id}" title="Edit Barang" data-bs-toggle="modal" data-bs-target="#itemModal">
                                     <i class="bi bi-pencil-fill"></i>
                                 </button>
                                 <button class="btn btn-danger btn-sm delete-item-btn" data-id="${item.id}" data-nama="${item.nama_barang}" title="Hapus Barang">
@@ -6282,11 +6406,11 @@ async function loadItemsList(page = 1) {
                 tableBody.insertAdjacentHTML('beforeend', row);
             });
         } else {
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Tidak ada barang ditemukan.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Tidak ada barang ditemukan.</td></tr>';
         }
         renderPagination(paginationContainer, result.pagination, loadItemsList);
     } catch (error) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
     }
 }
 
@@ -6301,9 +6425,50 @@ async function loadAccountsForItemModal() {
 
         document.getElementById('inventory_account_id').innerHTML = createOptions(aset);
         document.getElementById('cogs_account_id').innerHTML = createOptions(beban);
-        document.getElementById('revenue_account_id').innerHTML = createOptions(pendapatan);
+        document.getElementById('sales_account_id').innerHTML = createOptions(pendapatan);
     } catch (error) {
         showToast(`Gagal memuat daftar akun: ${error.message}`, 'error');
+    }
+}
+
+async function loadCategoriesForItemModal() {
+    const categorySelect = document.getElementById('category_id');
+    if (!categorySelect) return;
+
+    try {
+        const response = await fetch(`${basePath}/api/stok?action=get_categories`);
+        const result = await response.json();
+        if (result.status === 'success') {
+            categorySelect.innerHTML = '<option value="">-- Pilih Kategori (Opsional) --</option>';
+            result.data.forEach(cat => {
+                categorySelect.innerHTML += `<option value="${cat.id}">${cat.nama_kategori}</option>`;
+            });
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        console.error('Gagal memuat kategori untuk modal:', error);
+        categorySelect.innerHTML = '<option value="">Gagal memuat kategori</option>';
+    }
+}
+
+async function loadCategoriesForFilter() {
+    const categoryFilterSelect = document.getElementById('filter-category');
+    if (!categoryFilterSelect) return;
+
+    try {
+        const response = await fetch(`${basePath}/api/stok?action=get_categories`);
+        const result = await response.json();
+        if (result.status === 'success') {
+            categoryFilterSelect.innerHTML = '<option value="">Semua Kategori</option>';
+            result.data.forEach(cat => {
+                categoryFilterSelect.innerHTML += `<option value="${cat.id}">${cat.nama_kategori}</option>`;
+            });
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        console.error('Gagal memuat kategori untuk filter:', error);
     }
 }
 
@@ -6352,9 +6517,10 @@ async function handleEditItem(id) {
             if (el) el.value = item[key];
         });
         document.getElementById('item-id').value = item.id;
+        document.getElementById('item-action').value = 'update'; // Explicitly set action to 'update' for edit mode
         document.getElementById('stok').disabled = true;
-        document.getElementById('stok').parentElement.querySelector('.form-text').textContent = 'Stok tidak dapat diubah dari sini. Gunakan fitur "Penyesuaian Stok".';
-        new bootstrap.Modal(document.getElementById('itemModal')).show();
+        document.getElementById('stok').parentElement.querySelector('.form-text').textContent = 'Stok tidak dapat diubah dari sini. Gunakan fitur "Penyesuaian Stok" atau "Stok Opname".';
+        // Modal sudah dipicu oleh tombol, tidak perlu memanggil .show() lagi di sini.
     } else {
         showToast(`Gagal memuat data barang: ${result.message}`, 'error');
     }
@@ -6408,6 +6574,20 @@ async function uploadExcel() {
         uploadBtn.innerHTML = originalBtnHtml;
     }
 }
+
+function formatDate(dateString) {
+    return new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+/**
+ * Formats a number with thousand separators.
+ * @param {number} value The number to format.
+ * @returns {string} The formatted number string.
+ */
+function formatNumber(value) {
+    if (typeof value !== 'number') return value;
+    return new Intl.NumberFormat('id-ID').format(value);
+}   
 
 function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });

@@ -10,28 +10,30 @@ if (!function_exists('create_journal_entry')) {
      *
      * @param string $tanggal Tanggal jurnal dalam format YYYY-MM-DD.
      * @param string $keterangan Deskripsi atau narasi untuk entri jurnal.
-     * @param int $user_id ID pengguna yang melakukan aksi.
+     * @param int $data_owner_user_id ID pengguna pemilik data (biasanya 1 untuk data bersama).
+     * @param int $created_by_user_id ID pengguna yang login dan melakukan aksi.
      * @return int ID dari jurnal yang baru saja dibuat.
      * @throws Exception Jika query database gagal.
      */
-    function create_journal_entry(string $tanggal, string $keterangan, int $user_id): int
+    function create_journal_entry(string $tanggal, string $keterangan, int $data_owner_user_id, int $created_by_user_id): int
     {
         $conn = Database::getInstance()->getConnection();
-        $stmt = $conn->prepare("INSERT INTO jurnal_entries (tanggal, keterangan, user_id) VALUES (?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO jurnal_entries (tanggal, keterangan, user_id, created_by) VALUES (?, ?, ?, ?)");
         if (!$stmt) {
             throw new Exception("Gagal mempersiapkan statement untuk membuat jurnal: " . $conn->error);
-        }
-        $stmt->bind_param("ssi", $tanggal, $keterangan, $user_id);
+        } 
+        $stmt->bind_param("ssii", $tanggal, $keterangan, $data_owner_user_id, $created_by_user_id);
         if (!$stmt->execute()) {
+            // Jika eksekusi gagal, langsung lempar error dari database.
             throw new Exception("Gagal mengeksekusi statement untuk membuat jurnal: " . $stmt->error);
         }
-        $journal_id = $stmt->insert_id;
-        $stmt->close();
-
-        if ($journal_id == 0) {
+        $journal_id = $stmt->insert_id; // Get the ID
+        if ($journal_id === 0) {
+            // Kasus ini seharusnya tidak terjadi jika execute() gagal, tapi sebagai pengaman.
+            // Ini bisa terjadi jika tabel tidak memiliki AUTO_INCREMENT atau INSERT berhasil tapi tidak ada baris baru.
             throw new Exception("Gagal mendapatkan ID untuk jurnal yang baru dibuat.");
         }
-
+        $stmt->close();
         return $journal_id;
     }
 }
@@ -110,25 +112,25 @@ if (!function_exists('get_setting')) {
     /**
      * Mengambil nilai dari sebuah pengaturan dari tabel 'settings'.
      *
-     * @param string $setting_name Nama pengaturan yang ingin diambil.
-     * @param mixed $default_value Nilai default yang dikembalikan jika pengaturan tidak ditemukan.
+     * @param string $key Nama pengaturan yang ingin diambil.
+     * @param mixed $default Nilai default yang dikembalikan jika pengaturan tidak ditemukan.
+     * @param mysqli|null $conn Optional database connection.
      * @return mixed Nilai dari pengaturan atau nilai default.
      */
-    function get_setting(string $setting_name, $default_value = null)
+    function get_setting(string $key, $default = null, $conn = null)
     {
-        // Asumsi user_id disimpan di session untuk pengaturan per-user
-        if (!isset($_SESSION['user_id'])) {
-            return $default_value;
+        static $settings = null;
+
+        if ($settings === null) {
+            if ($conn === null) {
+                $conn = Database::getInstance()->getConnection();
+            }
+            $result = $conn->query("SELECT setting_key, setting_value FROM settings");
+            $settings = [];
+            while ($row = $result->fetch_assoc()) {
+                $settings[$row['setting_key']] = $row['setting_value'];
+            }
         }
-        $user_id = $_SESSION['user_id'];
-
-        $conn = Database::getInstance()->getConnection();
-        $stmt = $conn->prepare("SELECT setting_value FROM settings WHERE setting_name = ? AND user_id = ?");
-        $stmt->bind_param("si", $setting_name, $user_id);
-        $stmt->execute();
-        $result = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-
-        return $result['setting_value'] ?? $default_value;
+        return $settings[$key] ?? $default;
     }
 }

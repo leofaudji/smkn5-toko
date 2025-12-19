@@ -137,6 +137,11 @@ if (!$is_spa_request) {
                         <option value="cash">Tunai/Langsung</option>
                     </select>
                 </div>
+                <div class="col-md-6 mb-3" id="kas-account-container" style="display: none;">
+                    <label for="kas_account_id" class="form-label">Akun Kas/Bank Pembayaran</label>
+                    <select class="form-select" id="kas_account_id" name="kas_account_id">
+                    </select>
+                </div>
             </div>
         </form>
       </div>

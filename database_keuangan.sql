@@ -479,6 +479,21 @@ CREATE TABLE `items` (
 ALTER TABLE `items`
   ADD CONSTRAINT `items_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
+-- Tabel baru untuk kategori barang
+CREATE TABLE `item_categories` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `nama_kategori` varchar(100) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_kategori` (`user_id`, `nama_kategori`),
+  FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE `items` ADD `category_id` INT(11) NULL DEFAULT NULL AFTER `sku`;
+ALTER TABLE `items` ADD CONSTRAINT `items_fk_category` FOREIGN KEY (`category_id`) REFERENCES `item_categories` (`id`) ON DELETE SET NULL;
+
 -- Hapus foreign key lama yang merujuk ke accounts
 ALTER TABLE `pembelian_details` DROP FOREIGN KEY `pembelian_details_ibfk_2`;
 
@@ -514,3 +529,86 @@ CREATE TABLE `stock_adjustments` (
 
 ALTER TABLE general_ledger
 ADD UNIQUE INDEX `idx_user_account_date` (`user_id`, `account_id`, `tanggal`);
+
+-- Memperbaiki tabel entri jurnal (jika belum)
+ALTER TABLE `jurnal_entries` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+-- Memperbaiki tabel detail jurnal
+ALTER TABLE `jurnal_details` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+-- Memperbaiki tabel barang (items)
+ALTER TABLE `items` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+-- Memperbaiki tabel riwayat penyesuaian stok
+ALTER TABLE `stock_adjustments` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+-- Memperbaiki tabel buku besar (general ledger)
+ALTER TABLE `general_ledger` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+-- Pastikan kolom 'id' di tabel 'pembelian' adalah PRIMARY KEY dan AUTO_INCREMENT
+ALTER TABLE `pembelian` MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;
+
+-- Pastikan kolom 'id' di tabel 'pembelian_details' adalah PRIMARY KEY dan AUTO_INCREMENT
+ALTER TABLE `pembelian_details` MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;
+
+-- =================================================================
+-- Tabel 1: penjualan (Header Transaksi Penjualan)
+-- Menyeragamkan penamaan kolom dengan tabel `pembelian`.
+-- =================================================================
+CREATE TABLE `penjualan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL COMMENT 'FK ke tabel users, pemilik data',
+  `customer_id` int(11) DEFAULT NULL COMMENT 'FK ke tabel customers (opsional)',
+  `nomor_referensi` varchar(50) NOT NULL COMMENT 'Nomor unik untuk penjualan, misal: INV/20240101/0001',
+  `tanggal_penjualan` datetime NOT NULL COMMENT 'Tanggal dan waktu terjadinya penjualan',
+  `subtotal` decimal(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Total sebelum diskon',
+  `discount` decimal(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Total diskon keseluruhan',
+  `total` decimal(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Total nilai penjualan',
+  `bayar` decimal(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Jumlah uang yang dibayarkan customer',
+  `kembali` decimal(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Jumlah uang kembalian',
+  `keterangan` text DEFAULT NULL COMMENT 'Catatan atau deskripsi umum penjualan',
+  `status` enum('completed','void') NOT NULL DEFAULT 'completed' COMMENT 'Status transaksi: completed, void (dibatalkan)',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL COMMENT 'FK ke tabel users, siapa yang membuat',
+  `updated_by` int(11) DEFAULT NULL COMMENT 'FK ke tabel users, siapa yang mengubah',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `nomor_referensi_user` (`user_id`, `nomor_referensi`),
+  KEY `user_id` (`user_id`),
+  KEY `customer_id` (`customer_id`),
+  KEY `created_by` (`created_by`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- =================================================================
+-- Tabel 2: penjualan_details (Detail Item Penjualan)
+-- Menyeragamkan penamaan kolom dengan tabel `pembelian_details`.
+-- =================================================================
+CREATE TABLE `penjualan_details` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `penjualan_id` int(11) NOT NULL COMMENT 'FK ke tabel penjualan',
+  `item_id` int(11) NOT NULL COMMENT 'FK ke tabel items',
+  `deskripsi_item` varchar(255) NOT NULL COMMENT 'Nama/deskripsi item saat transaksi',
+  `quantity` int(11) NOT NULL COMMENT 'Jumlah item yang dijual',
+  `price` decimal(15,2) NOT NULL COMMENT 'Harga jual satuan saat transaksi',
+  `discount` decimal(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Diskon per item',
+  `subtotal` decimal(15,2) NOT NULL COMMENT 'Subtotal (quantity * price)',
+  PRIMARY KEY (`id`),
+  KEY `penjualan_id` (`penjualan_id`),
+  KEY `item_id` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- =================================================================
+-- Menambahkan Foreign Key Constraints
+-- =================================================================
+ALTER TABLE `penjualan`
+  ADD CONSTRAINT `penjualan_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  -- Asumsi ada tabel `customers`, jika tidak ada, baris ini bisa di-skip
+  -- ADD CONSTRAINT `penjualan_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `penjualan_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `penjualan_ibfk_4` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+ALTER TABLE `penjualan_details`
+  ADD CONSTRAINT `penjualan_details_ibfk_1` FOREIGN KEY (`penjualan_id`) REFERENCES `penjualan` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `penjualan_details_ibfk_2` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`) ON DELETE RESTRICT;
+
+ALTER TABLE `penjualan` ADD `customer_name` VARCHAR(255) NULL DEFAULT 'Umum' AFTER `tanggal_penjualan`;

@@ -21,10 +21,16 @@ if (!$is_spa_request) {
 <div class="card mb-3">
     <div class="card-body">
         <div class="row g-2">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <input type="text" id="search-item" class="form-control" placeholder="Cari nama barang atau SKU...">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <select id="filter-category" class="form-select">
+                    <option value="">Semua Kategori</option>
+                    <!-- Opsi kategori dimuat oleh JS -->
+                </select>
+            </div>
+            <div class="col-md-3">
                 <select id="filter-stok" class="form-select">
                     <option value="">Semua Stok</option>
                     <option value="ready">Stok Tersedia</option>
@@ -32,7 +38,7 @@ if (!$is_spa_request) {
                 </select>
             </div>
             <div class="col-md-2">
-                <select id="filter-limit" class="form-select">
+                <select id="filter-limit" class="form-select" title="Item per halaman">
                     <option value="15">15</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
@@ -50,6 +56,7 @@ if (!$is_spa_request) {
                     <tr>
                         <th>Nama Barang</th>
                         <th>SKU</th>
+                        <th>Kategori</th>
                         <th class="text-end">Harga Beli</th>
                         <th class="text-end">Harga Jual</th>
                         <th class="text-end">Stok</th>
@@ -80,7 +87,7 @@ if (!$is_spa_request) {
       </div>
       <div class="modal-body">
         <form id="item-form" novalidate>
-            <input type="hidden" name="item-id" id="item-id">
+            <input type="hidden" name="item-id" id="item-id"> <!-- This name is now correct -->
             <input type="hidden" name="action" id="item-action" value="save">
             
             <div class="row">
@@ -91,6 +98,10 @@ if (!$is_spa_request) {
                 <div class="col-md-4 mb-3">
                     <label for="sku" class="form-label">SKU (Kode Barang)</label>
                     <input type="text" class="form-control" id="sku" name="sku">
+                </div>
+                <div class="col-md-12 mb-3">
+                    <label for="category_id" class="form-label">Kategori</label>
+                    <select class="form-select" id="category_id" name="category_id"></select>
                 </div>
             </div>
 
@@ -183,15 +194,17 @@ if (!$is_spa_request) {
       <div class="modal-body">
         <form id="import-form" enctype="multipart/form-data">
             <div class="alert alert-info small">
-                <p class="mb-1">Simpan file Excel Anda sebagai file <strong>CSV (Comma-separated values)</strong>. Pastikan urutan kolomnya sebagai berikut:</p>
+                <p class="mb-1">Simpan file Excel Anda sebagai file <strong>CSV (Comma-separated values)</strong>. Pastikan urutan kolomnya sebagai berikut (baris pertama/header akan dilewati):</p>
                 <ol class="mb-1">
-                    <li><strong>A: namabarang</strong> (Wajib)</li>
-                    <li><strong>B: kategori</strong> (Opsional, akan diabaikan)</li>
-                    <li><strong>C: stokawal</strong> (Wajib, angka bulat, cth: <code>100</code>)</li>
-                    <li><strong>D: beli</strong> (Wajib, harga beli/modal, angka desimal, cth: <code>150000.50</code>)</li>
-                    <li><strong>E: jual</strong> (Wajib, harga jual, angka desimal, cth: <code>200000.00</code>)</li>
+                    <li><strong>Kolom A: Nama Barang</strong> (Wajib)</li>
+                    <li><strong>Kolom B: ID Barang</strong> (Opsional. Isi untuk memperbarui barang yang ada, kosongkan untuk membuat barang baru)</li>
+                    <li><strong>Kolom C: Kategori</strong> (Opsional. Jika kategori belum ada, akan dibuat otomatis)</li>
+                    <li><strong>Kolom D: SKU</strong> (Opsional)</li>
+                    <li><strong>Kolom E: Harga Beli</strong> (Wajib, angka saja, cth: <code>15000.50</code>)</li>
+                    <li><strong>Kolom F: Harga Jual</strong> (Wajib, angka saja, cth: <code>20000.00</code>)</li>
+                    <li>... (kolom lain diabaikan) ...</li>
+                    <li><strong>Kolom J: Stok Fisik</strong> (Wajib, angka bulat, cth: <code>100</code>)</li>
                 </ol>
-                <p class="mb-0"><strong>Penting:</strong> Gunakan format angka standar (titik sebagai desimal, tanpa pemisah ribuan). Baris pertama (header) akan dilewati. Sistem akan memperbarui data jika `namabarang` sudah ada, atau membuat data baru jika belum ada.</p>
             </div>
             <div class="mb-3">
                 <label for="excel-file" class="form-label">Pilih File CSV (.csv)</label>

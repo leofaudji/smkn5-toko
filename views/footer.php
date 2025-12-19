@@ -71,7 +71,9 @@
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-<!-- Ganti main.js dengan rt_main.js untuk aplikasi RT -->
-<script src="<?= base_url('assets/js/main.js') ?>"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<?php $v=date("Ymd"); ?>
+<script src="<?= base_url('assets/js/main.js?v='.$v) ?>"></script>
 </body>
 </html> 

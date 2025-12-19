@@ -24,6 +24,9 @@ require_once PROJECT_ROOT . '/includes/ReportBuilders/KonsinyasiReportBuilder.ph
 require_once PROJECT_ROOT . '/includes/ReportBuilders/TrialBalanceReportBuilder.php'; // Tambahkan ini
 require_once PROJECT_ROOT . '/includes/ReportBuilders/KonsinyasiSisaUtangReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/AsetTetapReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukPenjualanReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPenjualanItemReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPenjualanReportBuilder.php';
 
 $conn = Database::getInstance()->getConnection();
 
@@ -58,7 +61,10 @@ $builder_map = [
     'laporan-laba-ditahan' => LaporanLabaDitahanReportBuilder::class,
     'anggaran' => AnggaranReportBuilder::class,
     'laporan-pertumbuhan-laba' => PertumbuhanLabaReportBuilder::class,
+    'struk-penjualan' => StrukPenjualanReportBuilder::class,
     'analisis-rasio' => AnalisisRasioReportBuilder::class,
+    'laporan-penjualan-item' => LaporanPenjualanItemReportBuilder::class,
+    'laporan-penjualan' => LaporanPenjualanReportBuilder::class,
     'buku-panduan' => BukuPanduanReportBuilder::class,
     'rekonsiliasi' => RekonsiliasiReportBuilder::class,
     'konsinyasi' => KonsinyasiReportBuilder::class,

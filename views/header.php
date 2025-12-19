@@ -22,15 +22,112 @@ $log_cleanup_days = (int)($app_settings['log_cleanup_interval_days'] ?? 180);
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= base_url('assets/css/style.css') ?>">
+    <?php $v=date("Ymd"); ?>
+    <link rel="stylesheet" href="<?= base_url('assets/css/style.css?v='.$v) ?>">
     <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
         /* Membuat semua header tabel menjadi uppercase dan sedikit lebih gelap */
         .table thead th {
-            text-transform: uppercase;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
             background-color: #e9ecef !important; /* Warna abu-abu terang */
             /* !important digunakan untuk memastikan gaya ini menimpa gaya default dari sb-admin-2.css */
         }
+        /* CSS untuk menu collapsible */
+        .sidebar-nav .nav-link[data-bs-toggle="collapse"]::after {
+            content: '\f282'; /* Bootstrap Icon chevron-down */
+            font-family: 'bootstrap-icons';
+            font-weight: bold;
+            display: inline-block;
+            margin-left: auto;
+            transition: transform 0.2s ease-in-out;
+        }
+        .sidebar-nav .nav-link[data-bs-toggle="collapse"]:not(.collapsed)::after {
+            transform: rotate(-180deg);
+        }
+        .nav-submenu {
+            position: relative; /* Diperlukan untuk pseudo-element */
+            list-style: none; /* Menghilangkan bullet points */
+            padding: 0;
+            margin: 0;
+            background-color: #ffffff; /* Latar belakang submenu diubah menjadi putih */
+        }
+        .nav-submenu .nav-item {
+            position: relative; /* Diperlukan untuk memposisikan garis horizontal */
+        }
+        .nav-submenu .nav-link {
+            padding: 0.5rem 1rem 0.5rem 3.5rem; /* Indentasi teks submenu */
+            font-size: 0.9rem; /* Ukuran font lebih kecil untuk submenu */
+            border-left: 3px solid transparent; /* Garis penanda aktif di kiri */
+        }
+        /* Format Baru: Garis hierarki yang rapi dan modern */
+        .nav-submenu .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 1.6rem; /* Posisi garis vertikal, sejajar dengan ikon induk */
+            top: 0;
+            height: 50%; /* Tinggi garis vertikal (setengah dari item) */
+            width: 1.2rem; /* Panjang garis horizontal */
+            border-left: 1px solid #dee2e6; /* Garis vertikal */
+            border-bottom: 1px solid #dee2e6; /* Garis horizontal */
+        }
+        .nav-submenu .nav-link:hover {
+            background-color: #e9ecef; /* Warna hover yang sama dengan menu utama */
+        }
+
+        /* Gaya untuk link submenu yang aktif */
+        .nav-submenu .nav-link.active {
+            color: var(--bs-primary);
+            font-weight: bold;
+            border-left-color: var(--bs-primary); /* Menandai link aktif dengan warna tema */
+        }
+        /* Gaya untuk menu induk yang aktif karena anaknya aktif */
+        .sidebar .sidebar-nav .nav-link.active[data-bs-toggle="collapse"] {
+            background-color: transparent; /* Hapus warna latar primer */
+            color: #595d62ff; /* Kembalikan warna teks ke default */
+            font-weight: 600; /* Beri sedikit penebalan untuk menandakan aktif */
+        }
+        .sidebar .sidebar-nav .nav-link.active[data-bs-toggle="collapse"] i {
+            color: var(--bs-primary); /* Ubah warna ikon menjadi warna primer sebagai penanda */
+        }
+
+        /* TEMA BARU UNTUK SIDEBAR */
+        .sidebar {
+            background-color: #f8f9fa; /* Warna terang untuk sidebar */
+            border-right: 1px solid #dee2e6;
+            color: #212529;
+        }
+        .sidebar .navbar-brand span {
+            color: #212529; /* Warna teks brand */
+        }
+        .sidebar .sidebar-header {
+            color: #6c757d; /* Warna header grup menu */
+            font-weight: 700;
+        }
+        .sidebar .sidebar-nav .nav-link {
+            color: #343a40; /* Warna teks link */
+            display: flex;
+            align-items: center;
+        }
+        .sidebar .sidebar-nav .nav-link i {
+            color: #495057; /* Warna ikon */
+        }
+        .sidebar .sidebar-nav .nav-link:hover {
+            background-color: #e9ecef; /* Warna latar saat hover */
+            color: #000;
+        }
+        .sidebar .sidebar-nav .nav-link.active {
+            background-color: var(--bs-primary); /* Menggunakan warna tema utama */
+            color: #fff;
+            font-weight: 500;
+        }
+        .sidebar .sidebar-nav .nav-link.active i {
+            color: #fff;
+        }
+        /* Pastikan area collapse tidak memiliki padding/margin yang mengganggu */
+        .sidebar .collapse { margin: 0; padding: 0; }
+
     </style>
     <!-- Favicon  -->
     <link rel="icon" href="assets/favicon.png" />
@@ -77,94 +174,104 @@ $log_cleanup_days = (int)($app_settings['log_cleanup_interval_days'] ?? 180);
             <a class="nav-link" href="<?= base_url('/buku-panduan') ?>"><i class="bi bi-question-circle-fill"></i> Buku Panduan</a>
         </li>
 
-        <!-- Stok & Inventaris -->
-        <li class="sidebar-header">Stok & Inventaris</li>
+        <!-- Grup Menu Transaksi Utama -->
+        <li class="sidebar-header">Aktivitas Utama</li>
         <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/transaksi') ?>"><i class="bi bi-arrow-down-up"></i> Transaksi</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/pembelian') ?>"><i class="bi bi-cart-fill"></i> Pembelian</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/stok') ?>"><i class="bi bi-boxes"></i> Barang & Stok</a>
-        </li>
-        <li class="nav-item <?php echo strpos($_SERVER['PHP_SELF'], 'stok-opname.php') !== false ? 'active' : '' ?>">
-            <a class="nav-link" href="<?= base_url('/stok-opname') ?>">
-                <i class="bi bi-clipboard"></i>
-                <span>Stok Opname</span></a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/laporan-stok') ?>"><i class="bi bi-clipboard-data"></i> Laporan Stok</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/laporan-kartu-stok') ?>"><i class="bi bi-card-list"></i> Kartu Stok</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/laporan-persediaan') ?>"><i class="bi bi-file-earmark-bar-graph"></i> Nilai Persediaan</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/laporan-pertumbuhan-persediaan') ?>"><i class="bi bi-graph-up-arrow"></i> Pertumbuhan Persediaan</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/aset-tetap') ?>">
-                <i class="bi bi-building"></i> Aset Tetap
+            <a class="nav-link collapsed" data-bs-toggle="collapse" href="#transaksi-menu" role="button" aria-expanded="false" aria-controls="transaksi-menu">
+                <i class="bi bi-pencil-square"></i> Transaksi
             </a>
+            <div class="collapse" id="transaksi-menu">
+                <ul class="nav-submenu"> 
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/penjualan') ?>">Penjualan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/pembelian') ?>">Pembelian</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/transaksi') ?>">Transaksi Kas</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/entri-jurnal') ?>">Entri Jurnal</a></li>
+                </ul>
+            </div>
         </li>
 
-        <!-- Akuntansi -->
-        <li class="sidebar-header">Akuntansi</li>
+        <!-- Grup Menu Akuntansi -->
         <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/entri-jurnal') ?>"><i class="bi bi-journal-plus"></i> Entri Jurnal</a>
+            <a class="nav-link collapsed" data-bs-toggle="collapse" href="#akuntansi-menu" role="button" aria-expanded="false" aria-controls="akuntansi-menu">
+                <i class="bi bi-calculator"></i> Akuntansi
+            </a>
+            <div class="collapse" id="akuntansi-menu">
+                <ul class="nav-submenu">
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/coa') ?>">Bagan Akun (COA)</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/saldo-awal-neraca') ?>">Saldo Awal Neraca</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/saldo-awal-lr') ?>">Saldo Awal L/R</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/anggaran') ?>">Anggaran</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/daftar-jurnal') ?>">Daftar Jurnal</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/buku-besar') ?>">Buku Besar</a></li>
+                </ul>
+            </div>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/coa') ?>"><i class="bi bi-journal-bookmark-fill"></i> Bagan Akun (COA)</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/buku-besar') ?>"><i class="bi bi-book"></i> Buku Besar</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/daftar-jurnal') ?>"><i class="bi bi-list-ol"></i> Daftar Jurnal</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/saldo-awal-neraca') ?>"><i class="bi bi-journal-check"></i> Saldo Awal Neraca</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/saldo-awal-lr') ?>"><i class="bi bi-graph-up-arrow"></i> Saldo Awal L/R</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/anggaran') ?>"><i class="bi bi-bullseye"></i> Anggaran</a>
-        </li>
-        <li class="sidebar-header">Laporan Akuntasi</li>
-        <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan') ?>"><i class="bi bi-file-earmark-text"></i> Laporan Keuangan</a></li>
-        <li class="nav-item"><a class="nav-link" href="<?= base_url('/neraca-saldo') ?>"><i class="bi bi-table"></i> Neraca Saldo</a></li>
-        <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-harian') ?>"><i class="bi bi-calendar-day"></i> Laporan Harian</a></li>
-        <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-laba-ditahan') ?>"><i class="bi bi-graph-up"></i> Perubahan Laba</a></li>
-        <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-pertumbuhan-laba') ?>"><i class="bi bi-bar-chart-line"></i> Pertumbuhan Laba</a></li>
-        <li class="nav-item"><a class="nav-link" href="<?= base_url('/analisis-rasio') ?>"><i class="bi bi-pie-chart"></i> Analisis Rasio</a></li>
 
-        <!-- Alat & Proses -->
-        <li class="sidebar-header">Alat & Proses</li>
+        <!-- Grup Menu Stok & Inventaris -->
         <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/transaksi-berulang') ?>"><i class="bi bi-arrow-repeat"></i> Transaksi Berulang</a>
+            <a class="nav-link collapsed" data-bs-toggle="collapse" href="#stok-menu" role="button" aria-expanded="false" aria-controls="stok-menu">
+                <i class="bi bi-box-seam"></i> Stok & Inventaris
+            </a>
+            <div class="collapse" id="stok-menu">
+                <ul class="nav-submenu">
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/stok') ?>">Barang & Stok</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/stok-opname') ?>">Stok Opname</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-stok') ?>">Laporan Stok</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-kartu-stok') ?>">Kartu Stok</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-persediaan') ?>">Nilai Persediaan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-pertumbuhan-persediaan') ?>">Pertumbuhan Persediaan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/aset-tetap') ?>">Aset Tetap</a></li>
+                </ul>
+            </div>
         </li>
+
+        <!-- Grup Menu Laporan -->
         <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/rekonsiliasi-bank') ?>"><i class="bi bi-bank2"></i> Rekonsiliasi Bank</a>
+            <a class="nav-link collapsed" data-bs-toggle="collapse" href="#laporan-menu" role="button" aria-expanded="false" aria-controls="laporan-menu">
+                <i class="bi bi-bar-chart-line-fill"></i> Laporan
+            </a>
+            <div class="collapse" id="laporan-menu">
+                <ul class="nav-submenu">
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-harian') ?>">Laporan Harian</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-penjualan-item') ?>">Laporan Penjualan per Item</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-penjualan') ?>">Laporan Penjualan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan') ?>">Laporan Keuangan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/neraca-saldo') ?>">Neraca Saldo</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-laba-ditahan') ?>">Perubahan Laba</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/laporan-pertumbuhan-laba') ?>">Pertumbuhan Laba</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/analisis-rasio') ?>">Analisis Rasio</a></li>
+                </ul>
+            </div>
+        </li>
+
+        <!-- Grup Menu Alat & Proses -->
+        <li class="nav-item">
+            <a class="nav-link collapsed" data-bs-toggle="collapse" href="#tools-menu" role="button" aria-expanded="false" aria-controls="tools-menu">
+                <i class="bi bi-tools"></i> Alat & Proses
+            </a>
+            <div class="collapse" id="tools-menu">
+                <ul class="nav-submenu">
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/transaksi-berulang') ?>">Transaksi Berulang</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?= base_url('/rekonsiliasi-bank') ?>">Rekonsiliasi Bank</a></li>
+                </ul>
+            </div>
         </li>
 
         <!-- Menu Khusus Admin -->
         <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/activity-log') ?>"><i class="bi bi-list-check"></i> Log Aktivitas</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/tutup-buku') ?>"><i class="bi bi-archive-fill"></i> Tutup Buku</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/users') ?>"><i class="bi bi-people-fill"></i> Users </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= base_url('/settings') ?>"><i class="bi bi-gear-fill"></i> Pengaturan</a>
-        </li>
+            <li class="sidebar-header">Administrasi</li>
+            <li class="nav-item">
+                <a class="nav-link" href="<?= base_url('/users') ?>"><i class="bi bi-people-fill"></i> Users </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="<?= base_url('/activity-log') ?>"><i class="bi bi-list-check"></i> Log Aktivitas</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="<?= base_url('/tutup-buku') ?>"><i class="bi bi-archive-fill"></i> Tutup Buku</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="<?= base_url('/settings') ?>"><i class="bi bi-gear-fill"></i> Pengaturan</a>
+            </li>
         <?php endif; ?>
     </ul>
 </div>

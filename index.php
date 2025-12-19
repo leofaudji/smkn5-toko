@@ -50,7 +50,8 @@ $router->get('/my-profile/change-password', 'pages/my_profile.php', ['auth']);
 
 // --- Rute Utama Aplikasi Keuangan ---
 $router->get('/transaksi', 'pages/transaksi.php', ['auth']);
-$router->get('/pembelian', 'pages/pembelian.php', ['auth', 'log_access']);
+$router->get('/pembelian', 'pages/pembelian.php', ['auth']);
+$router->get('/penjualan', 'pages/penjualan.php', ['auth']); // Rute baru untuk halaman penjualan
 $router->get('/stok', 'pages/stok.php', ['auth']);
 $router->get('/stok-opname', 'pages/stok_opname.php', ['auth']);
 $router->get('/daftar-jurnal', 'pages/daftar_jurnal.php', ['auth']);
@@ -65,6 +66,8 @@ $router->get('/saldo-awal-neraca', 'pages/saldo_awal_neraca.php', ['auth']);
 $router->get('/saldo-awal-lr', 'pages/saldo_awal_lr.php', ['auth']);
 $router->get('/laporan', 'pages/laporan.php', ['auth']); 
 $router->get('/laporan-stok', 'pages/laporan_stok.php', ['auth']);
+$router->get('/laporan-penjualan', 'pages/laporan_penjualan.php', ['auth']);
+$router->get('/laporan-penjualan-item', 'pages/laporan_penjualan_item.php', ['auth']);
 $router->get('/laporan-kartu-stok', 'pages/laporan_kartu_stok.php', ['auth']);
 $router->get('/laporan-persediaan', 'pages/laporan_persediaan.php', ['auth']);
 $router->get('/laporan-pertumbuhan-persediaan', 'pages/laporan_pertumbuhan_persediaan.php', ['auth']);
@@ -91,6 +94,12 @@ $router->post('/api/transaksi', 'api/transaksi_handler.php', ['auth']);
 // API untuk Pembelian
 $router->get('/api/pembelian', 'api/pembelian_handler.php', ['auth']);
 $router->post('/api/pembelian', 'api/pembelian_handler.php', ['auth']);
+
+$router->get('/api/laporan-penjualan', 'api/laporan_penjualan_handler.php', ['auth']);
+$router->get('/api/laporan-penjualan-item', 'api/laporan_penjualan_item_handler.php', ['auth']);
+// API untuk Penjualan
+$router->get('/api/penjualan', 'api/penjualan_handler.php', ['auth']);
+$router->post('/api/penjualan', 'api/penjualan_handler.php', ['auth']);
 
 // API untuk Barang & Stok
 $router->get('/api/stok', 'api/stok_handler.php', ['auth']);

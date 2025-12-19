@@ -91,13 +91,35 @@ try {
             exit;
         }
 
-        if ($action === 'get_equity_accounts') {
-            $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun FROM accounts WHERE user_id = ? AND tipe_akun = 'Ekuitas' ORDER BY kode_akun ASC");
+        if ($action === 'get_accounts_for_accounting') {
+            $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $equity_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $all_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             $stmt->close();
-            echo json_encode(['status' => 'success', 'data' => $equity_accounts]);
+
+            $accounts = [
+                'equity' => [],
+                'cash' => [],
+                'revenue' => [],
+                'cogs' => [],
+                'inventory' => []
+            ];
+
+            foreach ($all_accounts as $acc) {
+                if ($acc['tipe_akun'] === 'Ekuitas') {
+                    $accounts['equity'][] = $acc;
+                } else if ($acc['is_kas'] == 1) {
+                    $accounts['cash'][] = $acc;
+                } else if ($acc['tipe_akun'] === 'Pendapatan') {
+                    $accounts['revenue'][] = $acc;
+                } else if ($acc['tipe_akun'] === 'Beban') {
+                    $accounts['cogs'][] = $acc;
+                } else if ($acc['tipe_akun'] === 'Aset' && $acc['is_kas'] == 0) { // Akun persediaan adalah Aset non-kas
+                    $accounts['inventory'][] = $acc;
+                }
+            }
+            echo json_encode(['status' => 'success', 'data' => $accounts]);
             exit;
         }
 
