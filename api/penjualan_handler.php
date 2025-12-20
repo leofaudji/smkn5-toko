@@ -96,14 +96,25 @@ function store_penjualan($db) {
     $db->begin_transaction();
 
     try {
-        // 1. Generate Nomor Faktur
-        $date = date('Ymd');
-        $stmt_count = $db->prepare("SELECT COUNT(id) as total FROM penjualan WHERE DATE(tanggal_penjualan) = CURDATE()");
-        $stmt_count->execute();
-        $count = $stmt_count->get_result()->fetch_assoc()['total'];
-        $stmt_count->close();
-        $sequence = str_pad($count + 1, 4, '0', STR_PAD_LEFT);
-        $nomor_referensi = "INV/{$date}/{$sequence}";
+        // 1. Generate Nomor Faktur (lebih robust untuk mencegah duplikat)
+        $tanggal_transaksi = $data['tanggal'];
+        $date_for_prefix = date('Ymd', strtotime($tanggal_transaksi));
+        $prefix = "INV/{$date_for_prefix}/";
+
+        // Cari nomor referensi terakhir untuk hari transaksi untuk menentukan urutan berikutnya
+        $stmt_last_ref = $db->prepare("SELECT nomor_referensi FROM penjualan WHERE nomor_referensi LIKE ? ORDER BY nomor_referensi DESC LIMIT 1");
+        $like_prefix = $prefix . '%';
+        $stmt_last_ref->bind_param('s', $like_prefix);
+        $stmt_last_ref->execute();
+        $last_ref_result = $stmt_last_ref->get_result()->fetch_assoc();
+        $stmt_last_ref->close();
+
+        $sequence = 1;
+        if ($last_ref_result) {
+            $last_sequence = (int)substr($last_ref_result['nomor_referensi'], -4);
+            $sequence = $last_sequence + 1;
+        }
+        $nomor_referensi = $prefix . str_pad($sequence, 4, '0', STR_PAD_LEFT);
 
         // 2. Insert ke tabel 'penjualan'
         $tanggal = $data['tanggal'];
@@ -115,6 +126,14 @@ function store_penjualan($db) {
         $kembali = $data['kembali'];
         $keterangan = $data['catatan'] ?? null;
         $user_id = $_SESSION['user_id'];
+
+        // Tambahkan info metode pembayaran ke keterangan jika bukan tunai
+        // (Opsional: jika tabel penjualan punya kolom payment_method, simpan di sana)
+        $payment_method = $data['payment_method'] ?? 'cash';
+        $payment_account_id = $data['payment_account_id'] ?? null;
+        if ($payment_method !== 'cash') {
+            $keterangan = trim("[" . strtoupper($payment_method) . "] " . $keterangan);
+        }
 
         $stmt = $db->prepare(
             "INSERT INTO penjualan (user_id, nomor_referensi, tanggal_penjualan, customer_name, subtotal, discount, total, bayar, kembali, keterangan, created_by) 
@@ -131,7 +150,8 @@ function store_penjualan($db) {
              VALUES (?, ?, ?, ?, ?, ?, ?)"
         );
         $updateStokStmt = $db->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
-
+        $kartuStokStmt = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, 'Keluar', ?, ?, ?, 'penjualan', ?)");
+ 
         foreach ($data['items'] as $item) {
             // Cek stok sebelum mengurangi
             $stokCheckStmt = $db->prepare("SELECT stok FROM items WHERE id = ? FOR UPDATE");
@@ -143,24 +163,37 @@ function store_penjualan($db) {
             if ($currentStok < $item['qty']) {
                 throw new Exception("Stok untuk barang '{$item['nama']}' tidak mencukupi.");
             }
-
+ 
             $detailStmt->bind_param('iisidid', $penjualanId, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal']);
             $detailStmt->execute();
 
             $updateStokStmt->bind_param('iii', $item['qty'], $item['id'], $user_id);
             $updateStokStmt->execute();
+
+            // Catat ke Kartu Stok (Barang Keluar)
+            $ksKeterangan = "Penjualan #{$nomor_referensi}";
+            $kartuStokStmt->bind_param('siisii', $tanggal, $item['id'], $item['qty'], $ksKeterangan, $penjualanId, $user_id);
+            $kartuStokStmt->execute();
         }
         $detailStmt->close();
         $updateStokStmt->close();
+        $kartuStokStmt->close();
 
         // 4. Log aktivitas
         $keterangan_log = "Membuat transaksi penjualan baru #{$nomor_referensi} dengan total " . number_format($total);
         log_activity($_SESSION['username'], 'Buat Penjualan', $keterangan_log);
 
         // 5. Integrasi Akuntansi ke General Ledger
-        $default_cash_acc = get_setting('default_sales_cash_account_id', null, $db);
-        if (!$default_cash_acc) {
-            throw new Exception("Akun Kas/Bank default untuk penjualan belum diatur di Pengaturan > Akuntansi.");
+        // Tentukan akun debit (Kas/Bank)
+        $debit_acc_id = null;
+        if ($payment_method !== 'cash' && !empty($payment_account_id)) {
+            $debit_acc_id = $payment_account_id; // Gunakan akun pilihan user (Bank/QRIS)
+        } else {
+            $debit_acc_id = get_setting('default_sales_cash_account_id', null, $db); // Gunakan default tunai
+        }
+
+        if (!$debit_acc_id) {
+            throw new Exception("Akun penerimaan pembayaran (Kas/Bank) belum ditentukan.");
         }
 
         $stmt_gl = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?)");
@@ -169,8 +202,8 @@ function store_penjualan($db) {
         // Jurnal 1: (Dr) Kas, (Cr) Pendapatan Penjualan
         // Kita akan mengelompokkan pendapatan berdasarkan akun yang di-set di tiap barang
         $revenue_totals = [];
-        $cogs_total = 0;
-        $inventory_acc_id = null; // Asumsi semua item dari akun persediaan yang sama untuk simple COGS journal
+        $cogs_totals = [];
+        $inventory_totals = [];
 
         $item_details_stmt = $db->prepare("SELECT harga_beli, revenue_account_id, cogs_account_id, inventory_account_id FROM items WHERE id = ?");
         foreach ($data['items'] as $item) {
@@ -186,16 +219,21 @@ function store_penjualan($db) {
             if (!$revenue_acc || !$cogs_acc || !$inv_acc) {
                 throw new Exception("Akun default untuk Pendapatan/HPP/Persediaan belum diatur di Pengaturan > Akuntansi.");
             }
-            if (is_null($inventory_acc_id)) $inventory_acc_id = $inv_acc;
 
             if (!isset($revenue_totals[$revenue_acc])) $revenue_totals[$revenue_acc] = 0;
             $revenue_totals[$revenue_acc] += $item['subtotal'];
-            $cogs_total += $item['qty'] * (float)$item_acc_details['harga_beli'];
+            
+            $hpp_amount = $item['qty'] * (float)$item_acc_details['harga_beli'];
+            if (!isset($cogs_totals[$cogs_acc])) $cogs_totals[$cogs_acc] = 0;
+            $cogs_totals[$cogs_acc] += $hpp_amount;
+
+            if (!isset($inventory_totals[$inv_acc])) $inventory_totals[$inv_acc] = 0;
+            $inventory_totals[$inv_acc] += $hpp_amount;
         }
         $item_details_stmt->close();
 
         // (Dr) Kas
-        $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $default_cash_acc, $total, $zero, $penjualanId, $user_id);
+        $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $total, $zero, $penjualanId, $user_id);
         $stmt_gl->execute();
         // (Cr) Pendapatan (bisa lebih dari satu akun)
         foreach ($revenue_totals as $acc_id => $sub_total) {
@@ -205,8 +243,23 @@ function store_penjualan($db) {
 
         // Jurnal 2: (Dr) HPP, (Cr) Persediaan
         $hpp_keterangan = "HPP untuk {$nomor_referensi}";
-        $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $inventory_acc_id, $zero, $cogs_total, $penjualanId, $user_id);
-        $stmt_gl->execute();
+        
+        // (Dr) Beban Pokok Penjualan (HPP)
+        foreach ($cogs_totals as $acc_id => $amount) {
+            if ($amount > 0) {
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $acc_id, $amount, $zero, $penjualanId, $user_id);
+                $stmt_gl->execute();
+            }
+        }
+
+        // (Cr) Persediaan Barang
+        foreach ($inventory_totals as $acc_id => $amount) {
+            if ($amount > 0) {
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $acc_id, $zero, $amount, $penjualanId, $user_id);
+                $stmt_gl->execute();
+            }
+        }
+        
         $stmt_gl->close();
 
         $db->commit();
@@ -255,11 +308,19 @@ function void_penjualan($db) {
 
         // 3. Kembalikan stok barang
         $stmt_update_stok = $db->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
+        $stmt_ks_void = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, 'Masuk', ?, ?, ?, 'void_penjualan', ?)");
+
         foreach ($details as $item) {
             $stmt_update_stok->bind_param('iii', $item['quantity'], $item['item_id'], $user_id);
             $stmt_update_stok->execute();
+
+            // Catat ke Kartu Stok (Barang Masuk Kembali / Reversal)
+            $ksKeterangan = "Batal Penjualan #{$penjualan['nomor_referensi']}";
+            $stmt_ks_void->bind_param('iisii', $item['item_id'], $item['quantity'], $ksKeterangan, $id, $user_id);
+            $stmt_ks_void->execute();
         }
         $stmt_update_stok->close();
+        $stmt_ks_void->close();
 
         // 4. Buat Jurnal Pembalik (Reversal Entry) di General Ledger
         // Ambil data dari jurnal asli untuk dibalik

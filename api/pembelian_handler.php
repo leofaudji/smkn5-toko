@@ -262,6 +262,16 @@ try {
                 }
                 if ($action === 'add') {
                     $pembelian_id = $conn->insert_id;
+                    // Generate nomor referensi setelah mendapatkan ID
+                    $nomor_referensi = "PEM-" . $pembelian_id;
+                    $conn->query("UPDATE pembelian SET nomor_referensi = '{$nomor_referensi}' WHERE id = {$pembelian_id}");
+                } else { // update
+                    // Untuk update, ambil nomor referensi yang sudah ada
+                    $stmt_get_ref = $conn->prepare("SELECT nomor_referensi FROM pembelian WHERE id = ?");
+                    $stmt_get_ref->bind_param('i', $pembelian_id);
+                    $stmt_get_ref->execute();
+                    $nomor_referensi = $stmt_get_ref->get_result()->fetch_assoc()['nomor_referensi'];
+                    $stmt_get_ref->close();
                 }
                 $stmt_pembelian->close();
 
@@ -269,10 +279,13 @@ try {
                 $stmt_details = $conn->prepare(
                     "INSERT INTO pembelian_details (pembelian_id, item_id, quantity, price, subtotal, account_id) VALUES (?, ?, ?, ?, ?, ?)"
                 );
+                // Perbaiki statement GL untuk menyertakan nomor_referensi
                 $stmt_gl = $conn->prepare(
-                    "INSERT INTO general_ledger (user_id, tanggal, keterangan, account_id, debit, kredit, ref_id, ref_type, created_by) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, 'pembelian', ?)"
+                    "INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pembelian', ?)"
                 );
+                // Tambahkan statement untuk kartu stok
+                $stmt_kartu_stok = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, 'Masuk', ?, ?, ?, 'pembelian', ?)");
 
                 // Jurnal Sisi Debit (untuk setiap baris item)
                 $stmt_update_stock = $conn->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
@@ -292,19 +305,27 @@ try {
                     $stmt_update_stock->bind_param('iii', $quantity, $item_id, $user_id);
                     $stmt_update_stock->execute();
 
+                    // Catat ke Kartu Stok
+                    $ksKeterangan = "Pembelian #{$nomor_referensi}";
+                    $stmt_kartu_stok->bind_param('siisii', $tanggal_pembelian, $item_id, $quantity, $ksKeterangan, $pembelian_id, $user_id);
+                    $stmt_kartu_stok->execute();
+
                     // Insert ke GL (Debit)
                     $zero = 0.00;
-                    $stmt_gl->bind_param('issiddii', $user_id, $tanggal_pembelian, $keterangan, $inventory_account_id, $subtotal, $zero, $pembelian_id, $user_id);
+                    // Perbaiki bind_param untuk menyertakan nomor_referensi
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal_pembelian, $keterangan, $nomor_referensi, $inventory_account_id, $subtotal, $zero, $pembelian_id, $user_id);
                     $stmt_gl->execute();
                 }
 
                 // Jurnal Sisi Kredit (satu kali untuk total)
-                $stmt_gl->bind_param('issiddii', $user_id, $tanggal_pembelian, $keterangan, $credit_account_id, $zero, $total_pembelian, $pembelian_id, $user_id);
+                // Perbaiki bind_param untuk menyertakan nomor_referensi
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal_pembelian, $keterangan, $nomor_referensi, $credit_account_id, $zero, $total_pembelian, $pembelian_id, $user_id);
                 $stmt_gl->execute();
 
                 $stmt_details->close();
                 $stmt_update_stock->close();
                 $stmt_gl->close();
+                $stmt_kartu_stok->close();
 
                 // 7. Commit Transaksi
                 $conn->commit();
@@ -332,15 +353,29 @@ try {
                 $items_to_revert = $stmt_old_details->get_result()->fetch_all(MYSQLI_ASSOC);
                 $stmt_old_details->close();
 
+                // Ambil nomor referensi sebelum dihapus untuk log kartu stok
+                $stmt_get_ref = $conn->prepare("SELECT nomor_referensi FROM pembelian WHERE id = ?");
+                $stmt_get_ref->bind_param('i', $id);
+                $stmt_get_ref->execute();
+                $nomor_referensi_void = $stmt_get_ref->get_result()->fetch_assoc()['nomor_referensi'] ?? "PEM-{$id}";
+                $stmt_get_ref->close();
+
                 $conn->begin_transaction();
 
                 // Kembalikan stok
                 $stmt_revert_stock = $conn->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
+                $stmt_ks_void = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, 'Keluar', ?, ?, ?, 'void_pembelian', ?)");
                 foreach ($items_to_revert as $item) {
                     $stmt_revert_stock->bind_param('iii', $item['quantity'], $item['item_id'], $user_id);
                     $stmt_revert_stock->execute();
+
+                    // Catat ke Kartu Stok (Barang Keluar / Reversal)
+                    $ksKeterangan = "Batal Pembelian #{$nomor_referensi_void}";
+                    $stmt_ks_void->bind_param('iisii', $item['item_id'], $item['quantity'], $ksKeterangan, $id, $user_id);
+                    $stmt_ks_void->execute();
                 }
                 $stmt_revert_stock->close();
+                $stmt_ks_void->close();
 
                 // Hapus dari GL
                 $stmt_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'pembelian' AND user_id = ?");

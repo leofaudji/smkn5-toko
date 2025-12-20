@@ -140,13 +140,14 @@ try {
             $saldo_awal = 0;
             $stmt = $conn->prepare("
                 SELECT 
-                    (SELECT COALESCE(SUM(pd.quantity), 0) FROM pembelian_details pd JOIN pembelian p ON pd.pembelian_id = p.id WHERE pd.item_id = ? AND p.tanggal_pembelian < ?) +
+                    (SELECT COALESCE(SUM(jumlah), 0) FROM kartu_stok WHERE item_id = ? AND tanggal < ? AND jenis = 'Masuk') +
                     (SELECT COALESCE(SUM(selisih_kuantitas), 0) FROM stock_adjustments WHERE item_id = ? AND tanggal < ? AND selisih_kuantitas > 0)
                     AS total_masuk_sebelum,
+                    (SELECT COALESCE(SUM(jumlah), 0) FROM kartu_stok WHERE item_id = ? AND tanggal < ? AND jenis = 'Keluar') +
                     (SELECT COALESCE(SUM(ABS(selisih_kuantitas)), 0) FROM stock_adjustments WHERE item_id = ? AND tanggal < ? AND selisih_kuantitas < 0)
                     AS total_keluar_sebelum
             ");
-            $stmt->bind_param("isisis", $item_id, $start_date, $item_id, $start_date, $item_id, $start_date);
+            $stmt->bind_param("isisisis", $item_id, $start_date, $item_id, $start_date, $item_id, $start_date, $item_id, $start_date);
             $stmt->execute();
             $result = $stmt->get_result()->fetch_assoc();
             $saldo_awal = $result['total_masuk_sebelum'] - $result['total_keluar_sebelum'];
@@ -154,9 +155,9 @@ try {
 
             // 3. Get all transactions within the date range
             $stmt = $conn->prepare("
-                (SELECT p.tanggal_pembelian as tanggal, CONCAT('Pembelian #', p.id) as keterangan, pd.quantity as masuk, 0 as keluar FROM pembelian_details pd JOIN pembelian p ON pd.pembelian_id = p.id WHERE pd.item_id = ? AND p.tanggal_pembelian BETWEEN ? AND ?)
-                UNION ALL
                 (SELECT tanggal, keterangan, IF(selisih_kuantitas > 0, selisih_kuantitas, 0) as masuk, IF(selisih_kuantitas < 0, ABS(selisih_kuantitas), 0) as keluar FROM stock_adjustments WHERE item_id = ? AND tanggal BETWEEN ? AND ?)
+                UNION ALL
+                (SELECT tanggal, keterangan, IF(jenis = 'Masuk', jumlah, 0) as masuk, IF(jenis = 'Keluar', jumlah, 0) as keluar FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ?)
                 ORDER BY tanggal ASC, keterangan ASC
             ");
             $stmt->bind_param("isssis", $item_id, $start_date, $end_date, $item_id, $start_date, $end_date);

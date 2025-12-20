@@ -612,3 +612,22 @@ ALTER TABLE `penjualan_details`
   ADD CONSTRAINT `penjualan_details_ibfk_2` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`) ON DELETE RESTRICT;
 
 ALTER TABLE `penjualan` ADD `customer_name` VARCHAR(255) NULL DEFAULT 'Umum' AFTER `tanggal_penjualan`;
+
+CREATE TABLE `kartu_stok` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `item_id` int(11) NOT NULL,
+  `tanggal` datetime NOT NULL,
+  `jenis` enum('Masuk','Keluar') NOT NULL,
+  `jumlah` int(11) NOT NULL,
+  `keterangan` text DEFAULT NULL,
+  `ref_id` int(11) DEFAULT NULL COMMENT 'ID referensi transaksi (misal: id penjualan)',
+  `source` varchar(50) DEFAULT NULL COMMENT 'Sumber transaksi (misal: penjualan, pembelian)',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_kartu_stok_user` (`user_id`),
+  KEY `idx_kartu_stok_item` (`item_id`),
+  KEY `idx_kartu_stok_tanggal` (`tanggal`),
+  CONSTRAINT `fk_kartu_stok_items` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_kartu_stok_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

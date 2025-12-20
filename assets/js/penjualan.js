@@ -13,9 +13,207 @@ function initPenjualanPage() {
     const limit = 10;
     let searchTimeout;
 
+    // --- Tambahan: Inject UI Metode Pembayaran ---
+    const bayarInput = document.getElementById('bayar');
+    if (bayarInput && !document.getElementById('payment_method')) {
+        const container = bayarInput.closest('.mb-3') || bayarInput.parentElement;
+        const paymentHtml = `
+            <div class="mb-3">
+                <label for="payment_method" class="form-label"><i class="bi bi-credit-card me-1"></i>Metode Pembayaran</label>
+                <select class="form-select" id="payment_method">
+                    <option value="cash">Tunai</option>
+                    <option value="transfer">Transfer Bank</option>
+                    <option value="qris">QRIS</option>
+                </select>
+            </div>
+            <div class="mb-3" id="account-select-container" style="display:none;">
+                <label for="payment_account_id" class="form-label"><i class="bi bi-bank me-1"></i>Akun Tujuan <span class="text-danger">*</span></label>
+                <select class="form-select" id="payment_account_id">
+                    <option value="">-- Pilih Akun Bank --</option>
+                </select>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforebegin', paymentHtml);
+
+        // Load daftar akun kas/bank
+        fetch(`${basePath}/api/settings?action=get_cash_accounts`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const accSelect = document.getElementById('payment_account_id');
+                    res.data.forEach(acc => accSelect.add(new Option(acc.nama_akun, acc.id)));
+                }
+            });
+
+        // Event listener ganti metode
+        document.getElementById('payment_method').addEventListener('change', (e) => {
+            const isNonCash = e.target.value !== 'cash';
+            document.getElementById('account-select-container').style.display = isNonCash ? 'block' : 'none';
+            const accSelect = document.getElementById('payment_account_id');
+            accSelect.required = isNonCash;
+            if (!isNonCash) accSelect.value = '';
+            updateSummary(); // Update summary untuk auto-fill nominal jika non-tunai
+        });
+
+        // Tambahkan tombol Uang Pas
+        const uangPasBtn = document.createElement('button');
+        uangPasBtn.type = 'button';
+        uangPasBtn.className = 'btn btn-outline-secondary w-100 mt-2';
+        uangPasBtn.id = 'btn-uang-pas';
+        uangPasBtn.innerHTML = '<i class="bi bi-cash-stack"></i> Uang Pas';
+        
+        bayarInput.parentNode.insertBefore(uangPasBtn, bayarInput.nextSibling);
+
+        uangPasBtn.addEventListener('click', () => {
+            // Hitung total belanja saat ini
+            const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.harga_jual) * parseInt(item.qty)), 0);
+            const itemDiscounts = cart.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0);
+            const totalDiscountInput = parseFloat(document.getElementById('discount_total').value) || 0;
+            const total = subtotal - (itemDiscounts + totalDiscountInput);
+            
+            // Set nilai input bayar sesuai total
+            bayarInput.value = total;
+            
+            // Update perhitungan kembalian
+            updateSummary();
+        });
+    }
+    // ---------------------------------------------
+
+    // --- Tambahan: Sticky Header & Scroll untuk Tabel Keranjang ---
+    if (!document.getElementById('penjualan-pos-styles')) {
+        const style = document.createElement('style');
+        style.id = 'penjualan-pos-styles';
+        style.textContent = `
+            .pos-cart-scroll {
+                max-height: 400px; /* Tinggi maksimal area scroll */
+                overflow-y: auto;
+                border: 1px solid #dee2e6;
+                border-radius: 0.25rem;
+            }
+            .pos-cart-scroll table { margin-bottom: 0; }
+            .pos-cart-scroll thead th {
+                position: sticky;
+                top: 0;
+                background-color: #f8f9fa; /* Warna background header agar tidak transparan */
+                z-index: 5;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    if (cartItemsContainer) {
+        const table = cartItemsContainer.closest('table');
+        // Bungkus tabel dengan div scroll jika belum
+        if (table && !table.parentElement.classList.contains('pos-cart-scroll')) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'pos-cart-scroll';
+            table.parentNode.insertBefore(wrapper, table);
+            wrapper.appendChild(table);
+        }
+    }
+    // -------------------------------------------------------------
+
     // Fungsi utilitas
     const formatRupiah = (angka) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+    };
+
+    // Fungsi untuk mencetak struk via window.print()
+    const printStrukWindow = async (id) => {
+        try {
+            const response = await fetch(`${basePath}/api/penjualan?action=get_detail&id=${id}`);
+            const result = await response.json();
+            
+            if (!result.success) {
+                showToast('Gagal memuat data struk.', 'error');
+                return;
+            }
+            
+            const detail = result.data;
+            const itemsHtml = detail.items.map(item => `
+                <tr>
+                    <td style="padding: 5px 0;">
+                        ${item.deskripsi_item}<br>
+                        <small>${item.quantity} x ${formatRupiah(item.price)}</small>
+                    </td>
+                    <td style="text-align: right; vertical-align: bottom;">${formatRupiah(item.subtotal)}</td>
+                </tr>
+            `).join('');
+
+            const width = 350;
+            const height = 600;
+            const left = (screen.width - width) / 2;
+            const top = (screen.height - height) / 2;
+
+            const printWindow = window.open('', 'PrintStruk', `width=${width},height=${height},top=${top},left=${left}`);
+            
+            if (!printWindow) {
+                showToast('Pop-up terblokir. Silakan izinkan pop-up untuk situs ini.', 'warning');
+                return;
+            }
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Struk #${detail.nomor_referensi}</title>
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; font-size: 12px; margin: 0; padding: 10px; }
+                        .text-center { text-align: center; }
+                        .text-end { text-align: right; }
+                        .fw-bold { font-weight: bold; }
+                        .mb-1 { margin-bottom: 5px; }
+                        .border-bottom { border-bottom: 1px dashed #000; }
+                        .border-top { border-top: 1px dashed #000; }
+                        table { width: 100%; border-collapse: collapse; }
+                        .items-table td { vertical-align: top; }
+                        @media print { @page { margin: 0; } body { margin: 5px; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="text-center mb-1">
+                        <h3 style="margin: 0;">SMKN 5 TOKO</h3>
+                        <div>Jl. Contoh No. 123</div>
+                    </div>
+                    <div class="border-bottom mb-1" style="padding-bottom: 5px;">
+                        <div>No: ${detail.nomor_referensi}</div>
+                        <div>Tgl: ${detail.tanggal_penjualan}</div>
+                        <div>Kasir: ${detail.created_by_username}</div>
+                        <div>Pelanggan: ${detail.customer_name}</div>
+                    </div>
+                    <table class="items-table mb-1">
+                        ${itemsHtml}
+                    </table>
+                    <div class="border-top" style="padding-top: 5px;">
+                        <table style="width: 100%">
+                            <tr><td>Total</td><td class="text-end fw-bold">${formatRupiah(detail.total)}</td></tr>
+                            <tr><td>Bayar</td><td class="text-end">${formatRupiah(detail.bayar)}</td></tr>
+                            <tr><td>Kembali</td><td class="text-end">${formatRupiah(detail.kembali)}</td></tr>
+                        </table>
+                    </div>
+                    <div class="text-center" style="margin-top: 20px;">
+                        <p>Terima Kasih<br>Barang yang sudah dibeli tidak dapat ditukar/dikembalikan</p>
+                    </div>
+                    <script>
+                        window.onload = function() { 
+                            window.print(); 
+                            window.close(); 
+                        }
+                    </script>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.open();
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+
+        } catch (error) {
+            console.error(error);
+            showToast('Gagal mencetak struk.', 'error');
+        }
     };
 
     // Fungsi memuat data utama
@@ -39,24 +237,40 @@ function initPenjualanPage() {
     const renderTable = (data) => {
         tableBody.innerHTML = '';
         if (data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Tidak ada data.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Tidak ada data penjualan ditemukan.</td></tr>';
             return;
         }
         data.forEach(item => {
+            const isVoid = item.status === 'void';
+            const rowClass = isVoid ? 'table-secondary text-muted' : '';
+            const textDecoration = isVoid ? 'text-decoration-line-through' : '';
+            
             const row = `
-                <tr>
-                    <td>${item.nomor_referensi}</td>
-                    <td>${item.tanggal_penjualan}</td>
-                    <td>${item.customer_name}</td>
-                    <td class="text-end">${formatRupiah(item.total)}</td>
-                    <td>${item.username}</td>
+                <tr class="${rowClass} align-middle">
                     <td>
-                        <button class="btn btn-info btn-sm btn-detail" data-id="${item.id}" title="Lihat Detail">
+                        <div class="d-flex align-items-center">
+                            <div class="me-2 text-primary"><i class="bi bi-receipt"></i></div>
+                            <div>
+                                <span class="fw-bold ${textDecoration}">${item.nomor_referensi}</span>
+                                ${isVoid ? '<span class="badge bg-danger ms-1" style="font-size: 0.65rem;">BATAL</span>' : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td><i class="bi bi-calendar-event me-1 text-muted"></i> <span class="${textDecoration}">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</span></td>
+                    <td><i class="bi bi-person me-1 text-muted"></i> <span class="${textDecoration}">${item.customer_name}</span></td>
+                    <td class="text-end">
+                        <span class="fw-bold ${isVoid ? 'text-muted' : 'text-success'} ${textDecoration}">${formatRupiah(item.total)}</span>
+                    </td>
+                    <td><i class="bi bi-person-badge me-1 text-muted"></i> <span class="${textDecoration}">${item.username}</span></td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-info btn-detail" data-id="${item.id}" title="Lihat Detail">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="btn btn-danger btn-sm btn-void" data-id="${item.id}" title="Batalkan Transaksi" ${item.status === 'void' ? 'disabled' : ''}>
+                        <button class="btn btn-outline-danger btn-void" data-id="${item.id}" title="Batalkan Transaksi" ${isVoid ? 'disabled' : ''}>
                             <i class="bi bi-x-circle"></i>
                         </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -108,6 +322,7 @@ function initPenjualanPage() {
         renderCart();
         searchProdukInput.value = '';
         document.getElementById('product-suggestions').innerHTML = '';
+        searchProdukInput.focus(); // Kembalikan fokus ke pencarian agar bisa langsung scan barang berikutnya
     };
 
     const renderCart = () => {
@@ -119,13 +334,27 @@ function initPenjualanPage() {
             const subtotal = (price * qty) - discount;
 
             const row = `
-                <tr data-index="${index}">
-                    <td>${item.nama_barang}</td>
-                    <td>${formatRupiah(item.harga_jual)}</td>
-                    <td><input type="number" class="form-control form-control-sm qty-input" value="${item.qty}" min="1" max="${item.stok}"></td>
-                    <td><input type="number" class="form-control form-control-sm discount-input" value="${item.discount || 0}" min="0"></td>
-                    <td class="subtotal">${formatRupiah(subtotal)}</td>
-                    <td><button type="button" class="btn btn-danger btn-sm remove-item-btn"><i class="bi bi-trash"></i></button></td>
+                <tr data-index="${index}" class="align-middle">
+                    <td>
+                        <div class="fw-bold text-dark">${item.nama_barang}</div>
+                        <small class="text-muted">${item.kode_barang || ''}</small>
+                    </td>
+                    <td class="text-end">${formatRupiah(item.harga_jual)}</td>
+                    <td style="width: 140px;">
+                        <div class="input-group input-group-sm">
+                            <button class="btn btn-outline-secondary btn-qty-dec" type="button"><i class="bi bi-dash"></i></button>
+                            <input type="number" class="form-control text-center qty-input" value="${item.qty}" min="1" max="${item.stok}">
+                            <button class="btn btn-outline-secondary btn-qty-inc" type="button"><i class="bi bi-plus"></i></button>
+                        </div>
+                    </td>
+                    <td style="width: 130px;">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Rp</span>
+                            <input type="number" class="form-control text-end discount-input" value="${item.discount || 0}" min="0" placeholder="0">
+                        </div>
+                    </td>
+                    <td class="subtotal text-end fw-bold text-primary">${formatRupiah(subtotal)}</td>
+                    <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm remove-item-btn" title="Hapus"><i class="bi bi-trash"></i></button></td>
                 </tr>
             `;
             cartItemsContainer.insertAdjacentHTML('beforeend', row);
@@ -139,6 +368,14 @@ function initPenjualanPage() {
         const totalDiscountInput = parseFloat(document.getElementById('discount_total').value) || 0;
         const totalDiscount = itemDiscounts + totalDiscountInput;
         const total = subtotal - totalDiscount;
+        
+        // Auto-fill bayar jika metode pembayaran bukan tunai (Transfer/QRIS)
+        const paymentMethod = document.getElementById('payment_method');
+        const bayarInput = document.getElementById('bayar');
+        if (paymentMethod && bayarInput && paymentMethod.value !== 'cash') {
+            bayarInput.value = total;
+        }
+
         const bayar = parseFloat(document.getElementById('bayar').value) || 0;
         const kembali = bayar - total;
 
@@ -184,16 +421,15 @@ function initPenjualanPage() {
         const response = await fetch(`${basePath}/api/penjualan?action=search_produk&term=${term}`);
         const products = await response.json();
         
-        if (e.key === 'Enter' && products.length > 0) {
-            addItemToCart(products[0]);
-            return;
-        }
-
         suggestionsContainer.innerHTML = '';
         if (products.length > 0) {
             const list = products.map(p => 
-                `<a href="#" class="list-group-item list-group-item-action" data-product='${JSON.stringify(p)}'>
-                    ${p.nama_barang} (${p.kode_barang}) - Stok: ${p.stok}
+                `<a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-product='${JSON.stringify(p)}'>
+                    <div>
+                        <div class="fw-bold"><i class="bi bi-box-seam me-2 text-primary"></i>${p.nama_barang}</div>
+                        <small class="text-muted"><i class="bi bi-upc-scan me-1"></i>${p.sku || p.kode_barang || '-'} | ${formatRupiah(p.harga_jual)}</small>
+                    </div>
+                    <span class="badge bg-${p.stok > 10 ? 'success' : 'warning'} rounded-pill">Stok: ${p.stok}</span>
                 </a>`
             ).join('');
             suggestionsContainer.innerHTML = `<div class="list-group position-absolute w-100" style="z-index: 1056;">${list}</div>`;
@@ -210,7 +446,8 @@ function initPenjualanPage() {
 
     cartItemsContainer.addEventListener('input', (e) => {
         if (e.target.classList.contains('qty-input')) {
-            const index = e.target.closest('tr').dataset.index;
+            const tr = e.target.closest('tr');
+            const index = tr.dataset.index;
             let newQty = parseInt(e.target.value);
             if (isNaN(newQty) || newQty < 1) newQty = 1;
             
@@ -220,10 +457,16 @@ function initPenjualanPage() {
                 showToast('Stok tidak mencukupi.', 'warning');
             }
             cart[index].qty = newQty;
-            renderCart(); // Ganti updateSummary() dengan renderCart()
+
+            // Update subtotal row secara manual agar fokus input tidak hilang
+            const subtotal = (cart[index].harga_jual * cart[index].qty) - (cart[index].discount || 0);
+            tr.querySelector('.subtotal').textContent = formatRupiah(subtotal);
+
+            updateSummary(); // Cukup update summary agar input tidak kehilangan fokus
         }
         if (e.target.classList.contains('discount-input')) {
-            const index = e.target.closest('tr').dataset.index;
+            const tr = e.target.closest('tr');
+            const index = tr.dataset.index;
             let newDiscount = parseFloat(e.target.value) || 0;
             const maxDiscount = cart[index].harga_jual * cart[index].qty;
             if (newDiscount > maxDiscount) {
@@ -231,30 +474,95 @@ function initPenjualanPage() {
                 e.target.value = newDiscount;
             }
             cart[index].discount = newDiscount;
-            renderCart(); // Ganti updateSummary() dengan renderCart()
+
+            // Update subtotal row secara manual
+            const subtotal = (cart[index].harga_jual * cart[index].qty) - (cart[index].discount || 0);
+            tr.querySelector('.subtotal').textContent = formatRupiah(subtotal);
+
+            updateSummary(); // Cukup update summary
         }
     });
 
     cartItemsContainer.addEventListener('click', (e) => {
-        const removeBtn = e.target.closest('.remove-item-btn');
-        if (removeBtn) {
-            const index = removeBtn.closest('tr').dataset.index;
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        const tr = target.closest('tr');
+        const index = tr.dataset.index;
+
+        if (target.classList.contains('remove-item-btn')) {
             cart.splice(index, 1);
-            updateSummary();
+            renderCart();
+        } else if (target.classList.contains('btn-qty-inc')) {
+            if (cart[index].qty < cart[index].stok) {
+                cart[index].qty++;
+                renderCart();
+            } else {
+                showToast('Stok maksimal tercapai.', 'warning');
+            }
+        } else if (target.classList.contains('btn-qty-dec')) {
+            if (cart[index].qty > 1) {
+                cart[index].qty--;
+                renderCart();
+            }
         }
     });
+
+    // --- Navigasi Keyboard (Enter) untuk UX yang lebih cepat ---
+    searchProdukInput.addEventListener('keydown', (e) => {
+        // Jika tekan Enter saat input kosong, pindah ke kolom bayar
+        if (e.key === 'Enter' && searchProdukInput.value.trim() === '') {
+            e.preventDefault();
+            if (cart.length > 0) {
+                document.getElementById('bayar').focus();
+            } else {
+                showToast('Keranjang masih kosong.', 'warning');
+            }
+        }
+    });
+
+    document.getElementById('discount_total').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('bayar').focus();
+        }
+    });
+
+    document.getElementById('catatan').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('bayar').focus();
+        }
+    });
+
+    document.getElementById('bayar').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('btn-simpan-penjualan').click();
+        }
+    });
+    // -----------------------------------------------------------
 
     document.getElementById('bayar').addEventListener('input', updateSummary);
     document.getElementById('discount_total').addEventListener('input', updateSummary);
 
     document.getElementById('btn-simpan-penjualan').addEventListener('click', async () => {
-        const subtotal = cart.reduce((sum, item) => sum + (item.harga_jual * item.qty), 0);
+        const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.harga_jual) * parseInt(item.qty)), 0);
+        const totalHPP = cart.reduce((sum, item) => sum + (parseFloat(item.harga_beli || 0) * parseInt(item.qty)), 0);
         const itemDiscounts = cart.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0);
         const totalDiscountInput = parseFloat(document.getElementById('discount_total').value) || 0;
         const totalDiscount = itemDiscounts + totalDiscountInput;
         const total = subtotal - totalDiscount;
         const bayar = parseFloat(document.getElementById('bayar').value) || 0;
 
+        // Validasi tambahan untuk non-tunai
+        const paymentMethod = document.getElementById('payment_method')?.value || 'cash';
+        const paymentAccountId = document.getElementById('payment_account_id')?.value;
+
+        if (paymentMethod !== 'cash' && !paymentAccountId) {
+            showToast('Harap pilih Akun Tujuan untuk pembayaran non-tunai.', 'warning');
+            return;
+        }
         if (cart.length === 0) {
             showToast('Keranjang belanja masih kosong.', 'warning');
             return;
@@ -270,16 +578,20 @@ function initPenjualanPage() {
             subtotal: subtotal,
             discount: totalDiscount,
             total: total,
+            total_hpp: totalHPP, // Kirim total HPP untuk jurnal (Debit HPP, Kredit Persediaan)
             bayar: bayar,
             kembali: bayar - total,
             catatan: document.getElementById('catatan').value || '', // Ambil nilai dari input catatan
+            payment_method: paymentMethod,
+            payment_account_id: paymentAccountId,
             items: cart.map(item => ({
                 id: item.id,
                 nama: item.nama_barang,
-                harga: item.harga_jual,
-                qty: item.qty,
+                harga: parseFloat(item.harga_jual),
+                harga_beli: parseFloat(item.harga_beli || 0), // Penting untuk jurnal HPP agar balance
+                qty: parseInt(item.qty),
                 discount: parseFloat(item.discount) || 0,
-                subtotal: (item.harga_jual * item.qty) - (parseFloat(item.discount) || 0)
+                subtotal: (parseFloat(item.harga_jual) * parseInt(item.qty)) - (parseFloat(item.discount) || 0)
             }))
         };
 
@@ -293,7 +605,34 @@ function initPenjualanPage() {
             const result = await response.json();
             if (result.success) {
                 penjualanModal.hide();
-                showToast(result.message, 'success');
+                
+                // Gunakan SweetAlert untuk konfirmasi sukses yang lebih modern
+                Swal.fire({
+                    title: 'Transaksi Berhasil!',
+                    html: `Total: <b>${formatRupiah(total)}</b><br>Kembali: <b>${formatRupiah(bayar - total)}</b>`,
+                    icon: 'success',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="bi bi-printer"></i> Cetak Struk',
+                    cancelButtonText: 'Transaksi Baru',
+                    reverseButtons: true
+                }).then((res) => {
+                    // Cetak struk jika user menekan tombol Cetak Struk
+                    if (res.isConfirmed && result.id) {
+                        printStrukWindow(result.id);
+                    }
+
+                    // Otomatis reset form dan buka kembali modal untuk transaksi berikutnya
+                    document.getElementById('form-penjualan').reset();
+                    document.getElementById('tanggal').valueAsDate = new Date();
+                    cart = [];
+                    renderCart(); // Bersihkan tampilan keranjang
+                    
+                    penjualanModal.show(); // Buka kembali modal
+                    setTimeout(() => {
+                        searchProdukInput.focus(); // Fokus langsung ke cari barang
+                    }, 500); // Delay sedikit agar modal siap sepenuhnya
+                });
+
                 loadPenjualan(1); 
             } else {
                 showToast(result.message, 'danger');
@@ -360,21 +699,56 @@ function initPenjualanPage() {
                 `).join('');
 
                 const detailContent = `
-                    <p><strong>No. Faktur:</strong> ${detail.nomor_referensi}</p>
-                    <p><strong>Tanggal:</strong> ${detail.tanggal_penjualan}</p>
-                    <p><strong>Customer:</strong> ${detail.customer_name}</p>
-                    <p><strong>Kasir:</strong> ${detail.created_by_username}</p>
-                    <table class="table table-sm">
-                        <thead><tr><th>Barang</th><th>Qty</th><th>Harga</th><th class="text-end">Subtotal</th></tr></thead>
-                        <tbody>${itemsHtml}</tbody>
-                    </table>
-                    <hr>
-                    <div class="row">
-                        <div class="col-6"></div>
-                        <div class="col-6">
-                            <p class="d-flex justify-content-between"><strong>Total:</strong> <span>${formatRupiah(detail.total)}</span></p>
-                            <p class="d-flex justify-content-between"><strong>Bayar:</strong> <span>${formatRupiah(detail.bayar)}</span></p>
-                            <p class="d-flex justify-content-between"><strong>Kembali:</strong> <span>${formatRupiah(detail.kembali)}</span></p>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="text-muted small">No. Faktur</div>
+                            <div class="fw-bold text-primary"><i class="bi bi-receipt me-1"></i>${detail.nomor_referensi}</div>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <div class="text-muted small">Tanggal</div>
+                            <div class="fw-bold"><i class="bi bi-calendar3 me-1"></i>${new Date(detail.tanggal_penjualan).toLocaleString('id-ID')}</div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="text-muted small">Pelanggan</div>
+                            <div class="fw-bold"><i class="bi bi-person me-1"></i>${detail.customer_name}</div>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <div class="text-muted small">Kasir</div>
+                            <div class="fw-bold"><i class="bi bi-person-badge me-1"></i>${detail.created_by_username}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Barang</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-end">Harga</th>
+                                    <th class="text-end">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>${itemsHtml}</tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="card bg-light border-0">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Total Tagihan</span>
+                                <span class="fw-bold fs-5 text-primary">${formatRupiah(detail.total)}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1 text-muted">
+                                <span>Bayar</span>
+                                <span>${formatRupiah(detail.bayar)}</span>
+                            </div>
+                            <div class="border-top my-2"></div>
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">Kembali</span>
+                                <span class="fw-bold text-success">${formatRupiah(detail.kembali)}</span>
+                            </div>
                         </div>
                     </div>
                 `;
