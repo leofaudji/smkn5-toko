@@ -5,48 +5,52 @@ if (!$is_spa_request) {
 }
 ?>
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-clipboard-data"></i> Laporan Stok</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <button type="button" class="btn btn-outline-success me-2" id="export-stok-csv">
-            <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+<div class="flex justify-between flex-wrap items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">
+    <h1 class="text-2xl font-semibold text-gray-800 dark:text-white flex items-center gap-2"><i class="bi bi-clipboard-data"></i> Laporan Stok</h1>
+    <div class="flex mb-2 md:mb-0 gap-2">
+        <button type="button" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none" id="export-stok-csv">
+            <i class="bi bi-file-earmark-spreadsheet-fill text-green-600 mr-2"></i> CSV
         </button>
-        <button type="button" class="btn btn-outline-danger" id="export-stok-pdf">
-            <i class="bi bi-file-earmark-pdf"></i> Export PDF
+        <button type="button" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none" id="export-stok-pdf">
+            <i class="bi bi-file-earmark-pdf-fill text-red-600 mr-2"></i> PDF
         </button>
     </div>
 </div>
 
 <!-- Filter -->
-<div class="card mb-3">
-    <div class="card-body">
-        <form id="report-stok-form" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label for="stok-tanggal-mulai" class="form-label">Dari Tanggal</label>
-                <input type="date" id="stok-tanggal-mulai" class="form-control">
-            </div>
-            <div class="col-md-4">
-                <label for="stok-tanggal-akhir" class="form-label">Sampai Tanggal</label>
-                <input type="date" id="stok-tanggal-akhir" class="form-control">
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary w-100" id="stok-tampilkan-btn">
-                    <i class="bi bi-search"></i> Tampilkan Laporan
-                </button>
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+    <div class="p-6">
+        <form id="report-stok-form">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                    <label for="stok-tanggal-mulai" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dari Tanggal</label>
+                    <input type="date" id="stok-tanggal-mulai" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
+                </div>
+                <div>
+                    <label for="stok-tanggal-akhir" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sampai Tanggal</label>
+                    <input type="date" id="stok-tanggal-akhir" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
+                </div>
+                <div>
+                    <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" id="stok-tampilkan-btn">
+                        <i class="bi bi-search mr-2"></i> Tampilkan Laporan
+                    </button>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <h5 id="report-stok-header" class="mb-0">Hasil Laporan</h5>
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg">
+    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <h5 id="report-stok-header" class="text-lg font-medium text-gray-900 dark:text-white">Hasil Laporan</h5>
     </div>
-    <div class="card-body">
-        <div id="report-stok-content" class="table-responsive" style="max-height: 65vh;">
-            <p class="text-center text-muted">Silakan pilih rentang tanggal dan klik "Tampilkan Laporan".</p>
+    <div class="p-6">
+        <div id="report-stok-content" class="overflow-x-auto" style="max-height: 65vh;">
+            <div class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 p-4 rounded-md text-center">
+                Silakan pilih rentang tanggal dan klik "Tampilkan Laporan".
+            </div>
         </div>
-        <div id="report-stok-summary" class="mt-3 pt-3 border-top">
+        <div id="report-stok-summary" class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <!-- Summary dimuat oleh JS -->
         </div>
     </div>

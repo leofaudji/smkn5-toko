@@ -45,8 +45,8 @@ function initBukuBesarPage() {
 
         const originalBtnHtml = tampilkanBtn.innerHTML;
         tampilkanBtn.disabled = true;
-        tampilkanBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Memuat...`;
-        reportContent.innerHTML = `<div class="text-center p-5"><div class="spinner-border"></div></div>`;
+        tampilkanBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memuat...`;
+        reportContent.innerHTML = `<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>`;
 
         try {
             const params = new URLSearchParams({ account_id: accountId, start_date: startDate, end_date: endDate });
@@ -58,14 +58,14 @@ function initBukuBesarPage() {
             reportHeader.textContent = `Buku Besar: ${account_info.nama_akun}`;
 
             let tableHtml = `
-                <table class="table table-sm table-bordered">
-                    <thead class="table-light">
-                        <tr><th>Tanggal</th><th>Keterangan</th><th class="text-end">Debit</th><th class="text-end">Kredit</th><th class="text-end">Saldo</th></tr>
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tanggal</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keterangan</th><th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Debit</th><th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Kredit</th><th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Saldo</th></tr>
                     </thead>
-                    <tbody>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <tr>
-                            <td colspan="4"><strong>Saldo Awal</strong></td>
-                            <td class="text-end"><strong>${currencyFormatter.format(saldo_awal)}</strong></td>
+                            <td colspan="4" class="px-4 py-2 text-sm font-bold text-gray-900 dark:text-white">Saldo Awal</td>
+                            <td class="px-4 py-2 text-sm font-bold text-right text-gray-900 dark:text-white">${currencyFormatter.format(saldo_awal)}</td>
                         </tr>
             `;
 
@@ -81,21 +81,21 @@ function initBukuBesarPage() {
                     saldoBerjalan += kredit - debit;
                 }
                 tableHtml += `
-                    <tr>
-                        <td>${new Date(tx.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'})}</td>
-                        <td>${tx.keterangan}</td>
-                        <td class="text-end">${debit > 0 ? currencyFormatter.format(debit) : '-'}</td>
-                        <td class="text-end">${kredit > 0 ? currencyFormatter.format(kredit) : '-'}</td>
-                        <td class="text-end">${currencyFormatter.format(saldoBerjalan)}</td>
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${new Date(tx.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'})}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${tx.keterangan}</td>
+                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${debit > 0 ? currencyFormatter.format(debit) : '-'}</td>
+                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${kredit > 0 ? currencyFormatter.format(kredit) : '-'}</td>
+                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${currencyFormatter.format(saldoBerjalan)}</td>
                     </tr>
                 `;
             });
 
-            tableHtml += `</tbody><tfoot><tr class="table-light"><td colspan="4" class="text-end fw-bold">Saldo Akhir</td><td class="text-end fw-bold">${currencyFormatter.format(saldoBerjalan)}</td></tr></tfoot></table>`;
+            tableHtml += `</tbody><tfoot class="bg-gray-50 dark:bg-gray-700"><tr><td colspan="4" class="px-4 py-2 text-sm font-bold text-right text-gray-900 dark:text-white">Saldo Akhir</td><td class="px-4 py-2 text-sm font-bold text-right text-gray-900 dark:text-white">${currencyFormatter.format(saldoBerjalan)}</td></tr></tfoot></table>`;
             reportContent.innerHTML = tableHtml;
 
         } catch (error) {
-            reportContent.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            reportContent.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-4 rounded-md text-center">${error.message}</div>`;
         } finally {
             tampilkanBtn.disabled = false;
             tampilkanBtn.innerHTML = originalBtnHtml;

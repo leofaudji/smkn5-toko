@@ -8,69 +8,84 @@ require_once __DIR__ . '/includes/bootstrap.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - <?= get_setting('app_name', 'Aplikasi Keuangan') ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?= base_url('/assets/css/style.css') ?>">
+    <?php
+    $login_bg_color = get_setting('login_bg_color', '#075E54');
+    $login_btn_color = get_setting('login_btn_color', '#25D366');
+    ?>
     <style>
-        <?php
-        $login_bg_color = get_setting('login_bg_color', '#075E54');
-        $login_btn_color = get_setting('login_btn_color', '#25D366');
-        ?>
-        .bg-primary {
-            background-color: <?= htmlspecialchars($login_bg_color) ?> !important;
-        }
-        .btn-primary {
-            --bs-btn-color: #fff;
-            --bs-btn-bg: <?= htmlspecialchars($login_btn_color) ?>;
-            --bs-btn-border-color: <?= htmlspecialchars($login_btn_color) ?>;
-            /* Logika untuk warna hover/active bisa ditambahkan di sini jika perlu */
-        }
-        #login-btn:disabled .spinner-border {
-            color: <?= htmlspecialchars($login_bg_color) ?> !important;
+        :root {
+            --brand-bg-color: <?= htmlspecialchars($login_bg_color) ?>;
+            --brand-btn-color: <?= htmlspecialchars($login_btn_color) ?>;
         }
     </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            bg: 'var(--brand-bg-color)',
+                            btn: 'var(--brand-btn-color)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <div class="container-fluid">
-        <div class="row vh-100">
-            <div class="col-md-6 col-lg-7 d-none d-md-flex align-items-center justify-content-center bg-primary text-white p-5">
-                <div>
-                    <h1 class="display-4 fw-bold"><?= get_setting('app_name', 'Aplikasi Keuangan') ?></h1>
-                    <p class="lead">Solusi pencatatan keuangan yang mudah dan terintegrasi.</p>
-                </div>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex flex-wrap">
+        <!-- Left Column -->
+        <div class="hidden md:flex w-full md:w-1/2 lg:w-7/12 bg-brand-bg text-white items-center justify-center p-12">
+            <div>
+                <h1 class="text-5xl font-bold mb-4"><?= get_setting('app_name', 'Aplikasi Keuangan') ?></h1>
+                <p class="text-xl opacity-90">Solusi pencatatan keuangan yang mudah dan terintegrasi.</p>
             </div>
-            <div class="col-md-6 col-lg-5 d-flex align-items-center justify-content-center">
-                <div class="card shadow-lg border-0" style="width: 24rem;">
-                    <div class="card-body p-4 p-lg-5">
-                        <div class="text-center mb-4">
-                            <img src="<?= base_url(get_setting('app_logo', 'assets/img/logo.png')) ?>" alt="Logo" height="50">
-                            <h3 class="mt-3">Selamat Datang</h3>
-                        </div>
+        </div>
+        
+        <!-- Right Column -->
+        <div class="w-full md:w-1/2 lg:w-5/12 flex items-center justify-center p-6">
+            <div class="bg-white shadow-xl rounded-2xl w-full max-w-md p-8 border border-gray-100">
+                <div class="text-center mb-8">
+                    <img src="<?= base_url(get_setting('app_logo', 'assets/img/logo.png')) ?>" alt="Logo" class="h-12 mx-auto mb-4">
+                    <h3 class="text-2xl font-semibold text-gray-800">Selamat Datang</h3>
+                </div>
                         <?php if (isset($_SESSION['login_error'])): ?>
-                            <div class="alert alert-danger" role="alert"><?= $_SESSION['login_error']; unset($_SESSION['login_error']); ?></div>
+                            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                                <?= $_SESSION['login_error']; unset($_SESSION['login_error']); ?>
+                            </div>
                         <?php endif; ?>
                         <?php if (isset($_SESSION['login_success'])): ?>
-                            <div class="alert alert-success" role="alert"><?= $_SESSION['login_success']; unset($_SESSION['login_success']); ?></div>
+                            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+                                <?= $_SESSION['login_success']; unset($_SESSION['login_success']); ?>
+                            </div>
                         <?php endif; ?>
-                        <form id="login-form" action="<?= base_url('/login') ?>" method="POST">
-                            <div class="mb-3"><input class="form-control" type="text" id="username" name="username" placeholder="Username" required autofocus></div>
-                            <div class="input-group mb-3">
-                                <input class="form-control" type="password" id="password" name="password" placeholder="Password" required>
-                                <button class="btn btn-outline-secondary" type="button" id="togglePassword" title="Tampilkan/Sembunyikan password">
-                                    <i class="bi bi-eye"></i>
+                        <form id="login-form" action="<?= base_url('/login') ?>" method="POST" class="space-y-5">
+                            <div>
+                                <input class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-btn focus:border-transparent transition duration-200" type="text" id="username" name="username" placeholder="Username" required autofocus>
+                            </div>
+                            <div class="relative">
+                                <input class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-btn focus:border-transparent transition duration-200 pr-12" type="password" id="password" name="password" placeholder="Password" required>
+                                <button class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none" type="button" id="togglePassword" title="Tampilkan/Sembunyikan password">
+                                    <i class="bi bi-eye text-xl"></i>
                                 </button>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="remember_me" id="remember_me">
-                                    <label class="form-check-label" for="remember_me"> Ingat Saya </label>
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center">
+                                    <input class="h-4 w-4 text-brand-btn focus:ring-brand-btn border-gray-300 rounded" type="checkbox" name="remember_me" id="remember_me">
+                                    <label class="ml-2 block text-sm text-gray-700" for="remember_me"> Ingat Saya </label>
                                 </div>
-                                <a href="<?= base_url('/forgot') ?>">Lupa Password?</a>
+                                <a href="<?= base_url('/forgot') ?>" class="text-sm text-brand-btn hover:underline">Lupa Password?</a>
                             </div>
-                            <div class="mb-3"><button id="login-btn" class="btn btn-primary d-block w-100" type="submit">Login</button></div>
+                            <div>
+                                <button id="login-btn" class="w-full bg-brand-btn hover:opacity-90 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex justify-center items-center" type="submit">Login</button>
+                            </div>
                         </form>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -79,7 +94,10 @@ require_once __DIR__ . '/includes/bootstrap.php';
             const loginBtn = document.getElementById('login-btn');
             if (loginBtn) {
                 loginBtn.disabled = true;
-                loginBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...`;
+                loginBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg> Logging in...`;
             }
         });
 
@@ -102,11 +120,7 @@ require_once __DIR__ . '/includes/bootstrap.php';
         (function() {
             const savedColor = localStorage.getItem('theme_color');
             if (savedColor) {
-                const style = document.createElement('style');
-                style.innerHTML = `
-                    .btn-primary { --bs-btn-bg: ${savedColor}; --bs-btn-border-color: ${savedColor}; }
-                `;
-                document.head.appendChild(style);
+                document.documentElement.style.setProperty('--brand-btn-color', savedColor);
             }
         })();
     </script>

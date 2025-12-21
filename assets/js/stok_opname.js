@@ -52,7 +52,7 @@ function initStokOpnamePage() {
             stok_filter: filterValue
         });
 
-        tableBody.innerHTML = `<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm"></div> Memuat data...</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div> Memuat data...</td></tr>`;
 
         try {
             const response = await fetch(`${basePath}/api/stok?${query.toString()}`);
@@ -68,31 +68,31 @@ function initStokOpnamePage() {
 
                         // Gabungkan string HTML ke variabel, jangan langsung ke DOM
                         rowsHtml += `
-                            <tr data-item-id="${item.id}">
-                                <td>${index + 1}</td>
-                                <td>${item.nama_barang}</td>
-                                <td>${item.sku || '-'}</td>
-                                <td class="text-end">${item.stok}</td>
-                                <td>
-                                    <input type="number" class="form-control form-control-sm text-center physical-stock-input"
+                            <tr data-item-id="${item.id}" class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${index + 1}</td>
+                                <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${item.nama_barang}</td>
+                                <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${item.sku || '-'}</td>
+                                <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${item.stok}</td>
+                                <td class="px-4 py-2">
+                                    <input type="number" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm text-center physical-stock-input"
                                            value="${physicalStock}"
                                            data-item-id="${item.id}"
                                            data-stok-sistem="${item.stok}">
                                 </td>
-                                <td class="text-end difference-cell ${selisih < 0 ? 'text-danger fw-bold' : (selisih > 0 ? 'text-success fw-bold' : '')}">${selisih}</td>
+                                <td class="px-4 py-2 text-sm text-right font-bold difference-cell ${selisih < 0 ? 'text-red-600 dark:text-red-400' : (selisih > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white')}">${selisih}</td>
                             </tr>
                         `;
                     });
                     tableBody.innerHTML = rowsHtml; // Masukkan semua baris ke tabel sekaligus
                 } else {
-                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Tidak ada data barang yang cocok dengan kriteria.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500 dark:text-gray-400">Tidak ada data barang yang cocok dengan kriteria.</td></tr>';
                 }
             } else {
                 // Jika status dari API adalah 'error' atau lainnya, tampilkan pesan dari server
                 throw new Error(data.message || 'Gagal memuat data dari server.');
             }
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-red-500 py-4">Gagal memuat data: ${error.message}</td></tr>`;
         }
     }
 
@@ -115,11 +115,13 @@ function initStokOpnamePage() {
             differenceCell.textContent = selisih;
             
             // Beri warna untuk mempermudah
-            differenceCell.classList.remove('text-danger', 'text-success', 'fw-bold');
+            differenceCell.classList.remove('text-red-600', 'dark:text-red-400', 'text-green-600', 'dark:text-green-400', 'text-gray-900', 'dark:text-white');
             if (selisih < 0) {
-                differenceCell.classList.add('text-danger', 'fw-bold');
+                differenceCell.classList.add('text-red-600', 'dark:text-red-400');
             } else if (selisih > 0) {
-                differenceCell.classList.add('text-success', 'fw-bold');
+                differenceCell.classList.add('text-green-600', 'dark:text-green-400');
+            } else {
+                differenceCell.classList.add('text-gray-900', 'dark:text-white');
             }
         }
     });
@@ -128,7 +130,7 @@ function initStokOpnamePage() {
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         saveButton.disabled = true;
-        saveButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Menyimpan...`;
+        saveButton.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menyimpan...`;
 
         const itemsToAdjust = [];
         // Ambil semua input yang ada di tabel saat ini

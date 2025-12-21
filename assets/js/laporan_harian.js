@@ -21,9 +21,9 @@ function initLaporanHarianPage() {
 
         const originalBtnHtml = tampilkanBtn.innerHTML;
         tampilkanBtn.disabled = true;
-        tampilkanBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Memuat...`;
-        reportContent.innerHTML = `<div class="text-center p-5"><div class="spinner-border"></div></div>`;
-        summaryContent.innerHTML = `<div class="text-center p-5"><div class="spinner-border"></div></div>`;
+        tampilkanBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memuat...`;
+        reportContent.innerHTML = `<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>`;
+        summaryContent.innerHTML = `<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>`;
         reportHeader.textContent = `Detail Transaksi Harian untuk ${new Date(tanggal).toLocaleDateString('id-ID', { dateStyle: 'full' })}`;
 
         try {
@@ -35,21 +35,21 @@ function initLaporanHarianPage() {
 
             // Render Summary Card
             summaryContent.innerHTML = `
-                <dl class="row">
-                    <dt class="col-sm-5">Saldo Awal Hari</dt>
-                    <dd class="col-sm-7 text-end">${currencyFormatter.format(saldo_awal)}</dd>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="font-medium text-gray-500 dark:text-gray-400">Saldo Awal Hari</div>
+                    <div class="text-right font-semibold text-gray-900 dark:text-white">${currencyFormatter.format(saldo_awal)}</div>
 
-                    <dt class="col-sm-5 text-success">Total Pemasukan</dt>
-                    <dd class="col-sm-7 text-end text-success">${currencyFormatter.format(total_pemasukan)}</dd>
+                    <div class="font-medium text-green-600 dark:text-green-400">Total Pemasukan</div>
+                    <div class="text-right font-semibold text-green-600 dark:text-green-400">${currencyFormatter.format(total_pemasukan)}</div>
 
-                    <dt class="col-sm-5 text-danger">Total Pengeluaran</dt>
-                    <dd class="col-sm-7 text-end text-danger">${currencyFormatter.format(total_pengeluaran)}</dd>
+                    <div class="font-medium text-red-600 dark:text-red-400">Total Pengeluaran</div>
+                    <div class="text-right font-semibold text-red-600 dark:text-red-400">${currencyFormatter.format(total_pengeluaran)}</div>
 
-                    <hr class="my-2">
+                    <div class="col-span-2 border-t border-gray-200 dark:border-gray-700 my-2"></div>
 
-                    <dt class="col-sm-5 fw-bold">Saldo Akhir Hari</dt>
-                    <dd class="col-sm-7 text-end fw-bold">${currencyFormatter.format(saldo_akhir)}</dd>
-                </dl>
+                    <div class="font-bold text-gray-900 dark:text-white">Saldo Akhir Hari</div>
+                    <div class="text-right font-bold text-gray-900 dark:text-white">${currencyFormatter.format(saldo_akhir)}</div>
+                </div>
             `;
 
             // Render Chart
@@ -72,54 +72,61 @@ function initLaporanHarianPage() {
             });
 
             let tableHtml = `
-                <table class="table table-sm table-bordered">
-                    <thead class="table-light">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th>ID</th>
-                            <th>Keterangan</th>
-                            <th>Akun Terkait</th>
-                            <th class="text-end">Pemasukan</th>
-                            <th class="text-end">Pengeluaran</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keterangan</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Akun Terkait</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasukan</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pengeluaran</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <tr>
-                            <td colspan="3" class="fw-bold">Saldo Awal</td>
-                            <td class="text-end fw-bold" colspan="2">${currencyFormatter.format(saldo_awal)}</td>
+                            <td colspan="3" class="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">Saldo Awal</td>
+                            <td class="px-6 py-4 text-sm font-bold text-right text-gray-900 dark:text-white" colspan="2">${currencyFormatter.format(saldo_awal)}</td>
                         </tr>
             `;
 
             if (transaksi.length > 0) {
                 transaksi.forEach(tx => {
-                    const idDisplay = tx.ref || `${tx.source.toUpperCase()}-${tx.id}`; // Gunakan ref jika ada
-                    const idHtml = `<a href="#" class="view-detail-btn" data-type="${tx.source}" data-id="${tx.id}">${idDisplay}</a>`;
+                    const idDisplay = tx.ref || `${tx.source.toUpperCase()}-${tx.id}`;
+                    const idHtml = `<a href="#" class="view-detail-btn text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" data-type="${tx.source}" data-id="${tx.id}">${idDisplay}</a>`;
 
                     tableHtml += `
-                        <tr>
-                            <td><small>${idHtml}</small></td>
-                            <td>${tx.keterangan}</td>
-                            <td><small>${tx.akun_terkait || '<i>N/A</i>'}</small></td>
-                            <td class="text-end text-success">${tx.pemasukan > 0 ? currencyFormatter.format(tx.pemasukan) : '-'}</td>
-                            <td class="text-end text-danger">${tx.pengeluaran > 0 ? currencyFormatter.format(tx.pengeluaran) : '-'}</td>
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${idHtml}</td>
+                            <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">${tx.keterangan}</td>
+                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${tx.akun_terkait || '<i>N/A</i>'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 dark:text-green-400">${tx.pemasukan > 0 ? currencyFormatter.format(tx.pemasukan) : '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 dark:text-red-400">${tx.pengeluaran > 0 ? currencyFormatter.format(tx.pengeluaran) : '-'}</td>
                         </tr>
                     `;
                 });
             } else {
-                tableHtml += `<tr><td colspan="5" class="text-center text-muted">Tidak ada transaksi pada tanggal ini.</td></tr>`;
+                tableHtml += `<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">Tidak ada transaksi pada tanggal ini.</td></tr>`;
             }
 
             tableHtml += `
                     </tbody>
-                    <tfoot class="table-group-divider">
-                        <tr class="fw-bold"><td colspan="3" class="text-end">Total</td><td class="text-end text-success">${currencyFormatter.format(total_pemasukan)}</td><td class="text-end text-danger">${currencyFormatter.format(total_pengeluaran)}</td></tr>
-                        <tr class="fw-bold table-primary"><td colspan="3" class="text-end">Saldo Akhir</td><td class="text-end" colspan="2">${currencyFormatter.format(saldo_akhir)}</td></tr>
+                    <tfoot class="bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-700">
+                        <tr class="font-bold text-sm text-gray-900 dark:text-white">
+                            <td colspan="3" class="px-6 py-3 text-right">Total</td>
+                            <td class="px-6 py-3 text-right text-green-600 dark:text-green-400">${currencyFormatter.format(total_pemasukan)}</td>
+                            <td class="px-6 py-3 text-right text-red-600 dark:text-red-400">${currencyFormatter.format(total_pengeluaran)}</td>
+                        </tr>
+                        <tr class="font-bold text-sm bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-white">
+                            <td colspan="3" class="px-6 py-3 text-right">Saldo Akhir</td>
+                            <td class="px-6 py-3 text-right" colspan="2">${currencyFormatter.format(saldo_akhir)}</td>
+                        </tr>
                     </tfoot>
                 </table>`;
             reportContent.innerHTML = tableHtml;
 
         } catch (error) {
-            reportContent.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
-            summaryContent.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            reportContent.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-4 rounded-md text-center">${error.message}</div>`;
+            summaryContent.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-4 rounded-md text-center">${error.message}</div>`;
         } finally {
             tampilkanBtn.disabled = false;
             tampilkanBtn.innerHTML = originalBtnHtml;
@@ -165,7 +172,7 @@ function initLaporanHarianPage() {
         const modalLabel = document.getElementById('detailModalLabel');
 
         modalLabel.textContent = `Detail ${type === 'transaksi' ? 'Transaksi' : 'Jurnal'}`;
-        modalBody.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        modalBody.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
         detailModal.show();
 
         try {
@@ -181,21 +188,23 @@ function initLaporanHarianPage() {
             const details = type === 'transaksi' ? result.data.jurnal : result.data.details;
 
             let tableHtml = `
-                <p><strong>Tanggal:</strong> ${new Date(header.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'})}</p>
-                ${header.nomor_referensi ? `<p><strong>No. Referensi:</strong> ${header.nomor_referensi}</p>` : ''}
-                <p><strong>Keterangan:</strong> ${header.keterangan}</p>
-                <table class="table table-sm table-bordered">
-                    <thead class="table-light"><tr><th>Akun</th><th class="text-end">Debit</th><th class="text-end">Kredit</th></tr></thead>
-                    <tbody>
+                <div class="mb-4 text-sm text-gray-700 dark:text-gray-300">
+                    <p><strong>Tanggal:</strong> ${new Date(header.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'})}</p>
+                    ${header.nomor_referensi ? `<p><strong>No. Referensi:</strong> ${header.nomor_referensi}</p>` : ''}
+                    <p><strong>Keterangan:</strong> ${header.keterangan}</p>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Akun</th><th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Debit</th><th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Kredit</th></tr></thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             `;
 
             details.forEach(line => {
                 const akunText = line.kode_akun ? `${line.kode_akun} - ${line.nama_akun}` : line.akun;
                 tableHtml += `
-                    <tr>
-                        <td>${akunText}</td>
-                        <td class="text-end">${line.debit > 0 ? currencyFormatter.format(line.debit) : '-'}</td>
-                        <td class="text-end">${line.kredit > 0 ? currencyFormatter.format(line.kredit) : '-'}</td>
+                    <tr class="text-sm">
+                        <td class="px-4 py-2 text-gray-900 dark:text-white">${akunText}</td>
+                        <td class="px-4 py-2 text-right text-gray-900 dark:text-white">${line.debit > 0 ? currencyFormatter.format(line.debit) : '-'}</td>
+                        <td class="px-4 py-2 text-right text-gray-900 dark:text-white">${line.kredit > 0 ? currencyFormatter.format(line.kredit) : '-'}</td>
                     </tr>
                 `;
             });
@@ -203,7 +212,7 @@ function initLaporanHarianPage() {
             modalBody.innerHTML = tableHtml;
 
         } catch (error) {
-            modalBody.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            modalBody.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-4 rounded-md text-center">${error.message}</div>`;
         }
     });
 

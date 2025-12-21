@@ -10,6 +10,7 @@ function initPembelianPage() {
     // Tambahkan event listener untuk tombol "Tambah Pembelian"
     document.getElementById('add-pembelian-btn')?.addEventListener('click', () => {
         resetPembelianForm();
+        openModal('pembelianModal'); // Buka modal setelah form direset
     });
 
     // Tambahkan event listener untuk tombol "Tambah Baris" di dalam modal
@@ -24,7 +25,7 @@ function initPembelianPage() {
 
     paymentMethodSelect?.addEventListener('change', (e) => {
         const isCash = e.target.value === 'cash';
-        kasAccountContainer.style.display = isCash ? 'block' : 'none';
+        kasAccountContainer.classList.toggle('hidden', !isCash); // Gunakan class 'hidden'
         kasAccountSelect.required = isCash;
     });
 
@@ -50,7 +51,7 @@ function initPembelianPage() {
     };
 
     document.getElementById('search-pembelian')?.addEventListener('input', filterHandler);
-    ['filter-supplier', 'filter-bulan', 'filter-tahun', 'filter-limit'].forEach(id => {
+    ['filter-supplier', 'filter-bulan', 'filter-tahun'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', filterHandler);
     });
 
@@ -81,6 +82,9 @@ function resetPembelianForm() {
     addPembelianLine();
     // Set tanggal hari ini
     document.getElementById('tanggal_pembelian').valueAsDate = new Date();
+    // Reset payment method display
+    document.getElementById('kas-account-container').classList.add('hidden');
+    document.getElementById('kas_account_id').required = false;
 }
 
 // Fungsi untuk memuat data yang dibutuhkan oleh form (Pemasok & Akun)
@@ -139,7 +143,7 @@ async function loadPembelianFormData() {
         }
 
         // Ambil daftar barang untuk pembelian
-        const itemsRes = await fetch(basePath + '/api/stok?limit=-1'); // Ambil semua item
+        const itemsRes = await fetch(basePath + '/api/stok?limit=9999'); // Ambil semua item
         const itemsData = await itemsRes.json();
         if (itemsData.status === 'success') {
             // Simpan data barang di window untuk digunakan kembali
@@ -157,6 +161,7 @@ function addPembelianLine(data = {}) {
     if (!tbody) return;
 
     const newRow = document.createElement('tr');
+    newRow.className = 'border-b border-gray-200 dark:border-gray-700';
 
     // Buat opsi untuk dropdown barang
     let itemOptions = '<option value="">-- Pilih Barang --</option>';
@@ -168,22 +173,22 @@ function addPembelianLine(data = {}) {
     }
 
     newRow.innerHTML = `
-        <td>
-            <select class="form-select form-select-sm line-item" required>
+        <td class="px-4 py-2">
+            <select class="w-full bg-transparent border-none focus:ring-0 line-item" required>
                 ${itemOptions}
             </select>
         </td>
-        <td>
-            <input type="number" class="form-control form-control-sm text-end line-qty" placeholder="0" required value="${data.quantity || 1}">
+        <td class="px-4 py-2">
+            <input type="number" class="w-24 text-right bg-transparent border-none focus:ring-0 line-qty" placeholder="0" required value="${data.quantity || 1}">
         </td>
-        <td>
-            <input type="number" class="form-control form-control-sm text-end line-price" placeholder="0" required value="${data.price || 0}">
+        <td class="px-4 py-2">
+            <input type="number" class="w-full text-right bg-transparent border-none focus:ring-0 line-price" placeholder="0" required value="${data.price || 0}">
         </td>
-        <td>
-            <input type="number" class="form-control form-control-sm text-end line-subtotal" readonly>
+        <td class="px-4 py-2">
+            <input type="number" class="w-full text-right bg-transparent border-none focus:ring-0 line-subtotal" readonly>
         </td>
-        <td class="text-center">
-            <button type="button" class="btn btn-danger btn-sm remove-pembelian-line-btn"><i class="bi bi-trash-fill"></i></button>
+        <td class="px-4 py-2 text-center">
+            <button type="button" class="text-red-500 hover:text-red-700 remove-pembelian-line-btn"><i class="bi bi-trash-fill"></i></button>
         </td>
     `;
 
@@ -214,8 +219,8 @@ function addPembelianLine(data = {}) {
 // Fungsi untuk menyimpan data pembelian
 async function savePembelian() {
     const form = document.getElementById('pembelian-form');
+    // Simple validation
     if (!form.checkValidity()) {
-        form.classList.add('was-validated');
         showToast('Harap isi semua field yang wajib diisi.', 'error');
         return;
     }
@@ -223,7 +228,7 @@ async function savePembelian() {
     const saveBtn = document.getElementById('save-pembelian-btn');
     const originalBtnText = saveBtn.innerHTML;
     saveBtn.disabled = true;
-    saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menyimpan...`;
+    saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menyimpan...`;
 
     // Kumpulkan data dari form
     const formData = {
@@ -270,8 +275,7 @@ async function savePembelian() {
 
         if (result.status === 'success') {
             showToast(result.message, 'success');
-            const pembelianModal = bootstrap.Modal.getInstance(document.getElementById('pembelianModal'));
-            if (pembelianModal) pembelianModal.hide();
+            closeModal('pembelianModal');
             // Panggil fungsi untuk memuat ulang daftar pembelian
             loadPembelianList(); 
         } else {
@@ -290,16 +294,17 @@ async function savePembelian() {
 async function loadPembelianList(page = 1) {
     const tableBody = document.getElementById('pembelian-table-body');
     const paginationContainer = document.getElementById('pembelian-pagination');
+    const paginationInfo = document.getElementById('pembelian-pagination-info');
     if (!tableBody) return;
 
-    const limit = document.getElementById('filter-limit').value;
+    const limit = 10; // Hardcode limit for now
     const search = document.getElementById('search-pembelian').value;
     const supplierId = document.getElementById('filter-supplier').value;
     const bulan = document.getElementById('filter-bulan').value;
     const tahun = document.getElementById('filter-tahun').value;
 
     const params = new URLSearchParams({ page, limit, search, supplier_id: supplierId, bulan, tahun });
-    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>`;
 
     try {
         const response = await fetch(`${basePath}/api/pembelian?${params.toString()}`);
@@ -312,24 +317,24 @@ async function loadPembelianList(page = 1) {
             result.data.forEach(p => {
                 let statusBadge;
                 switch (p.status) {
-                    case 'open': statusBadge = '<span class="badge bg-warning">Belum Lunas</span>'; break;
-                    case 'paid': statusBadge = '<span class="badge bg-success">Lunas</span>'; break;
-                    case 'void': statusBadge = '<span class="badge bg-secondary">Batal</span>'; break;
-                    default: statusBadge = `<span class="badge bg-light text-dark">${p.status}</span>`;
+                    case 'open': statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Belum Lunas</span>'; break;
+                    case 'paid': statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Lunas</span>'; break;
+                    case 'void': statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Batal</span>'; break;
+                    default: statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">${p.status}</span>`;
                 }
 
                 const row = `
-                    <tr>
-                        <td>${new Date(p.tanggal_pembelian).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'})}</td>
-                        <td>${p.nama_pemasok || '<i>- Tanpa Pemasok -</i>'}</td>
-                        <td>${p.keterangan}</td>
-                        <td class="text-end">${formatCurrencyAccounting(p.total)}</td>
-                        <td>${p.jatuh_tempo ? new Date(p.jatuh_tempo).toLocaleDateString('id-ID') : '-'}</td>
-                        <td>${statusBadge}</td>
-                        <td class="text-end">
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-info edit-pembelian-btn" data-id="${p.id}" title="Edit"><i class="bi bi-pencil-fill"></i></button>
-                                <button class="btn btn-sm btn-danger delete-pembelian-btn" data-id="${p.id}" title="Hapus"><i class="bi bi-trash-fill"></i></button>
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${new Date(p.tanggal_pembelian).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'})}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${p.nama_pemasok || '<i>- Tanpa Pemasok -</i>'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${p.keterangan}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">${formatCurrencyAccounting(p.total)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${p.jatuh_tempo ? new Date(p.jatuh_tempo).toLocaleDateString('id-ID') : '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <div class="inline-flex rounded-md shadow-sm">
+                                <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-l-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 edit-pembelian-btn" data-id="${p.id}" title="Edit"><i class="bi bi-pencil-fill"></i></button>
+                                <button class="px-2 py-1 border-t border-b border-r border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md text-red-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 delete-pembelian-btn" data-id="${p.id}" title="Hapus"><i class="bi bi-trash-fill"></i></button>
                             </div>
                         </td>
                     </tr>
@@ -337,9 +342,13 @@ async function loadPembelianList(page = 1) {
                 tableBody.insertAdjacentHTML('beforeend', row);
             });
         } else {
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Tidak ada data pembelian ditemukan.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-10">Tidak ada data pembelian ditemukan.</td></tr>';
         }
         renderPagination(paginationContainer, result.pagination, loadPembelianList);
+        if (paginationInfo && result.pagination) {
+            const { from, to, total } = result.pagination;
+            paginationInfo.textContent = `Menampilkan ${from} - ${to} dari ${total} data.`;
+        }
 
     } catch (error) {
         tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
@@ -371,7 +380,7 @@ async function handleEditPembelian(id) {
         const kasAccountContainer = document.getElementById('kas-account-container');
         const kasAccountSelect = document.getElementById('kas_account_id');
         const isCash = header.payment_method === 'cash';
-        kasAccountContainer.style.display = isCash ? 'block' : 'none';
+        kasAccountContainer.classList.toggle('hidden', !isCash);
         kasAccountSelect.required = isCash;
         if (isCash) kasAccountSelect.value = header.credit_account_id; // Di backend, credit_account_id diisi dengan kas_account_id saat tunai
 
@@ -388,8 +397,7 @@ async function handleEditPembelian(id) {
         }
 
         // Tampilkan modal
-        const pembelianModal = new bootstrap.Modal(document.getElementById('pembelianModal'));
-        pembelianModal.show();
+        openModal('pembelianModal');
 
     } catch (error) {
         showToast(`Gagal memuat data pembelian: ${error.message}`, 'error');

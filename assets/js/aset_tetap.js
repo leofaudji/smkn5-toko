@@ -1,11 +1,7 @@
 function initAsetTetapPage() {
     const tableBody = document.getElementById('assets-table-body');
-    const modalEl = document.getElementById('assetModal');
-    const modal = new bootstrap.Modal(modalEl);
     const form = document.getElementById('asset-form');
     const saveBtn = document.getElementById('save-asset-btn');
-    const disposalModalEl = document.getElementById('disposalModal');
-    const disposalModal = new bootstrap.Modal(disposalModalEl);
     const postDepreciationBtn = document.getElementById('post-depreciation-btn');
     const printReportBtn = document.getElementById('print-asset-report-btn');
 
@@ -37,7 +33,7 @@ function initAsetTetapPage() {
     }
 
     async function loadAssets() {
-        tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>`;
         try {
             const response = await fetch(`${basePath}/api/aset_tetap?action=list`);
             const result = await response.json();
@@ -47,20 +43,20 @@ function initAsetTetapPage() {
             if (result.data.length > 0) {
                 result.data.forEach(asset => {
                     const isDisposed = asset.status === 'Dilepas';
-                    const statusBadge = isDisposed ? `<span class="badge bg-secondary">Dilepas</span>` : `<span class="badge bg-success">Aktif</span>`;
-                    const actionButtons = isDisposed ? `<button class="btn btn-sm btn-secondary" disabled title="Aset sudah dilepas"><i class="bi bi-check-circle-fill"></i></button>` : `
-                        <button class="btn btn-sm btn-info edit-asset-btn" data-id="${asset.id}"><i class="bi bi-pencil-fill"></i></button>
-                        <button class="btn btn-sm btn-warning dispose-asset-btn" data-id="${asset.id}" data-nama="${asset.nama_aset}"><i class="bi bi-box-arrow-right"></i></button>
-                        <button class="btn btn-sm btn-danger delete-asset-btn" data-id="${asset.id}"><i class="bi bi-trash-fill"></i></button>`;
+                    const statusBadge = isDisposed ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Dilepas</span>` : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Aktif</span>`;
+                    const actionButtons = isDisposed ? `<button class="text-gray-400 cursor-not-allowed" disabled title="Aset sudah dilepas"><i class="bi bi-check-circle-fill"></i></button>` : `
+                        <button class="text-blue-600 hover:text-blue-900 edit-asset-btn mr-2" data-id="${asset.id}"><i class="bi bi-pencil-fill"></i></button>
+                        <button class="text-yellow-600 hover:text-yellow-900 dispose-asset-btn mr-2" data-id="${asset.id}" data-nama="${asset.nama_aset}"><i class="bi bi-box-arrow-right"></i></button>
+                        <button class="text-red-600 hover:text-red-900 delete-asset-btn" data-id="${asset.id}"><i class="bi bi-trash-fill"></i></button>`;
 
                     const row = `
-                        <tr class="${isDisposed ? 'table-light text-muted' : ''}">
-                            <td>${asset.nama_aset} ${statusBadge}</td>
-                            <td>${new Date(asset.tanggal_akuisisi).toLocaleDateString('id-ID')}</td>
-                            <td class="text-end">${currencyFormatter.format(asset.harga_perolehan)}</td>
-                            <td class="text-end">${currencyFormatter.format(asset.akumulasi_penyusutan)}</td>
-                            <td class="text-end fw-bold">${currencyFormatter.format(asset.nilai_buku)}</td>
-                            <td class="text-end">
+                        <tr class="${isDisposed ? 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${asset.nama_aset} ${statusBadge}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${new Date(asset.tanggal_akuisisi).toLocaleDateString('id-ID')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">${currencyFormatter.format(asset.harga_perolehan)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">${currencyFormatter.format(asset.akumulasi_penyusutan)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white text-right">${currencyFormatter.format(asset.nilai_buku)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
                                 ${actionButtons}
                             </td>
                         </tr>
@@ -68,10 +64,10 @@ function initAsetTetapPage() {
                     tableBody.insertAdjacentHTML('beforeend', row);
                 });
             } else {
-                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada aset tetap yang dicatat.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">Belum ada aset tetap yang dicatat.</td></tr>';
             }
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-red-500 text-sm">Gagal memuat data: ${error.message}</td></tr>`;
         }
     }
 
@@ -98,7 +94,7 @@ function initAsetTetapPage() {
         const result = await response.json();
         showToast(result.message, result.status);
         if (result.status === 'success') {
-            modal.hide();
+            closeModal('assetModal');
             loadAssets();
         }
     });
@@ -147,7 +143,7 @@ function initAsetTetapPage() {
             const result = await response.json();
             showToast(result.message, result.status);
             if (result.status === 'success') {
-                disposalModal.hide();
+                closeModal('disposalModal');
                 loadAssets();
             }
         }
@@ -164,12 +160,14 @@ function initAsetTetapPage() {
         }
     });
 
-    disposalModalEl.addEventListener('show.bs.modal', async (e) => {
+    // Ganti event listener Bootstrap modal dengan pemanggilan langsung saat tombol diklik atau saat modal dibuka
+    // Karena kita menggunakan openModal, kita bisa memuat data saat tombol dispose diklik
+    async function loadCashAccounts() {
         const kasSelect = document.getElementById('kas_account_id');
         const response = await fetch(`${basePath}/api/settings?action=get_cash_accounts`);
         const result = await response.json();
         kasSelect.innerHTML = result.data.map(acc => `<option value="${acc.id}">${acc.nama_akun}</option>`).join('');
-    });
+    }
 
     tableBody.addEventListener('click', async (e) => {
         const editBtn = e.target.closest('.edit-asset-btn');
@@ -185,7 +183,7 @@ function initAsetTetapPage() {
                     if (el) el.value = asset[key];
                 });
                 document.getElementById('asset-id').value = asset.id;
-                modal.show();
+                openModal('assetModal');
             }
         }
 
@@ -199,7 +197,8 @@ function initAsetTetapPage() {
             // Sembunyikan field kas/bank secara default
             document.getElementById('disposal-kas-account-container').style.display = 'none';
             document.getElementById('kas_account_id').required = false;
-            disposalModal.show();
+            await loadCashAccounts(); // Muat akun kas sebelum membuka modal
+            openModal('disposalModal');
         }
     });
 

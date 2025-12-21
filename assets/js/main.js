@@ -1,5 +1,5 @@
 // =================================================================================
-// APLIKASI RT - SINGLE PAGE APPLICATION (SPA) CORE
+// APLIKASI KEUANGAN - SINGLE PAGE APPLICATION (SPA) CORE
 // =================================================================================
 /**
  * Displays a toast notification.
@@ -12,20 +12,38 @@ function showToast(message, type = 'success', title = null) {
     if (!toastContainer) return;
 
     const toastId = 'toast-' + Date.now();
-    let toastIcon, defaultTitle;
+    let toastIcon, defaultTitle, colors;
 
     switch (type) {
         case 'error':
-            toastIcon = '<i class="bi bi-x-circle-fill text-danger me-2"></i>';
+            colors = {
+                bg: 'bg-red-50 dark:bg-red-800/20',
+                text: 'text-red-800 dark:text-red-200',
+                icon: 'text-red-500',
+                border: 'border-red-200 dark:border-red-700'
+            };
+            toastIcon = '<i class="bi bi-x-circle-fill"></i>';
             defaultTitle = 'Error';
             break;
         case 'info':
-            toastIcon = '<i class="bi bi-bell-fill text-info me-2"></i>';
-            defaultTitle = 'Notifikasi Baru';
+            colors = {
+                bg: 'bg-blue-50 dark:bg-blue-800/20',
+                text: 'text-blue-800 dark:text-blue-200',
+                icon: 'text-blue-500',
+                border: 'border-blue-200 dark:border-blue-700'
+            };
+            toastIcon = '<i class="bi bi-bell-fill"></i>';
+            defaultTitle = 'Notifikasi';
             break;
         case 'success':
         default:
-            toastIcon = '<i class="bi bi-check-circle-fill text-success me-2"></i>';
+            colors = {
+                bg: 'bg-green-50 dark:bg-green-800/20',
+                text: 'text-green-800 dark:text-green-200',
+                icon: 'text-green-500',
+                border: 'border-green-200 dark:border-green-700'
+            };
+            toastIcon = '<i class="bi bi-check-circle-fill"></i>';
             defaultTitle = 'Sukses';
             break;
     }
@@ -33,23 +51,39 @@ function showToast(message, type = 'success', title = null) {
     const toastTitle = title || defaultTitle;
 
     const toastHTML = `
-        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header">
-                ${toastIcon}
-                <strong class="me-auto">${toastTitle}</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body">
-                ${message}
+        <div id="${toastId}" class="max-w-lg w-full ${colors.bg} ${colors.border} shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden transition-transform transform translate-x-full">
+            <div class="p-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 text-xl ${colors.icon}">
+                        ${toastIcon}
+                    </div>
+                    <div class="ml-3 w-0 flex-1 pt-0.5">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">${toastTitle}</p>
+                        <p class="mt-1 text-sm ${colors.text}">${message}</p>
+                    </div>
+                    <div class="ml-4 flex-shrink-0 flex">
+                        <button onclick="document.getElementById('${toastId}').remove()" class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     `;
 
     toastContainer.insertAdjacentHTML('beforeend', toastHTML);
     const toastElement = document.getElementById(toastId);
-    const toast = new bootstrap.Toast(toastElement, { delay: 8000 });
-    toast.show();
-    toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+    
+    // Animate in
+    setTimeout(() => {
+        toastElement.classList.remove('translate-x-full');
+        toastElement.classList.add('translate-x-0');
+    }, 100);
+
+    // Auto-hide
+    setTimeout(() => {
+        if (toastElement) toastElement.remove();
+    }, 8000);
 }
 
 /**
@@ -78,30 +112,36 @@ function formatCurrencyAccounting(value) {
  * @param {string} path The path of the page being navigated to.
  */
 function updateActiveSidebarLink(path) {
-    const sidebarLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+    const sidebarLinks = document.querySelectorAll('#sidebar a');
+    const cleanCurrentPath = path.length > 1 ? path.replace(/\/$/, "") : path;
+
     sidebarLinks.forEach(link => {
-        link.classList.remove('active');
         const linkPath = new URL(link.href).pathname;
-        const cleanCurrentPath = path.length > 1 ? path.replace(/\/$/, "") : path;
         const cleanLinkPath = linkPath.length > 1 ? linkPath.replace(/\/$/, "") : linkPath;
+
+        // Reset all links first
+        link.classList.remove('bg-primary-50', 'dark:bg-gray-700', 'text-primary', 'font-semibold');
+        const parentCollapseTrigger = link.closest('[data-controller="collapse"]')?.querySelector('button');
+        if (parentCollapseTrigger) {
+            parentCollapseTrigger.classList.remove('text-primary', 'font-semibold');
+        }
+
         if (cleanLinkPath === cleanCurrentPath) {
-            // Tandai link yang aktif
-            link.classList.add('active');
+            // Style the active link
+            link.classList.add('bg-primary-50', 'dark:bg-gray-700', 'text-primary', 'font-semibold');
 
-            // Cek apakah link ini ada di dalam submenu yang collapsible
-            const parentCollapse = link.closest('.collapse');
-            if (parentCollapse) {
-                // Buka collapse-nya
-                const bsCollapse = new bootstrap.Collapse(parentCollapse, {
-                    toggle: false // Jangan toggle, hanya buka
-                });
-                bsCollapse.show();
-
-                // Tandai juga menu induknya sebagai aktif
-                const parentTrigger = document.querySelector(`a[data-bs-target="#${parentCollapse.id}"]`);
-                if (parentTrigger) {
-                    parentTrigger.classList.add('active');
-                    parentTrigger.setAttribute('aria-expanded', 'true');
+            // Check if it's inside a collapsible menu
+            const parentCollapseContent = link.closest('.collapse-content');
+            if (parentCollapseContent) {
+                // Show the content
+                parentCollapseContent.classList.remove('hidden');
+                
+                // Style the trigger button
+                const triggerButton = parentCollapseContent.previousElementSibling;
+                if (triggerButton) {
+                    triggerButton.classList.add('text-primary', 'font-semibold');
+                    const icon = triggerButton.querySelector('.bi-chevron-down');
+                    if (icon) icon.classList.add('rotate-180');
                 }
             }
         }
@@ -115,11 +155,11 @@ function updateActiveSidebarLink(path) {
  * @param {boolean} pushState Whether to push a new state to the browser history.
  */
 async function navigate(url, pushState = true) {
-    const mainContent = document.querySelector('.main-content');
+    const mainContent = document.getElementById('main-content');
     const loadingBar = document.getElementById('spa-loading-bar');
     if (!mainContent) return;
 
-    // --- Start Loading ---
+    // --- Start Loading (Not implemented in Tailwind version, can be added) ---
     if (loadingBar) {
         loadingBar.classList.remove('is-finished'); // Reset state
         loadingBar.classList.add('is-loading');
@@ -127,14 +167,14 @@ async function navigate(url, pushState = true) {
 
     // 1. Mulai animasi fade-out
     mainContent.classList.add('is-transitioning');
-
+    mainContent.style.opacity = '0';
     // 2. Tunggu animasi fade-out selesai (durasi harus cocok dengan CSS)
     await new Promise(resolve => setTimeout(resolve, 200));
 
     try {
         const response = await fetch(url, {
             headers: {
-                'X-SPA-Request': 'true' // Custom header to tell the backend this is an SPA request
+                'X-SPA-Request': 'true'
             }
         });
 
@@ -155,10 +195,12 @@ async function navigate(url, pushState = true) {
 
         // 3. Ganti konten saat tidak terlihat
         mainContent.innerHTML = html;
+        const pageTitle = document.querySelector('#main-content .h2, #main-content h1')?.textContent || 'Dashboard';
+        document.getElementById('page-title').textContent = pageTitle;
         updateActiveSidebarLink(new URL(url).pathname);
         
         // 4. Mulai animasi fade-in
-        mainContent.classList.remove('is-transitioning');
+        mainContent.style.opacity = '1';
 
         runPageScripts(new URL(url).pathname); // Run scripts for the new page
 
@@ -186,7 +228,7 @@ async function navigate(url, pushState = true) {
         }
         mainContent.innerHTML = `<div class="alert alert-danger m-3">${errorMessage}</div>`;
         // Tampilkan juga pesan error dengan fade-in
-        mainContent.classList.remove('is-transitioning');
+        mainContent.style.opacity = '1';
     } finally {
         // Hide the loading bar after a short delay to let the 'finished' animation complete
         if (loadingBar) {
@@ -378,9 +420,6 @@ function initKategoriPage() {
     console.log("Halaman Kategori diinisialisasi. (Belum diimplementasikan)");
 }
 
-// Deklarasikan variabel modal di luar fungsi untuk mencegah duplikasi listener
-let anggaranModalInstance = null;
-
 /**
  * Calculates time since a given date.
  * @param {Date} date The date to compare against.
@@ -406,55 +445,43 @@ function timeSince(date) {
 // =================================================================================
 
 document.addEventListener('DOMContentLoaded', function () {
-    // --- Sidebar Toggle Logic ---
-    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-    const sidebarOverlay = document.querySelector('.sidebar-overlay');
-
-    const toggleSidebar = () => {
-        document.body.classList.toggle('sidebar-collapsed');
-        // Save the state to localStorage
-        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
-        localStorage.setItem('sidebar-collapsed', isCollapsed);
-    };
-
-    if (sidebarToggleBtn) {
-        sidebarToggleBtn.addEventListener('click', toggleSidebar);
-    }
-
-    if (sidebarOverlay) {
-        // Di layar kecil, klik pada overlay akan menutup sidebar
-        sidebarOverlay.addEventListener('click', toggleSidebar);
-    }
+    // Sidebar logic is now handled by inline `onclick="toggleSidebar()"` in header.php
+    // and the `toggleSidebar` function in footer.php
 
     // --- Theme Switcher ---
     const themeSwitcher = document.getElementById('theme-switcher');
     if (themeSwitcher) {
-        const themeIcon = themeSwitcher.querySelector('i');
         const themeText = document.getElementById('theme-switcher-text');
+        const htmlEl = document.documentElement;
 
         // Function to set the switcher state
         const setSwitcherState = (theme) => {
             if (theme === 'dark') {
-                themeIcon.classList.replace('bi-moon-stars-fill', 'bi-sun-fill');
                 themeText.textContent = 'Mode Terang';
             } else {
-                themeIcon.classList.replace('bi-sun-fill', 'bi-moon-stars-fill');
                 themeText.textContent = 'Mode Gelap';
             }
         };
 
-        // Set initial state based on what's already applied to the body
-        const currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
-        setSwitcherState(currentTheme);
+        // Apply saved theme on load
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            htmlEl.classList.toggle('dark', savedTheme === 'dark');
+            setSwitcherState(savedTheme);
+        } else {
+            // Set initial state based on default
+            const currentTheme = htmlEl.classList.contains('dark') ? 'dark' : 'light';
+            setSwitcherState(currentTheme);
+        }
 
         themeSwitcher.addEventListener('click', (e) => {
             e.preventDefault();
-            const newTheme = document.body.classList.toggle('dark-mode') ? 'dark' : 'light';
+            const isDark = htmlEl.classList.toggle('dark');
+            const newTheme = isDark ? 'dark' : 'light';
             localStorage.setItem('theme', newTheme);
             setSwitcherState(newTheme);
         });
     }
-
     // --- Panic Button Logic ---
     const panicButton = document.getElementById('panic-button');
     if (panicButton) {
@@ -541,8 +568,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Intercept clicks on internal links
     document.body.addEventListener('click', e => {
         const link = e.target.closest('a');
-        // Check if it's an internal, navigable link that doesn't open a new tab, trigger a modal/dropdown, or has the 'data-spa-ignore' attribute
-        if (link && link.href && link.target !== '_blank' && new URL(link.href).origin === window.location.origin && !link.getAttribute('data-bs-toggle') && link.getAttribute('data-spa-ignore') === null) {
+        // Check if it's an internal, navigable link that doesn't open a new tab or has the 'data-spa-ignore' attribute
+        if (link && link.href && link.target !== '_blank' && new URL(link.href).origin === window.location.origin && link.getAttribute('data-spa-ignore') === null) {
             e.preventDefault();
             if (new URL(link.href).pathname !== window.location.pathname) {
                 navigate(link.href);
@@ -560,21 +587,21 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Initial Page Load ---
     updateActiveSidebarLink(window.location.pathname);
     runPageScripts(window.location.pathname);
+
+    // --- Initialize Global Components ---
+    initGlobalSearch();
+    initRecurringModal();
 });
 
 // --- Global Theme Color Picker Logic ---
-function applyThemeColor(color) {
-    if (!color) return;
-    // Update CSS variables for the entire document
-    document.documentElement.style.setProperty('--cf-blue', color);
-    // Also update the Bootstrap variable for primary button background
-    document.documentElement.style.setProperty('--bs-btn-bg', color);
-    document.documentElement.style.setProperty('--bs-btn-border-color', color);
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     const savedColor = localStorage.getItem('theme_color');
     const colorPicker = document.getElementById('theme-color-picker');
+
+    const applyThemeColor = (color) => {
+        if (!color) return;
+        document.documentElement.style.setProperty('--theme-color', color);
+    };
 
     if (savedColor) {
         applyThemeColor(savedColor);
@@ -591,12 +618,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 // --- Recurring Modal Logic (Global) ---
-const recurringModalEl = document.getElementById('recurringModal');
-const recurringModal = recurringModalEl ? new bootstrap.Modal(recurringModalEl) : null;
-const recurringForm = document.getElementById('recurring-form');
+function initRecurringModal() {
+    const saveBtn = document.getElementById('save-recurring-template-btn');
+    const form = document.getElementById('recurring-form');
+    if (!saveBtn || !form) return;
+
+    saveBtn.addEventListener('click', async () => {
+        const response = await fetch(`${basePath}/api/recurring`, { method: 'POST', body: new FormData(form) });
+        const result = await response.json();
+        showToast(result.message, result.status === 'success' ? 'success' : 'error');
+        if (result.status === 'success') closeModal('recurringModal');
+    });
+}
 
 function openRecurringModal(type, data, existingTemplate = null) {
-    if (!recurringModal || !recurringForm) return;
+    const recurringForm = document.getElementById('recurring-form');
+    if (!recurringForm) return;
 
     recurringForm.reset();
     document.getElementById('recurring-template-type').value = type;
@@ -616,19 +653,9 @@ function openRecurringModal(type, data, existingTemplate = null) {
         document.getElementById('recurring-start-date').valueAsDate = new Date();
     }
 
-    recurringModal.show();
+    openModal('recurringModal');
 }
 
-document.getElementById('save-recurring-template-btn')?.addEventListener('click', async () => {
-    const response = await fetch(`${basePath}/api/recurring`, { method: 'POST', body: new FormData(recurringForm) });
-    const result = await response.json();
-    showToast(result.message, result.status);
-    if (result.status === 'success') recurringModal.hide();
-});
-
-/**
- * Initializes the global search functionality.
- */
 function initGlobalSearch() {
     const searchModalEl = document.getElementById('globalSearchModal');
     if (!searchModalEl) return;
@@ -636,7 +663,6 @@ function initGlobalSearch() {
     const searchInput = document.getElementById('global-search-input');
     const resultsContainer = document.getElementById('global-search-results');
     const spinner = document.getElementById('global-search-spinner');
-    const searchModal = bootstrap.Modal.getInstance(searchModalEl) || new bootstrap.Modal(searchModalEl);
 
     let debounceTimer;
 
@@ -659,7 +685,7 @@ function initGlobalSearch() {
             if (result.status === 'success' && result.data.length > 0) {
                 result.data.forEach(item => {
                     const resultItem = `
-                        <a href="${basePath}${item.link}" class="search-result-item" data-bs-dismiss="modal">
+                        <a href="${basePath}${item.link}" class="search-result-item block p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                             <div class="d-flex align-items-center">
                                 <i class="bi ${item.icon} fs-4 me-3 text-primary"></i>
                                 <div>
@@ -691,31 +717,22 @@ function initGlobalSearch() {
     });
 
     resultsContainer.addEventListener('click', (e) => {
-        const link = e.target.closest('.search-result-item');
+        const link = e.target.closest('a.search-result-item');
         if (link) {
             e.preventDefault();
             const url = link.href;
-            // Tutup modal secara manual
-            searchModal.hide();
+            closeModal('globalSearchModal');
             // Gunakan fungsi navigate SPA untuk pindah halaman dan menangani hash
             navigate(url);
         }
-    });
-
-    searchModalEl.addEventListener('shown.bs.modal', () => {
-        searchInput.focus();
-    });
-
-    searchModalEl.addEventListener('hidden.bs.modal', () => {
-        searchInput.value = '';
-        resultsContainer.innerHTML = '<p class="text-muted text-center">Masukkan kata kunci untuk memulai pencarian.</p>';
     });
 
     // Add keyboard shortcut (Ctrl+K or Cmd+K)
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
             e.preventDefault(); // Prevent default browser action (e.g., search)
-            searchModal.show();
+            openModal('globalSearchModal');
+            setTimeout(() => searchInput.focus(), 50);
         }
     });
 }
@@ -728,23 +745,42 @@ function initGlobalSearch() {
 function renderPagination(container, pagination, onPageClick) {
     if (!container) return;
     container.innerHTML = '';
-    if (!pagination || pagination.total_pages <= 1) return;
+    if (!pagination || pagination.total_pages <= 1) {
+        // Optional: show info even for single page
+        const info = document.getElementById(container.id.replace('pagination', 'pagination-info'));
+        if (info && pagination && pagination.total_records > 0) {
+            info.textContent = `Menampilkan ${pagination.total_records} dari ${pagination.total_records} data.`;
+        }
+        return;
+    }
 
     const { current_page, total_pages } = pagination;
 
     const createPageItem = (page, text, isDisabled = false, isActive = false) => {
-        const li = document.createElement('li');
-        li.className = `page-item ${isDisabled ? 'disabled' : ''} ${isActive ? 'active' : ''}`;
         const a = document.createElement('a');
-        a.className = 'page-link';
         a.href = '#';
         a.dataset.page = page;
         a.innerHTML = text;
-        li.appendChild(a);
-        return li;
+
+        let baseClasses = 'flex items-center justify-center px-3 h-8 leading-tight';
+        let stateClasses = '';
+        if (isDisabled) {
+            stateClasses = 'text-gray-500 bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 cursor-not-allowed';
+        } else if (isActive) {
+            stateClasses = 'text-white bg-primary border border-primary z-10';
+        } else {
+            stateClasses = 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white';
+        }
+        a.className = `${baseClasses} ${stateClasses}`;
+        return a;
     };
 
-    container.appendChild(createPageItem(current_page - 1, 'Previous', current_page === 1));
+    const ul = document.createElement('ul');
+    ul.className = 'inline-flex -space-x-px text-sm';
+
+    const prevItem = createPageItem(current_page - 1, 'Prev', current_page === 1);
+    prevItem.classList.add('rounded-l-lg');
+    ul.appendChild(document.createElement('li')).appendChild(prevItem);
 
     const maxPagesToShow = 5;
     let startPage, endPage;
@@ -759,35 +795,36 @@ function renderPagination(container, pagination, onPageClick) {
     }
 
     if (startPage > 1) {
-        container.appendChild(createPageItem(1, '1'));
-        if (startPage > 2) container.appendChild(createPageItem(0, '...', true));
+        ul.appendChild(document.createElement('li')).appendChild(createPageItem(1, '1'));
+        if (startPage > 2) ul.appendChild(document.createElement('li')).appendChild(createPageItem(0, '...', true));
     }
 
     for (let i = startPage; i <= endPage; i++) {
-        container.appendChild(createPageItem(i, i, false, i === current_page));
+        ul.appendChild(document.createElement('li')).appendChild(createPageItem(i, i, false, i === current_page));
     }
 
     if (endPage < total_pages) {
-        if (endPage < total_pages - 1) container.appendChild(createPageItem(0, '...', true));
-        container.appendChild(createPageItem(total_pages, total_pages));
+        if (endPage < total_pages - 1) ul.appendChild(document.createElement('li')).appendChild(createPageItem(0, '...', true));
+        ul.appendChild(document.createElement('li')).appendChild(createPageItem(total_pages, total_pages));
     }
 
-    container.appendChild(createPageItem(current_page + 1, 'Next', current_page === total_pages));
+    const nextItem = createPageItem(current_page + 1, 'Next', current_page === total_pages);
+    nextItem.classList.add('rounded-r-lg');
+    ul.appendChild(document.createElement('li')).appendChild(nextItem);
+
+    container.appendChild(ul);
 
     container.addEventListener('click', (e) => {
         e.preventDefault();
-        const pageLink = e.target.closest('.page-link');
-        if (pageLink && !pageLink.parentElement.classList.contains('disabled')) {
+        const pageLink = e.target.closest('a[data-page]');
+        if (pageLink && !pageLink.classList.contains('cursor-not-allowed')) {
             const page = parseInt(pageLink.dataset.page, 10);
-            if (page !== current_page) {
+            if (page && page !== current_page) {
                 onPageClick(page);
             }
         }
     });
 }
-
-// Initialize global search on every page load
-initGlobalSearch();
 
 function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -801,8 +838,4 @@ function formatDate(dateString) {
 function formatNumber(value) {
     if (typeof value !== 'number') return value;
     return new Intl.NumberFormat('id-ID').format(value);
-}   
-
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
 }

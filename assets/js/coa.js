@@ -1,11 +1,11 @@
 function initCoaPage() {
     const treeContainer = document.getElementById('coa-tree-container');
     const modalEl = document.getElementById('coaModal');
-    const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
     const form = document.getElementById('coa-form');
     const saveBtn = document.getElementById('save-coa-btn');
+    const addBtn = document.getElementById('add-coa-btn');
 
-    if (!treeContainer || !modalEl || !form || !saveBtn) return;
+    if (!treeContainer || !modalEl || !form || !saveBtn || !addBtn) return;
 
     let flatAccounts = []; // Store flat list for populating dropdown
 
@@ -21,22 +21,21 @@ function initCoaPage() {
 
     function renderTree(nodes, container, level = 0) {
         const ul = document.createElement('ul');
-        ul.className = `list-group ${level > 0 ? 'ms-4 mt-2' : 'list-group-flush'}`;
+        ul.className = `list-none ${level > 0 ? 'ml-6 mt-2 border-l border-gray-200 dark:border-gray-700 pl-4' : 'space-y-2'}`;
 
         nodes.forEach(node => {
             const li = document.createElement('li');
-            // Gunakan 'list-group-item' untuk semua, karena Bootstrap 5 menangani border dengan baik.
-            li.className = 'list-group-item'; 
+            li.className = 'mb-1'; 
             li.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="flex justify-between items-center p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                     <div>
-                        <span class="fw-bold">${node.kode_akun}</span> - ${node.nama_akun}
-                        <small class="text-muted">(${node.tipe_akun})</small>
-                        ${node.is_kas == 1 ? '<span class="badge bg-success ms-2">Akun Kas</span>' : ''}
+                        <span class="font-semibold text-gray-900 dark:text-white">${node.kode_akun}</span> - <span class="text-gray-800 dark:text-gray-200">${node.nama_akun}</span>
+                        <small class="text-gray-500 dark:text-gray-400 ml-1">(${node.tipe_akun})</small>
+                        ${node.is_kas == 1 ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 ml-2">Akun Kas</span>' : ''}
                     </div>
-                    <div>
-                        <button class="btn btn-sm btn-info edit-btn" data-id="${node.id}" title="Edit"><i class="bi bi-pencil-fill"></i></button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${node.id}" data-nama="${node.nama_akun}" title="Hapus"><i class="bi bi-trash-fill"></i></button>
+                    <div class="flex gap-2">
+                        <button class="text-blue-600 hover:text-blue-900 edit-btn" data-id="${node.id}" title="Edit"><i class="bi bi-pencil-fill"></i></button>
+                        <button class="text-red-600 hover:text-red-900 delete-btn" data-id="${node.id}" data-nama="${node.nama_akun}" title="Hapus"><i class="bi bi-trash-fill"></i></button>
                     </div>
                 </div>
             `;
@@ -61,7 +60,7 @@ function initCoaPage() {
     }
 
     async function loadCoaData() {
-        treeContainer.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        treeContainer.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
         try {
             const response = await fetch(`${basePath}/api/coa`);
             const result = await response.json();
@@ -73,11 +72,11 @@ function initCoaPage() {
             if (tree) {
                 renderTree(tree, treeContainer);
             } else {
-                treeContainer.innerHTML = '<div class="alert alert-info">Bagan Akun masih kosong.</div>';
+                treeContainer.innerHTML = '<div class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 p-4 rounded-md text-center">Bagan Akun masih kosong.</div>';
             }
             populateParentDropdown();
         } catch (error) {
-            treeContainer.innerHTML = `<div class="alert alert-danger">Gagal memuat data: ${error.message}</div>`;
+            treeContainer.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-4 rounded-md text-center">Gagal memuat data: ${error.message}</div>`;
         }
     }
 
@@ -85,14 +84,14 @@ function initCoaPage() {
         const formData = new FormData(form);
         const originalBtnHtml = saveBtn.innerHTML;
         saveBtn.disabled = true;
-        saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Menyimpan...`;
+        saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menyimpan...`;
 
         try {
             const response = await fetch(`${basePath}/api/coa`, { method: 'POST', body: formData });
             const result = await response.json();
             showToast(result.message, result.status === 'success' ? 'success' : 'error');
             if (result.status === 'success') {
-                modal.hide();
+                closeModal('coaModal');
                 loadCoaData();
             }
         } catch (error) {
@@ -123,7 +122,7 @@ function initCoaPage() {
                 document.getElementById('nama_akun').value = acc.nama_akun;
                 document.getElementById('tipe_akun').value = acc.tipe_akun;
                 document.getElementById('is_kas').checked = (acc.is_kas == 1);
-                modal.show();
+                openModal('coaModal');
             }
         }
 
@@ -142,15 +141,13 @@ function initCoaPage() {
         }
     });
 
-    modalEl.addEventListener('show.bs.modal', (e) => {
-        const button = e.relatedTarget;
-        if (button && button.dataset.action === 'add') {
-            document.getElementById('coaModalLabel').textContent = 'Tambah Akun Baru';
-            form.reset();
-            document.getElementById('coa-id').value = '';
-            document.getElementById('coa-action').value = 'add';
-            populateParentDropdown();
-        }
+    addBtn.addEventListener('click', () => {
+        document.getElementById('coaModalLabel').textContent = 'Tambah Akun Baru';
+        form.reset();
+        document.getElementById('coa-id').value = '';
+        document.getElementById('coa-action').value = 'add';
+        populateParentDropdown();
+        openModal('coaModal');
     });
 
     loadCoaData();

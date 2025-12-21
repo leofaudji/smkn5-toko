@@ -1,6 +1,5 @@
 function initPenjualanPage() {
-    const penjualanModal = new bootstrap.Modal(document.getElementById('penjualanModal'));
-    const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+    // Modal instances are no longer needed, using global openModal/closeModal
     const searchProdukInput = document.getElementById('search-produk');
     const cartItemsContainer = document.getElementById('cart-items');
     const searchInput = document.getElementById('search-input');
@@ -12,108 +11,6 @@ function initPenjualanPage() {
     let currentPage = 1;
     const limit = 10;
     let searchTimeout;
-
-    // --- Tambahan: Inject UI Metode Pembayaran ---
-    const bayarInput = document.getElementById('bayar');
-    if (bayarInput && !document.getElementById('payment_method')) {
-        const container = bayarInput.closest('.mb-3') || bayarInput.parentElement;
-        const paymentHtml = `
-            <div class="mb-3">
-                <label for="payment_method" class="form-label"><i class="bi bi-credit-card me-1"></i>Metode Pembayaran</label>
-                <select class="form-select" id="payment_method">
-                    <option value="cash">Tunai</option>
-                    <option value="transfer">Transfer Bank</option>
-                    <option value="qris">QRIS</option>
-                </select>
-            </div>
-            <div class="mb-3" id="account-select-container" style="display:none;">
-                <label for="payment_account_id" class="form-label"><i class="bi bi-bank me-1"></i>Akun Tujuan <span class="text-danger">*</span></label>
-                <select class="form-select" id="payment_account_id">
-                    <option value="">-- Pilih Akun Bank --</option>
-                </select>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforebegin', paymentHtml);
-
-        // Load daftar akun kas/bank
-        fetch(`${basePath}/api/settings?action=get_cash_accounts`)
-            .then(res => res.json())
-            .then(res => {
-                if (res.status === 'success') {
-                    const accSelect = document.getElementById('payment_account_id');
-                    res.data.forEach(acc => accSelect.add(new Option(acc.nama_akun, acc.id)));
-                }
-            });
-
-        // Event listener ganti metode
-        document.getElementById('payment_method').addEventListener('change', (e) => {
-            const isNonCash = e.target.value !== 'cash';
-            document.getElementById('account-select-container').style.display = isNonCash ? 'block' : 'none';
-            const accSelect = document.getElementById('payment_account_id');
-            accSelect.required = isNonCash;
-            if (!isNonCash) accSelect.value = '';
-            updateSummary(); // Update summary untuk auto-fill nominal jika non-tunai
-        });
-
-        // Tambahkan tombol Uang Pas
-        const uangPasBtn = document.createElement('button');
-        uangPasBtn.type = 'button';
-        uangPasBtn.className = 'btn btn-outline-secondary w-100 mt-2';
-        uangPasBtn.id = 'btn-uang-pas';
-        uangPasBtn.innerHTML = '<i class="bi bi-cash-stack"></i> Uang Pas';
-        
-        bayarInput.parentNode.insertBefore(uangPasBtn, bayarInput.nextSibling);
-
-        uangPasBtn.addEventListener('click', () => {
-            // Hitung total belanja saat ini
-            const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.harga_jual) * parseInt(item.qty)), 0);
-            const itemDiscounts = cart.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0);
-            const totalDiscountInput = parseFloat(document.getElementById('discount_total').value) || 0;
-            const total = subtotal - (itemDiscounts + totalDiscountInput);
-            
-            // Set nilai input bayar sesuai total
-            bayarInput.value = total;
-            
-            // Update perhitungan kembalian
-            updateSummary();
-        });
-    }
-    // ---------------------------------------------
-
-    // --- Tambahan: Sticky Header & Scroll untuk Tabel Keranjang ---
-    if (!document.getElementById('penjualan-pos-styles')) {
-        const style = document.createElement('style');
-        style.id = 'penjualan-pos-styles';
-        style.textContent = `
-            .pos-cart-scroll {
-                max-height: 400px; /* Tinggi maksimal area scroll */
-                overflow-y: auto;
-                border: 1px solid #dee2e6;
-                border-radius: 0.25rem;
-            }
-            .pos-cart-scroll table { margin-bottom: 0; }
-            .pos-cart-scroll thead th {
-                position: sticky;
-                top: 0;
-                background-color: #f8f9fa; /* Warna background header agar tidak transparan */
-                z-index: 5;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    if (cartItemsContainer) {
-        const table = cartItemsContainer.closest('table');
-        // Bungkus tabel dengan div scroll jika belum
-        if (table && !table.parentElement.classList.contains('pos-cart-scroll')) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'pos-cart-scroll';
-            table.parentNode.insertBefore(wrapper, table);
-            wrapper.appendChild(table);
-        }
-    }
-    // -------------------------------------------------------------
 
     // Fungsi utilitas
     const formatRupiah = (angka) => {
@@ -225,7 +122,7 @@ function initPenjualanPage() {
 
             if (result.success) {
                 renderTable(result.data);
-                renderPagination(result.total, result.page, result.limit);
+                renderPagination(paginationContainer, result.pagination, loadPenjualan);
             } else {
                 showToast('Gagal memuat data: ' + result.message, 'danger');
             }
@@ -247,27 +144,27 @@ function initPenjualanPage() {
             
             const row = `
                 <tr class="${rowClass} align-middle">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <div class="me-2 text-primary"><i class="bi bi-receipt"></i></div>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="mr-2 text-primary"><i class="bi bi-receipt"></i></div>
                             <div>
-                                <span class="fw-bold ${textDecoration}">${item.nomor_referensi}</span>
-                                ${isVoid ? '<span class="badge bg-danger ms-1" style="font-size: 0.65rem;">BATAL</span>' : ''}
+                                <span class="font-bold ${textDecoration}">${item.nomor_referensi}</span>
+                                ${isVoid ? '<span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">BATAL</span>' : ''}
                             </div>
                         </div>
                     </td>
-                    <td><i class="bi bi-calendar-event me-1 text-muted"></i> <span class="${textDecoration}">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</span></td>
-                    <td><i class="bi bi-person me-1 text-muted"></i> <span class="${textDecoration}">${item.customer_name}</span></td>
-                    <td class="text-end">
-                        <span class="fw-bold ${isVoid ? 'text-muted' : 'text-success'} ${textDecoration}">${formatRupiah(item.total)}</span>
+                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-calendar-event mr-1 text-gray-400"></i> <span class="${textDecoration}">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-person mr-1 text-gray-400"></i> <span class="${textDecoration}">${item.customer_name}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <span class="font-bold ${isVoid ? 'text-gray-500' : 'text-green-600'} ${textDecoration}">${formatRupiah(item.total)}</span>
                     </td>
-                    <td><i class="bi bi-person-badge me-1 text-muted"></i> <span class="${textDecoration}">${item.username}</span></td>
-                    <td class="text-end">
-                        <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-info btn-detail" data-id="${item.id}" title="Lihat Detail">
+                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-person-badge mr-1 text-gray-400"></i> <span class="${textDecoration}">${item.username}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <div class="inline-flex rounded-md shadow-sm">
+                        <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-l-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-detail" data-id="${item.id}" title="Lihat Detail">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="btn btn-outline-danger btn-void" data-id="${item.id}" title="Batalkan Transaksi" ${isVoid ? 'disabled' : ''}>
+                        <button class="px-2 py-1 border-t border-b border-r border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md text-red-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-void" data-id="${item.id}" title="Batalkan Transaksi" ${isVoid ? 'disabled' : ''}>
                             <i class="bi bi-x-circle"></i>
                         </button>
                         </div>
@@ -276,31 +173,6 @@ function initPenjualanPage() {
             `;
             tableBody.insertAdjacentHTML('beforeend', row);
         });
-    };
-
-    const renderPagination = (total, page, limit) => {
-        const totalPages = Math.ceil(total / limit);
-        paginationContainer.innerHTML = '';
-        
-        if (totalPages <= 1) {
-            paginationInfo.textContent = `Menampilkan ${total} dari ${total} data.`;
-            return;
-        }
-
-        // Info
-        const start = (page - 1) * limit + 1;
-        const end = Math.min(page * limit, total);
-        paginationInfo.textContent = `Menampilkan ${start}-${end} dari ${total} data.`;
-
-        // Tombol
-        // Prev
-        paginationContainer.innerHTML += `<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${page - 1}">Prev</a></li>`;
-        // Pages
-        for (let i = 1; i <= totalPages; i++) {
-            paginationContainer.innerHTML += `<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
-        }
-        // Next
-        paginationContainer.innerHTML += `<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${page + 1}">Next</a></li>`;
     };
 
     // Fungsi untuk keranjang (cart)
@@ -334,27 +206,27 @@ function initPenjualanPage() {
             const subtotal = (price * qty) - discount;
 
             const row = `
-                <tr data-index="${index}" class="align-middle">
-                    <td>
-                        <div class="fw-bold text-dark">${item.nama_barang}</div>
-                        <small class="text-muted">${item.kode_barang || ''}</small>
+                <tr data-index="${index}" class="align-middle text-sm">
+                    <td class="px-4 py-2">
+                        <div class="font-bold text-gray-800 dark:text-gray-200">${item.nama_barang}</div>
+                        <small class="text-gray-500">${item.kode_barang || ''}</small>
                     </td>
-                    <td class="text-end">${formatRupiah(item.harga_jual)}</td>
-                    <td style="width: 140px;">
-                        <div class="input-group input-group-sm">
-                            <button class="btn btn-outline-secondary btn-qty-dec" type="button"><i class="bi bi-dash"></i></button>
-                            <input type="number" class="form-control text-center qty-input" value="${item.qty}" min="1" max="${item.stok}">
-                            <button class="btn btn-outline-secondary btn-qty-inc" type="button"><i class="bi bi-plus"></i></button>
+                    <td class="px-4 py-2 text-right">${formatRupiah(item.harga_jual)}</td>
+                    <td class="px-4 py-2 w-36">
+                        <div class="flex items-center">
+                            <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-l-md btn-qty-dec" type="button"><i class="bi bi-dash"></i></button>
+                            <input type="number" class="w-12 text-center border-t border-b border-gray-300 dark:border-gray-600 dark:bg-gray-700 qty-input" value="${item.qty}" min="1" max="${item.stok}">
+                            <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-r-md btn-qty-inc" type="button"><i class="bi bi-plus"></i></button>
                         </div>
                     </td>
-                    <td style="width: 130px;">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">Rp</span>
-                            <input type="number" class="form-control text-end discount-input" value="${item.discount || 0}" min="0" placeholder="0">
+                    <td class="px-4 py-2 w-32">
+                        <div class="relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">Rp</div>
+                            <input type="number" class="w-full pl-8 text-right rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 discount-input" value="${item.discount || 0}" min="0" placeholder="0">
                         </div>
                     </td>
-                    <td class="subtotal text-end fw-bold text-primary">${formatRupiah(subtotal)}</td>
-                    <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm remove-item-btn" title="Hapus"><i class="bi bi-trash"></i></button></td>
+                    <td class="px-4 py-2 subtotal text-right font-bold text-primary">${formatRupiah(subtotal)}</td>
+                    <td class="px-4 py-2 text-center"><button type="button" class="text-red-500 hover:text-red-700 remove-item-btn" title="Hapus"><i class="bi bi-trash"></i></button></td>
                 </tr>
             `;
             cartItemsContainer.insertAdjacentHTML('beforeend', row);
@@ -365,7 +237,7 @@ function initPenjualanPage() {
     const updateSummary = () => {
         const subtotal = cart.reduce((sum, item) => sum + (item.harga_jual * item.qty), 0);
         const itemDiscounts = cart.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0);
-        const totalDiscountInput = parseFloat(document.getElementById('discount_total').value) || 0;
+        const totalDiscountInput = parseFloat(document.getElementById('discount_total')?.value) || 0;
         const totalDiscount = itemDiscounts + totalDiscountInput;
         const total = subtotal - totalDiscount;
         
@@ -376,12 +248,12 @@ function initPenjualanPage() {
             bayarInput.value = total;
         }
 
-        const bayar = parseFloat(document.getElementById('bayar').value) || 0;
+        const bayar = parseFloat(bayarInput.value) || 0;
         const kembali = bayar - total;
 
-        document.getElementById('subtotal').value = formatRupiah(subtotal);
-        document.getElementById('total').value = formatRupiah(total);
-        document.getElementById('kembali').value = formatRupiah(kembali >= 0 ? kembali : 0);
+        document.getElementById('subtotal').textContent = formatRupiah(subtotal);
+        document.getElementById('total').textContent = formatRupiah(total);
+        document.getElementById('kembali').textContent = formatRupiah(kembali >= 0 ? kembali : 0);
     };
 
     // Event Listeners
@@ -389,8 +261,42 @@ function initPenjualanPage() {
         document.getElementById('form-penjualan').reset();
         document.getElementById('tanggal').valueAsDate = new Date();
         cart = [];
-        updateSummary();
-        penjualanModal.show();
+        renderCart();
+        openModal('penjualanModal');
+    });
+
+    // --- Event Listeners for Payment Section ---
+    // Load bank accounts for payment method
+    fetch(`${basePath}/api/settings?action=get_cash_accounts`)
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') {
+                const accSelect = document.getElementById('payment_account_id');
+                if(accSelect) res.data.forEach(acc => accSelect.add(new Option(acc.nama_akun, acc.id)));
+            }
+        });
+
+    // Handle payment method change
+    document.getElementById('payment_method')?.addEventListener('change', (e) => {
+        const isNonCash = e.target.value !== 'cash';
+        document.getElementById('account-select-container').classList.toggle('hidden', !isNonCash);
+        const accSelect = document.getElementById('payment_account_id');
+        accSelect.required = isNonCash;
+        if (!isNonCash) accSelect.value = '';
+        updateSummary(); // Update summary to auto-fill amount if non-cash
+    });
+
+    // Handle "Uang Pas" button
+    document.getElementById('btn-uang-pas')?.addEventListener('click', () => {
+        const totalText = document.getElementById('total').textContent;
+        // Extract number from "Rp 123.456"
+        const totalValue = parseFloat(totalText.replace(/[^0-9,-]+/g,"").replace(",", "."));
+        
+        const bayarInput = document.getElementById('bayar');
+        if (bayarInput && !isNaN(totalValue)) {
+            bayarInput.value = totalValue;
+            updateSummary(); // Recalculate change
+        }
     });
 
     searchInput.addEventListener('keyup', (e) => {
@@ -402,7 +308,7 @@ function initPenjualanPage() {
 
     paginationContainer.addEventListener('click', (e) => {
         e.preventDefault();
-        if (e.target.tagName === 'A') {
+        if (e.target.closest('a[data-page]')) {
             const page = parseInt(e.target.dataset.page);
             if (page && page !== currentPage) {
                 loadPenjualan(page, searchInput.value);
@@ -419,27 +325,41 @@ function initPenjualanPage() {
         }
 
         const response = await fetch(`${basePath}/api/penjualan?action=search_produk&term=${term}`);
-        const products = await response.json();
+        const result = await response.json();
         
         suggestionsContainer.innerHTML = '';
-        if (products.length > 0) {
+
+        let products = [];
+        // Handle both plain array response and object response for success cases
+        if (Array.isArray(result)) {
+            products = result;
+        } else if (result && result.success && Array.isArray(result.data)) {
+            products = result.data;
+        } else {
+            // Log an error if the format is unexpected or if it's an explicit error object
+            console.error("API Error on product search:", result.message || "Unexpected API response format");
+            return;
+        }
+
+        if (products && products.length > 0) {
             const list = products.map(p => 
-                `<a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-product='${JSON.stringify(p)}'>
+                `<a href="#" class="flex justify-between items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600" data-product='${JSON.stringify(p)}'>
                     <div>
-                        <div class="fw-bold"><i class="bi bi-box-seam me-2 text-primary"></i>${p.nama_barang}</div>
-                        <small class="text-muted"><i class="bi bi-upc-scan me-1"></i>${p.sku || p.kode_barang || '-'} | ${formatRupiah(p.harga_jual)}</small>
+                        <div class="font-bold"><i class="bi bi-box-seam mr-2 text-primary"></i>${p.nama_barang}</div>
+                        <small class="text-gray-500"><i class="bi bi-upc-scan mr-1"></i>${p.sku || p.kode_barang || '-'} | ${formatRupiah(p.harga_jual)}</small>
                     </div>
-                    <span class="badge bg-${p.stok > 10 ? 'success' : 'warning'} rounded-pill">Stok: ${p.stok}</span>
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-${p.stok > 10 ? 'green' : 'yellow'}-100 text-${p.stok > 10 ? 'green' : 'yellow'}-800">Stok: ${p.stok}</span>
                 </a>`
             ).join('');
-            suggestionsContainer.innerHTML = `<div class="list-group position-absolute w-100" style="z-index: 1056;">${list}</div>`;
+            suggestionsContainer.innerHTML = list;
         }
     });
 
     document.getElementById('product-suggestions').addEventListener('click', (e) => {
         e.preventDefault();
-        if (e.target.classList.contains('list-group-item')) {
-            const product = JSON.parse(e.target.dataset.product);
+        const link = e.target.closest('a');
+        if (link) {
+            const product = JSON.parse(link.dataset.product);
             addItemToCart(product);
         }
     });
@@ -604,7 +524,7 @@ function initPenjualanPage() {
 
             const result = await response.json();
             if (result.success) {
-                penjualanModal.hide();
+                closeModal('penjualanModal');
                 
                 // Gunakan SweetAlert untuk konfirmasi sukses yang lebih modern
                 Swal.fire({
@@ -627,7 +547,7 @@ function initPenjualanPage() {
                     cart = [];
                     renderCart(); // Bersihkan tampilan keranjang
                     
-                    penjualanModal.show(); // Buka kembali modal
+                    openModal('penjualanModal'); // Buka kembali modal
                     setTimeout(() => {
                         searchProdukInput.focus(); // Fokus langsung ke cari barang
                     }, 500); // Delay sedikit agar modal siap sepenuhnya
@@ -690,64 +610,62 @@ function initPenjualanPage() {
             if (result.success) {
                 const detail = result.data;
                 const itemsHtml = detail.items.map(item => `
-                    <tr>
-                        <td>${item.deskripsi_item}</td>
-                        <td>${item.quantity}</td>
-                        <td>${formatRupiah(item.price)}</td>
-                        <td class="text-end">${formatRupiah(item.subtotal)}</td>
+                    <tr class="text-sm text-gray-800 dark:text-gray-300">
+                        <td class="px-4 py-2">${item.deskripsi_item}</td>
+                        <td class="px-4 py-2 text-center">${item.quantity}</td>
+                        <td class="px-4 py-2 text-right">${formatRupiah(item.price)}</td>
+                        <td class="px-4 py-2 text-right font-medium">${formatRupiah(item.subtotal)}</td>
                     </tr>
                 `).join('');
 
                 const detailContent = `
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <div class="text-muted small">No. Faktur</div>
-                            <div class="fw-bold text-primary"><i class="bi bi-receipt me-1"></i>${detail.nomor_referensi}</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <div class="text-gray-500 text-sm">No. Faktur</div>
+                            <div class="font-bold text-primary"><i class="bi bi-receipt mr-1"></i>${detail.nomor_referensi}</div>
                         </div>
-                        <div class="col-md-6 text-md-end">
-                            <div class="text-muted small">Tanggal</div>
-                            <div class="fw-bold"><i class="bi bi-calendar3 me-1"></i>${new Date(detail.tanggal_penjualan).toLocaleString('id-ID')}</div>
+                        <div class="md:text-right">
+                            <div class="text-gray-500 text-sm">Tanggal</div>
+                            <div class="font-bold"><i class="bi bi-calendar3 mr-1"></i>${new Date(detail.tanggal_penjualan).toLocaleString('id-ID')}</div>
                         </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <div class="text-muted small">Pelanggan</div>
-                            <div class="fw-bold"><i class="bi bi-person me-1"></i>${detail.customer_name}</div>
+                        <div>
+                            <div class="text-gray-500 text-sm">Pelanggan</div>
+                            <div class="font-bold"><i class="bi bi-person mr-1"></i>${detail.customer_name}</div>
                         </div>
-                        <div class="col-md-6 text-md-end">
-                            <div class="text-muted small">Kasir</div>
-                            <div class="fw-bold"><i class="bi bi-person-badge me-1"></i>${detail.created_by_username}</div>
+                        <div class="md:text-right">
+                            <div class="text-gray-500 text-sm">Kasir</div>
+                            <div class="font-bold"><i class="bi bi-person-badge mr-1"></i>${detail.created_by_username}</div>
                         </div>
                     </div>
                     
-                    <div class="table-responsive mb-3">
-                        <table class="table table-sm table-striped">
-                            <thead class="table-light">
+                    <div class="overflow-x-auto mb-4 border border-gray-200 dark:border-gray-700 rounded-md">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>
-                                    <th>Barang</th>
-                                    <th class="text-center">Qty</th>
-                                    <th class="text-end">Harga</th>
-                                    <th class="text-end">Subtotal</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Barang</th>
+                                    <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Qty</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Subtotal</th>
                                 </tr>
                             </thead>
-                            <tbody>${itemsHtml}</tbody>
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">${itemsHtml}</tbody>
                         </table>
                     </div>
                     
-                    <div class="card bg-light border-0">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between mb-1">
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
                                 <span>Total Tagihan</span>
-                                <span class="fw-bold fs-5 text-primary">${formatRupiah(detail.total)}</span>
+                                <span class="font-bold text-lg text-primary">${formatRupiah(detail.total)}</span>
                             </div>
-                            <div class="d-flex justify-content-between mb-1 text-muted">
+                            <div class="flex justify-between text-gray-600 dark:text-gray-400">
                                 <span>Bayar</span>
                                 <span>${formatRupiah(detail.bayar)}</span>
                             </div>
-                            <div class="border-top my-2"></div>
-                            <div class="d-flex justify-content-between">
-                                <span class="fw-bold">Kembali</span>
-                                <span class="fw-bold text-success">${formatRupiah(detail.kembali)}</span>
+                            <div class="border-t border-gray-200 dark:border-gray-600 my-2"></div>
+                            <div class="flex justify-between">
+                                <span class="font-bold">Kembali</span>
+                                <span class="font-bold text-green-600">${formatRupiah(detail.kembali)}</span>
                             </div>
                         </div>
                     </div>
@@ -760,7 +678,7 @@ function initPenjualanPage() {
                     cetakBtn.dataset.id = id;
                 }
 
-                detailModal.show();
+                openModal('detailModal');
             } else {
                 showToast(result.message, 'danger');
             }
@@ -773,8 +691,7 @@ function initPenjualanPage() {
         if (cetakBtn) {
             const id = cetakBtn.dataset.id;
             if (id) {
-                const url = `${basePath}/api/pdf?report=struk-penjualan&id=${id}`;
-                window.open(url, '_blank');
+                printStrukWindow(id);
             }
         }
     });

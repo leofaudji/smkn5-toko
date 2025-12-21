@@ -23,7 +23,7 @@ function initEntriJurnalPage() {
 
     function createAccountSelect(selectedValue = '') {
         const select = document.createElement('select');
-        select.className = 'form-select form-select-sm';
+        select.className = 'block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm';
         select.innerHTML = '<option value="">-- Pilih Akun --</option>';
         allAccounts.forEach(acc => {
             const option = new Option(`${acc.kode_akun} - ${acc.nama_akun}`, acc.id);
@@ -40,10 +40,10 @@ function initEntriJurnalPage() {
         select.name = `lines[${index}][account_id]`;
 
         tr.innerHTML = `
-            <td></td>
-            <td><input type="number" name="lines[${index}][debit]" class="form-control form-control-sm text-end debit-input" value="0" step="any"></td>
-            <td><input type="number" name="lines[${index}][kredit]" class="form-control form-control-sm text-end kredit-input" value="0" step="any"></td>
-            <td class="text-center"><button type="button" class="btn btn-sm btn-danger remove-line-btn"><i class="bi bi-trash-fill"></i></button></td>
+            <td class="px-4 py-2"></td>
+            <td class="px-4 py-2"><input type="number" name="lines[${index}][debit]" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm text-right debit-input" value="0" step="any"></td>
+            <td class="px-4 py-2"><input type="number" name="lines[${index}][kredit]" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm text-right kredit-input" value="0" step="any"></td>
+            <td class="px-4 py-2 text-center"><button type="button" class="inline-flex items-center p-1 border border-transparent rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 remove-line-btn"><i class="bi bi-trash-fill"></i></button></td>
         `;
         tr.querySelector('td').appendChild(select);
         linesBody.appendChild(tr);
@@ -63,11 +63,11 @@ function initEntriJurnalPage() {
         totalKreditEl.textContent = currencyFormatter.format(totalKredit);
 
         if (Math.abs(totalDebit - totalKredit) < 0.01 && totalDebit > 0) {
-            totalDebitEl.classList.add('text-success');
-            totalKreditEl.classList.add('text-success');
+            totalDebitEl.classList.add('text-green-600', 'dark:text-green-400');
+            totalKreditEl.classList.add('text-green-600', 'dark:text-green-400');
         } else {
-            totalDebitEl.classList.remove('text-success');
-            totalKreditEl.classList.remove('text-success');
+            totalDebitEl.classList.remove('text-green-600', 'dark:text-green-400');
+            totalKreditEl.classList.remove('text-green-600', 'dark:text-green-400');
         }
     }
 
@@ -93,7 +93,7 @@ function initEntriJurnalPage() {
         const formData = new FormData(form); // The action is now correctly set from the hidden input
         const originalBtnHtml = saveBtn.innerHTML;
         saveBtn.disabled = true;
-        saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Menyimpan...`;
+        saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menyimpan...`;
         
         try {
             const response = await fetch(`${basePath}/api/entri-jurnal`, { method: 'POST', body: formData });
@@ -150,7 +150,7 @@ function initEntriJurnalPage() {
             if (result.status !== 'success') throw new Error(result.message);
 
             const { header, details } = result.data;
-            document.querySelector('.h2').innerHTML = `<i class="bi bi-pencil-square"></i> Edit Entri Jurnal (ID: JRN-${String(id).padStart(5, '0')})`;
+            document.getElementById('page-title').innerHTML = `<i class="bi bi-pencil-square"></i> Edit Entri Jurnal (ID: JRN-${String(id).padStart(5, '0')})`;
             document.getElementById('jurnal-id').value = header.id;
             document.getElementById('jurnal-action').value = 'update';
             document.getElementById('jurnal-tanggal').value = header.tanggal;
@@ -163,10 +163,10 @@ function initEntriJurnalPage() {
                 select.name = `lines[${index}][account_id]`;
 
                 tr.innerHTML = `
-                    <td></td>
-                    <td><input type="number" name="lines[${index}][debit]" class="form-control form-control-sm text-end debit-input" value="${line.debit}" step="any"></td>
-                    <td><input type="number" name="lines[${index}][kredit]" class="form-control form-control-sm text-end kredit-input" value="${line.kredit}" step="any"></td>
-                    <td class="text-center"><button type="button" class="btn btn-sm btn-danger remove-line-btn"><i class="bi bi-trash-fill"></i></button></td>
+                    <td class="px-4 py-2"></td>
+                    <td class="px-4 py-2"><input type="number" name="lines[${index}][debit]" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm text-right debit-input" value="${line.debit}" step="any"></td>
+                    <td class="px-4 py-2"><input type="number" name="lines[${index}][kredit]" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm text-right kredit-input" value="${line.kredit}" step="any"></td>
+                    <td class="px-4 py-2 text-center"><button type="button" class="inline-flex items-center p-1 border border-transparent rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 remove-line-btn"><i class="bi bi-trash-fill"></i></button></td>
                 `;
                 tr.querySelector('td').appendChild(select);
                 linesBody.appendChild(tr);
@@ -174,7 +174,7 @@ function initEntriJurnalPage() {
             calculateTotals();
         } catch (error) {
             showToast(`Gagal memuat data jurnal untuk diedit: ${error.message}`, 'error');
-            linesBody.innerHTML = `<tr><td colspan="4" class="alert alert-danger">${error.message}</td></tr>`;
+            linesBody.innerHTML = `<tr><td colspan="4" class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-4 text-center">${error.message}</td></tr>`;
         }
     }
 

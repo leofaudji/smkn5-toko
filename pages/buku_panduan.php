@@ -5,29 +5,30 @@ if (!$is_spa_request) {
 }
 ?>
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-question-circle-fill"></i> Buku Panduan Aplikasi</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="<?= base_url('/api/pdf?report=buku-panduan') ?>" target="_blank" class="btn btn-outline-secondary">
+<div class="flex justify-between flex-wrap md:flex-nowrap items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">
+    <h1 class="text-2xl font-semibold text-gray-800 dark:text-white flex items-center gap-2"><i class="bi bi-question-circle-fill"></i> Buku Panduan Aplikasi</h1>
+    <div class="flex mb-2 md:mb-0">
+        <a href="<?= base_url('/api/pdf?report=buku-panduan') ?>" target="_blank" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
             <i class="bi bi-printer-fill"></i> Cetak PDF
         </a>
     </div>
 </div>
 
-<div class="accordion" id="panduanAccordion">
+<div class="space-y-4" id="panduanAccordion">
 
     <!-- Panduan 0: Workflow -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingZero">
-            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseZero" aria-expanded="true" aria-controls="collapseZero">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingZero">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>Alur Kerja Aplikasi (Workflow)</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200 rotate-180"></i>
             </button>
         </h2>
-        <div id="collapseZero" class="accordion-collapse collapse show" aria-labelledby="headingZero" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
-                <p>Berikut adalah gambaran alur kerja yang direkomendasikan untuk menggunakan aplikasi ini secara efektif dari awal hingga akhir periode akuntansi.</p>
-                <div class="mermaid-container">
-                    <pre class="mermaid" style="font-size: 1.1em;">
+        <div id="collapseZero" class="block p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingZero">
+            <div>
+                <p class="mb-4">Berikut adalah gambaran alur kerja yang direkomendasikan untuk menggunakan aplikasi ini secara efektif dari awal hingga akhir periode akuntansi.</p>
+                <div class="mermaid-container overflow-x-auto">
+                    <pre class="mermaid text-center" style="font-size: 1.1em;">
                     graph TD
                         %% Define Styles
                         %% Menambahkan font-size ke dalam style
@@ -97,14 +98,15 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 1: Pengaturan Awal -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingOne">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingOne">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>1. Pengaturan Awal (Penting!)</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseOne" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingOne">
+            <div>
                 <p>Sebelum memulai pencatatan, ada dua langkah krusial yang harus dilakukan untuk memastikan data akurat.</p>
                 <h5>Langkah 1.1: Menyiapkan Bagan Akun (COA)</h5>
                 <ol>
@@ -125,11 +127,11 @@ if (!$is_spa_request) {
                     </li>
                     <li>Pastikan <strong>Total Debit dan Total Kredit seimbang (BALANCE)</strong> sebelum menyimpan.</li>
                 </ol>
-                <div class="d-flex gap-2 mt-3">
-                    <a href="<?= base_url('/coa') ?>" class="btn btn-sm btn-outline-primary" target="_blank">
+                <div class="flex gap-2 mt-3">
+                    <a href="<?= base_url('/coa') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" target="_blank">
                         <i class="bi bi-box-arrow-up-right me-2"></i>Buka Bagan Akun
                     </a>
-                    <a href="<?= base_url('/saldo-awal-neraca') ?>" class="btn btn-sm btn-outline-primary" target="_blank">
+                    <a href="<?= base_url('/saldo-awal-neraca') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" target="_blank">
                         <i class="bi bi-box-arrow-up-right me-2"></i>Buka Saldo Awal
                     </a>
                 </div>
@@ -138,14 +140,15 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 2: Transaksi Harian -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingTwo">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingTwo">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>2. Mencatat Transaksi Harian</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseTwo" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingTwo">
+            <div>
                 <p>Gunakan menu <strong>Transaksi</strong> untuk mencatat pemasukan dan pengeluaran kas harian yang sederhana.</p>
                 <ol>
                     <li>Buka menu <strong>Kas & Bank &raquo; Transaksi</strong>.</li>
@@ -155,7 +158,7 @@ if (!$is_spa_request) {
                     <li>Pilih akun Kas/Bank yang digunakan dan akun lawan (misal: Akun Beban untuk pengeluaran, atau Akun Pendapatan untuk pemasukan).</li>
                     <li>Klik <strong>"Simpan Transaksi"</strong>. Sistem akan otomatis membuat jurnal di belakang layar.</li>
                 </ol>
-                <a href="<?= base_url('/transaksi#add') ?>" class="btn btn-sm btn-outline-primary mt-2" target="_blank">
+                <a href="<?= base_url('/transaksi#add') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
                     <i class="bi bi-box-arrow-up-right me-2"></i>Buka Form Tambah Transaksi
                 </a>
             </div>
@@ -163,14 +166,15 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 3: Entri Jurnal Manual -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingThree">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingThree">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>3. Entri Jurnal Manual (Untuk Transaksi Kompleks)</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseThree" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingThree">
+            <div>
                 <p>Gunakan fitur ini untuk transaksi yang melibatkan lebih dari dua akun (jurnal majemuk) atau transaksi non-kas (misalnya: penyusutan, penyesuaian).</p>
                 <ol>
                     <li>Buka menu <strong>Akuntansi &raquo; Entri Jurnal</strong>.</li>
@@ -179,7 +183,7 @@ if (!$is_spa_request) {
                     <li>Pilih akun dan isi kolom Debit atau Kredit.</li>
                     <li>Pastikan <strong>Total Debit dan Total Kredit seimbang</strong> sebelum menyimpan.</li>
                 </ol>
-                <a href="<?= base_url('/entri-jurnal') ?>" class="btn btn-sm btn-outline-primary mt-2" target="_blank">
+                <a href="<?= base_url('/entri-jurnal') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
                     <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Entri Jurnal
                 </a>
             </div>
@@ -187,14 +191,15 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 4: Rekonsiliasi Bank -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingFour">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingFour">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>4. Mencocokkan Catatan: Rekonsiliasi Bank</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseFour" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingFour">
+            <div>
                 <p>Rekonsiliasi bank adalah proses membandingkan catatan transaksi kas/bank di aplikasi dengan laporan rekening koran dari bank untuk memastikan keduanya cocok.</p>
                 <ol>
                     <li>Buka menu <strong>Kas & Bank &raquo; Rekonsiliasi Bank</strong>.</li>
@@ -205,10 +210,10 @@ if (!$is_spa_request) {
                     <li>Perhatikan kartu ringkasan <strong>"Selisih"</strong>. Tujuan Anda adalah membuat selisih menjadi <strong>Rp 0</strong>.</li>
                     <li>Jika selisih sudah nol, tombol <strong>"Simpan Rekonsiliasi"</strong> akan aktif. Klik untuk menyelesaikan.</li>
                 </ol>
-                <div class="alert alert-info small mt-3">
+                <div class="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 p-4 mt-3 text-sm text-blue-700 dark:text-blue-200">
                     <strong>Tips:</strong> Jika ada selisih, kemungkinan ada transaksi yang belum Anda catat (misalnya biaya admin bank) atau ada kesalahan pencatatan. Anda bisa menambahkannya melalui menu Transaksi atau Entri Jurnal.
                 </div>
-                <a href="<?= base_url('/rekonsiliasi-bank') ?>" class="btn btn-sm btn-outline-primary mt-2" target="_blank">
+                <a href="<?= base_url('/rekonsiliasi-bank') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
                     <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Rekonsiliasi Bank
                 </a>
             </div>
@@ -216,14 +221,15 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 5: Aset Tetap -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingFive">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingFive">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>5. Mengelola Aset Tetap & Penyusutan</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseFive" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingFive">
+            <div>
                 <p>Fitur ini membantu Anda mencatat aset tetap (seperti peralatan, kendaraan) dan menghitung penyusutannya secara otomatis setiap bulan.</p>
                 <h5>Langkah 1: Menambah Aset Baru</h5>
                 <ol>
@@ -246,7 +252,7 @@ if (!$is_spa_request) {
                     <li>Klik tombol <strong>"Posting Jurnal Penyusutan"</strong>.</li>
                     <li>Sistem akan otomatis menghitung penyusutan bulanan untuk semua aset yang aktif dan membuat jurnalnya. Jurnal yang sudah pernah dibuat untuk periode yang sama tidak akan dibuat ulang.</li>
                 </ol>
-                <a href="<?= base_url('/aset-tetap') ?>" class="btn btn-sm btn-outline-primary mt-2" target="_blank">
+                <a href="<?= base_url('/aset-tetap') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
                     <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Aset Tetap
                 </a>
             </div>
@@ -254,14 +260,15 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 6: Otomatisasi -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingSix">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="false" aria-controls="collapseSix">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingSix">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>6. Otomatisasi dengan Transaksi Berulang</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseSix" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingSix">
+            <div>
                 <p>Fitur ini memungkinkan Anda membuat template untuk transaksi atau jurnal yang terjadi secara rutin (misal: bayar sewa, gaji) agar dibuat otomatis oleh sistem.</p>
                 <ol>
                     <li>Buat draf jurnal yang ingin diotomatisasi di halaman <strong>Akuntansi &raquo; Entri Jurnal</strong>.</li>
@@ -270,11 +277,11 @@ if (!$is_spa_request) {
                     <li>Klik <strong>"Simpan Template"</strong>.</li>
                     <li>Anda dapat melihat dan mengelola semua template di halaman <strong>Pengaturan & Master &raquo; Transaksi Berulang</strong>.</li>
                 </ol>
-                <div class="d-flex gap-2 mt-3">
-                    <a href="<?= base_url('/entri-jurnal') ?>" class="btn btn-sm btn-outline-primary" target="_blank">
+                <div class="flex gap-2 mt-3">
+                    <a href="<?= base_url('/entri-jurnal') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" target="_blank">
                         <i class="bi bi-box-arrow-up-right me-2"></i>Mulai dari Entri Jurnal
                     </a>
-                    <a href="<?= base_url('/transaksi-berulang') ?>" class="btn btn-sm btn-outline-secondary" target="_blank">
+                    <a href="<?= base_url('/transaksi-berulang') ?>" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" target="_blank">
                         <i class="bi bi-box-arrow-up-right me-2"></i>Lihat Halaman Template
                     </a>
                 </div>
@@ -283,14 +290,15 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 7: Laporan & Analisis -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingSeven">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSeven" aria-expanded="false" aria-controls="collapseSeven">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingSeven">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>7. Melihat Laporan & Analisis</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseSeven" class="accordion-collapse collapse" aria-labelledby="headingSeven" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseSeven" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingSeven">
+            <div>
                 <p>Semua hasil pencatatan Anda dapat dilihat dalam berbagai laporan di bawah menu <strong>Laporan & Analisis</strong>.</p>
                 <ul>
                     <li><strong>Laporan Keuangan:</strong> Menampilkan Neraca, Laba Rugi, dan Arus Kas.</li>
@@ -300,7 +308,7 @@ if (!$is_spa_request) {
                     <li><strong>Analisis Rasio:</strong> Menghitung rasio keuangan penting (Profit Margin, ROE, dll) untuk mengukur kesehatan finansial.</li>
                     <li><strong>Anggaran:</strong> Membandingkan anggaran belanja dengan realisasi.</li>
                 </ul>
-                <a href="<?= base_url('/laporan') ?>" class="btn btn-sm btn-outline-primary mt-2" target="_blank">
+                <a href="<?= base_url('/laporan') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
                     <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Laporan Utama
                 </a>
             </div>
@@ -308,16 +316,17 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 8: Tutup Buku -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingEight">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEight" aria-expanded="false" aria-controls="collapseEight">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingEight">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>8. Proses Akhir Periode: Tutup Buku (Khusus Admin)</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseEight" class="accordion-collapse collapse" aria-labelledby="headingEight" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseEight" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingEight">
+            <div>
                 <p>Proses Tutup Buku adalah langkah akuntansi yang dilakukan di akhir periode (biasanya akhir tahun) untuk menolkan saldo akun-akun sementara (Pendapatan dan Beban) dan memindahkan laba atau rugi bersih ke akun Laba Ditahan (Retained Earnings).</p>
-                <div class="alert alert-warning small">
+                <div class="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-4 mb-4 text-sm text-yellow-700 dark:text-yellow-200">
                     <strong>Penting:</strong> Fitur ini hanya dapat diakses oleh <strong>Admin</strong>. Pastikan semua transaksi pada periode tersebut sudah final sebelum melakukan tutup buku.
                 </div>
                 <ol>
@@ -328,7 +337,7 @@ if (!$is_spa_request) {
                     <li>Sistem akan secara otomatis membuat Jurnal Penutup. Anda dapat melihat hasilnya di halaman <strong>Daftar Jurnal</strong>.</li>
                     <li>Setelah proses ini, semua transaksi sebelum tanggal tutup buku akan dikunci dan tidak dapat diubah atau dihapus.</li>
                 </ol>
-                <a href="<?= base_url('/tutup-buku') ?>" class="btn btn-sm btn-outline-primary mt-2" target="_blank">
+                <a href="<?= base_url('/tutup-buku') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
                     <i class="bi bi-box-arrow-up-right me-2"></i>Lihat Halaman Tutup Buku
                 </a>
             </div>
@@ -336,14 +345,15 @@ if (!$is_spa_request) {
     </div>
 
     <!-- Panduan 9: Pengaturan Aplikasi -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingNine">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNine" aria-expanded="false" aria-controls="collapseNine">
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+        <h2 class="mb-0" id="headingNine">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
                 <strong>9. Konfigurasi Sistem: Pengaturan Aplikasi (Khusus Admin)</strong>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseNine" class="accordion-collapse collapse" aria-labelledby="headingNine" data-bs-parent="#panduanAccordion">
-            <div class="accordion-body">
+        <div id="collapseNine" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingNine">
+            <div>
                 <p>Halaman ini adalah pusat kendali aplikasi, tempat Anda dapat menyesuaikan berbagai aspek sistem agar sesuai dengan kebutuhan Anda. Fitur ini hanya dapat diakses oleh <strong>Admin</strong>.</p>
                 <h5>Area Pengaturan:</h5>
                 <ul>
@@ -360,7 +370,7 @@ if (!$is_spa_request) {
                     <li>Lakukan perubahan yang diperlukan pada form.</li>
                     <li>Klik tombol <strong>"Simpan Pengaturan"</strong> di bagian bawah setiap tab untuk menerapkan perubahan.</li>
                 </ol>
-                <a href="<?= base_url('/settings') ?>" class="btn btn-sm btn-outline-primary mt-2" target="_blank">
+                <a href="<?= base_url('/settings') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
                     <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Pengaturan
                 </a>
             </div>
@@ -373,6 +383,22 @@ if (!$is_spa_request) {
 <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
     mermaid.initialize({ securityLevel: 'loose' });
+</script>
+
+<script>
+    function toggleAccordion(button) {
+        const item = button.closest('[data-controller="accordion-item"]');
+        const content = item.querySelector('div[id^="collapse"]');
+        const icon = button.querySelector('.bi-chevron-down');
+
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            icon.classList.add('rotate-180');
+        } else {
+            content.classList.add('hidden');
+            icon.classList.remove('rotate-180');
+        }
+    }
 </script>
 
 <?php

@@ -22,7 +22,7 @@ function initLaporanPersediaanPage() {
     // Fungsi untuk merender data ke tabel
     function renderTable(items) {
         if (items.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Tidak ada data untuk ditampilkan.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">Tidak ada data untuk ditampilkan.</td></tr>';
             totalValueCell.textContent = formatRupiah(0);
             totalInventoryValueHeader.textContent = formatRupiah(0);
             return;
@@ -33,13 +33,13 @@ function initLaporanPersediaanPage() {
             const inventoryValue = (item.stok || 0) * (item.harga_beli || 0);
             totalValue += inventoryValue;
             return `
-                <tr>
-                    <td class="text-center">${index + 1}</td>
-                    <td>${item.nama_barang}</td>
-                    <td>${item.sku || '-'}</td>
-                    <td class="text-end">${item.stok || 0}</td>
-                    <td class="text-end">${formatRupiah(item.harga_beli || 0)}</td>
-                    <td class="text-end">${formatRupiah(inventoryValue)}</td>
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td class="px-6 py-4 text-center text-sm text-gray-900 dark:text-white">${index + 1}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">${item.nama_barang}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${item.sku || '-'}</td>
+                    <td class="px-6 py-4 text-right text-sm text-gray-900 dark:text-white">${item.stok || 0}</td>
+                    <td class="px-6 py-4 text-right text-sm text-gray-900 dark:text-white">${formatRupiah(item.harga_beli || 0)}</td>
+                    <td class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">${formatRupiah(inventoryValue)}</td>
                 </tr>
             `;
         }).join('');
@@ -66,7 +66,7 @@ function initLaporanPersediaanPage() {
                 throw new Error(data.message || 'Gagal memuat data dari server.');
             }
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-red-500 text-sm">Gagal memuat data: ${error.message}</td></tr>`;
         } finally {
             loadingIndicator.style.display = 'none';
         }

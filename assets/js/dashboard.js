@@ -1,9 +1,18 @@
 function initDashboardPage() {
     const bulanFilter = document.getElementById('dashboard-bulan-filter');
     const tahunFilter = document.getElementById('dashboard-tahun-filter');
+    const openCustomizeBtn = document.getElementById('open-customize-modal-btn');
     const customizeModalEl = document.getElementById('customizeDashboardModal');
     const widgetsForm = document.getElementById('dashboard-widgets-form');
     const saveWidgetsBtn = document.getElementById('save-dashboard-widgets-btn');
+
+    // Variabel untuk menyimpan instance chart agar bisa di-destroy sebelum render ulang
+    let trendChartInstance = null;
+    let expenseChartInstance = null;
+
+    // Fungsi untuk membuka/menutup modal kustomisasi (non-bootstrap)
+    const openCustomizeModal = () => { populateCustomizeModal(); customizeModalEl.classList.remove('hidden'); };
+    const closeCustomizeModal = () => { customizeModalEl.classList.add('hidden'); };
 
     // Definisi semua widget yang tersedia
     const allWidgets = {
@@ -32,13 +41,15 @@ function initDashboardPage() {
     function populateCustomizeModal() {
         const prefs = getWidgetPreferences();
         widgetsForm.innerHTML = '';
-        for (const key in allWidgets) {
-            const widget = allWidgets[key];
+        for (const [key, widget] of Object.entries(allWidgets)) {
             const isChecked = prefs[key] !== false; // Default to true if undefined
             widgetsForm.innerHTML += `
-                <div class="form-check form-switch mb-2">
-                    <input class="form-check-input" type="checkbox" role="switch" id="widget-toggle-${key}" data-widget-key="${key}" ${isChecked ? 'checked' : ''}>
-                    <label class="form-check-label" for="widget-toggle-${key}">${widget.name}</label>
+                <div class="flex items-center justify-between mb-3">
+                    <label for="widget-toggle-${key}" class="text-sm text-gray-700 dark:text-gray-300">${widget.name}</label>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="widget-toggle-${key}" data-widget-key="${key}" class="sr-only peer" ${isChecked ? 'checked' : ''}>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                    </label>
                 </div>
             `;
         }
@@ -52,7 +63,7 @@ function initDashboardPage() {
             navigate(addTransaksiBtn.href + '#add'); // Tambahkan hash untuk memicu modal
         });
     }
-    if (!bulanFilter || !tahunFilter) return;
+    if (!bulanFilter || !tahunFilter || !openCustomizeBtn) return;
 
     function setupFilters() {
         const now = new Date();
@@ -77,125 +88,8 @@ function initDashboardPage() {
     }
 
     async function fetchDashboardData(bulan, tahun, preferences) {
-        // Hapus container dashboard lama jika ada, untuk mencegah duplikasi
-        const oldDashboardContent = document.getElementById('dashboard-content-wrapper');
-        if (oldDashboardContent) {
-            oldDashboardContent.remove();
-        }
-
-        // Buat HTML untuk widget berdasarkan preferensi
-        let widgetsHtml = '';
-        if (preferences.summary_cards) {
-            widgetsHtml += `
-                <div class="row g-3">
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card text-white bg-primary h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">Total Saldo Kas</h5>
-                                <h2 class="fw-bold" id="total-saldo-widget"><div class="spinner-border spinner-border-sm"></div></h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card text-white bg-success h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">Pemasukan Bulan Ini</h5>
-                                <h2 class="fw-bold" id="pemasukan-widget"><div class="spinner-border spinner-border-sm"></div></h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card text-white bg-danger h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">Pengeluaran Bulan Ini</h5>
-                                <h2 class="fw-bold" id="pengeluaran-widget"><div class="spinner-border spinner-border-sm"></div></h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card text-white bg-info h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">Laba/Rugi Bulan Ini</h5>
-                                <h2 class="fw-bold" id="laba-rugi-widget"><div class="spinner-border spinner-border-sm"></div></h2>
-                                <small id="laba-rugi-subtitle"></small>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        }
-        if (preferences.balance_status || preferences.profit_loss_trend) {
-            widgetsHtml += `<div class="row g-3">`;
-            if (preferences.balance_status) {
-                widgetsHtml += `
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card h-100" id="balance-status-card">
-                            <div class="card-body text-center d-flex flex-column justify-content-center">
-                                 <div id="balance-status-icon" class="fs-1"><div class="spinner-border"></div></div>
-                                 <h5 class="card-title mt-2" id="balance-status-text">Memeriksa Status...</h5>
-                                 <small class="text-muted">Keseimbangan Neraca</small>
-                            </div>
-                        </div>
-                    </div>`;
-            }
-            if (preferences.profit_loss_trend) {
-                widgetsHtml += `
-                    <div class="col-lg-9 col-md-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header"><h5 class="card-title mb-0">Tren Laba/Rugi (30 Hari Terakhir)</h5></div>
-                            <div class="card-body"><canvas id="profit-loss-trend-chart"></canvas></div>
-                        </div>
-                    </div>`;
-            }
-            widgetsHtml += `</div>`;
-        }
-        if (preferences.expense_category || preferences.recent_transactions) {
-            widgetsHtml += `<div class="row g-3">`;
-            if (preferences.expense_category) {
-                widgetsHtml += `
-                <div class="col-lg-5 mb-4">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Pengeluaran per Kategori</h5>
-                        </div>
-                        <div class="card-body d-flex justify-content-center align-items-center">
-                            <div style="position: relative; height:250px; width:100%">
-                                <canvas id="expense-category-chart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            if (preferences.recent_transactions) {
-                widgetsHtml += `
-                <div class="col-lg-7 mb-4">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Transaksi Terbaru</h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover mb-0">
-                                    <thead>
-                                        <tr><th>Tanggal</th><th>Keterangan</th><th class="text-end">Jumlah</th></tr>
-                                    </thead>
-                                    <tbody id="recent-transactions-widget">
-                                        <tr><td colspan="3" class="text-center p-4"><div class="spinner-border spinner-border-sm"></div></td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            widgetsHtml += `</div>`;
-        }
-
-        const newDashboardHtml = `<div id="dashboard-content-wrapper" class="mt-4">${widgetsHtml}</div>`;
-        // Sisipkan setelah elemen h1 dan filter
-        const borderBottom = document.querySelector('.main-content .row.g-3.mb-4');
-        if (borderBottom) {
-            borderBottom.insertAdjacentHTML('afterend', newDashboardHtml);
-        }
+        // Note: Logika injeksi widget Bootstrap dihapus karena tidak kompatibel dengan view Tailwind saat ini.
+        // Kita akan memperbarui elemen statis yang sudah ada di dashboard.php.
 
         // Ambil data dari API
         try {
@@ -206,151 +100,83 @@ function initDashboardPage() {
             const data = result.data;
             const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
-            // Isi data hanya jika widgetnya ada
-            if (preferences.summary_cards) {
-                document.getElementById('total-saldo-widget').textContent = currencyFormatter.format(data.total_saldo);
-                document.getElementById('pemasukan-widget').textContent = currencyFormatter.format(data.pemasukan_bulan_ini);
-                document.getElementById('pengeluaran-widget').textContent = currencyFormatter.format(data.pengeluaran_bulan_ini);
-            }
+            // Update elemen statistik statis (sesuai ID di dashboard.php)
+            const statCash = document.getElementById('stat-cash');
+            const statIncome = document.getElementById('stat-income');
+            const statExpense = document.getElementById('stat-expense');
+            const statProfit = document.getElementById('stat-profit');
 
-            // Render Balance Status
-            if (preferences.balance_status) {
-                const balanceCard = document.getElementById('balance-status-card');
-                const balanceIcon = document.getElementById('balance-status-icon');
-                const balanceText = document.getElementById('balance-status-text');
-                const balanceStatus = data.balance_status;
+            if (statCash) statCash.textContent = currencyFormatter.format(data.total_saldo || 0);
+            if (statIncome) statIncome.textContent = currencyFormatter.format(data.pemasukan_bulan_ini || 0);
+            if (statExpense) statExpense.textContent = currencyFormatter.format(data.pengeluaran_bulan_ini || 0);
+            if (statProfit) statProfit.textContent = currencyFormatter.format(data.laba_rugi_bulan_ini || 0);
 
-                balanceCard.style.cursor = 'default';
-                balanceCard.onclick = null;
+            // --- Render Grafik Tren Arus Kas ---
+            const trendCtx = document.getElementById('dashboard-trend-chart');
+            if (trendCtx) {
+                if (trendChartInstance) trendChartInstance.destroy();
+                
+                // Gunakan data dari API atau dummy jika belum tersedia
+                const trendLabels = data.trend?.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                const incomeData = data.trend?.income || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const expenseData = data.trend?.expense || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-                if (balanceStatus.is_balanced) {
-                    balanceCard.classList.add('bg-success-subtle');
-                    balanceIcon.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
-                    balanceText.textContent = 'Balance';
-                } else {
-                    balanceCard.classList.add('bg-danger-subtle');
-                    balanceCard.style.cursor = 'pointer';
-                    balanceIcon.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
-                    balanceText.textContent = 'Tidak Balance';
-
-                    balanceCard.onclick = () => {
-                        const detailModalEl = document.getElementById('detailModal');
-                        const detailModal = bootstrap.Modal.getInstance(detailModalEl) || new bootstrap.Modal(detailModalEl);
-                        document.getElementById('detailModalLabel').textContent = 'Detail Ketidakseimbangan Neraca';
-                        const modalBody = document.getElementById('detailModalBody');
-                        
-                        let journalDetailsHtml = '';
-                        if (balanceStatus.unbalanced_journals && balanceStatus.unbalanced_journals.length > 0) {
-                            journalDetailsHtml = `
-                                <h5 class="mt-4">Jurnal Tidak Seimbang Terdeteksi</h5>
-                                <p class="text-muted">Berikut adalah daftar entri jurnal yang kemungkinan menjadi penyebab ketidakseimbangan. Klik pada ID Jurnal untuk memperbaikinya.</p>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-bordered">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>ID Jurnal</th><th>Tanggal</th><th>Keterangan</th><th class="text-end">Total Debit</th><th class="text-end">Total Kredit</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${balanceStatus.unbalanced_journals.map(j => `
-                                                <tr>
-                                                    <td><a href="${basePath}/entri-jurnal?edit_id=${j.id}">JRN-${String(j.id).padStart(5, '0')}</a></td>
-                                                    <td>${new Date(j.tanggal).toLocaleDateString('id-ID')}</td>
-                                                    <td>${j.keterangan}</td>
-                                                    <td class="text-end">${currencyFormatter.format(j.total_debit)}</td>
-                                                    <td class="text-end">${currencyFormatter.format(j.total_kredit)}</td>
-                                                </tr>
-                                            `).join('')}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `;
-                        }
-
-                        modalBody.innerHTML = `
-                            <p>Neraca Anda tidak seimbang. Berikut adalah rincian perhitungannya:</p>
-                            <dl class="row">
-                                <dt class="col-sm-6">Total Aset</dt><dd class="col-sm-6 text-end">${currencyFormatter.format(balanceStatus.total_aset)}</dd>
-                                <dt class="col-sm-6">Total Liabilitas + Ekuitas</dt><dd class="col-sm-6 text-end">${currencyFormatter.format(balanceStatus.total_liabilitas_ekuitas)}</dd>
-                                <dt class="col-sm-6 border-top pt-2">Selisih</dt><dd class="col-sm-6 text-end border-top pt-2 fw-bold text-danger">${currencyFormatter.format(balanceStatus.selisih)}</dd>
-                            </dl>
-                            ${journalDetailsHtml}
-                        `;
-                        detailModal.show();
-                    };
-                }
-            }
-            
-            if (preferences.summary_cards) {
-                const labaRugiWidget = document.getElementById('laba-rugi-widget');
-                const labaRugiSubtitle = document.getElementById('laba-rugi-subtitle');
-                labaRugiWidget.textContent = currencyFormatter.format(data.laba_rugi_bulan_ini);
-                if (data.laba_rugi_bulan_ini < 0) {
-                    labaRugiWidget.parentElement.parentElement.classList.replace('bg-info', 'bg-warning');
-                    labaRugiSubtitle.textContent = 'Rugi';
-                } else {
-                    labaRugiSubtitle.textContent = 'Laba';
-                }
-            }
-
-            // Render recent transactions
-            if (preferences.recent_transactions) {
-                const txWidget = document.getElementById('recent-transactions-widget');
-                txWidget.innerHTML = '';
-                if (data.transaksi_terbaru.length > 0) {
-                    data.transaksi_terbaru.forEach(tx => {
-                        const row = `
-                            <tr>
-                                <td>${new Date(tx.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'short'})}</td>
-                                <td>${tx.keterangan}</td>
-                                <td class="text-end">${currencyFormatter.format(tx.jumlah)}</td>
-                            </tr>
-                        `;
-                        txWidget.insertAdjacentHTML('beforeend', row);
-                    });
-                } else {
-                    txWidget.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Tidak ada transaksi.</td></tr>';
-                }
-            }
-
-            // Render chart
-            if (preferences.expense_category && document.getElementById('expense-category-chart')) {
-                const chartCtx = document.getElementById('expense-category-chart').getContext('2d');
-                if (window.dashboardExpenseChart) window.dashboardExpenseChart.destroy();
-                window.dashboardExpenseChart = new Chart(chartCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: data.pengeluaran_per_kategori.labels,
-                        datasets: [{ data: data.pengeluaran_per_kategori.data }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-                });
-            }
-
-            // Render profit loss trend chart
-            if (preferences.profit_loss_trend && document.getElementById('profit-loss-trend-chart')) {
-                const trendChartCtx = document.getElementById('profit-loss-trend-chart').getContext('2d');
-                if (window.dashboardTrendChart) window.dashboardTrendChart.destroy();
-                window.dashboardTrendChart = new Chart(trendChartCtx, {
+                trendChartInstance = new Chart(trendCtx, {
                     type: 'line',
                     data: {
-                        labels: data.laba_rugi_harian.labels.map(d => new Date(d).toLocaleDateString('id-ID', {day: '2-digit', month: 'short'})),
-                        datasets: [{
-                            label: 'Laba / Rugi Harian',
-                            data: data.laba_rugi_harian.data,
-                            fill: true,
-                            backgroundColor: 'rgba(0, 122, 255, 0.1)',
-                            borderColor: 'rgba(0, 122, 255, 1)',
-                            tension: 0.3,
-                            pointBackgroundColor: 'rgba(0, 122, 255, 1)',
-                        }]
+                        labels: trendLabels,
+                        datasets: [
+                            {
+                                label: 'Pemasukan',
+                                data: incomeData,
+                                borderColor: '#10B981', // Tailwind Emerald-500
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'Pengeluaran',
+                                data: expenseData,
+                                borderColor: '#EF4444', // Tailwind Red-500
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
-                        scales: { y: { ticks: { callback: value => 'Rp ' + new Intl.NumberFormat('id-ID').format(value) } } }
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { position: 'top' } },
+                        scales: { y: { beginAtZero: true, ticks: { callback: (val) => currencyFormatter.format(val) } } }
                     }
                 });
             }
+
+            // --- Render Grafik Kategori Pengeluaran ---
+            const expenseCtx = document.getElementById('dashboard-expense-chart');
+            if (expenseCtx) {
+                if (expenseChartInstance) expenseChartInstance.destroy();
+                
+                const catLabels = data.expense_categories?.labels || ['Belum ada data'];
+                const catData = data.expense_categories?.data || [1];
+                const catColors = ['#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#6B7280']; // Tailwind colors
+
+                expenseChartInstance = new Chart(expenseCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: catLabels,
+                        datasets: [{ data: catData, backgroundColor: catColors, borderWidth: 0 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+                    }
+                });
+            }
+
         } catch (error) {
             showToast(`Gagal memuat data dashboard: ${error.message}`, 'error');
         }
@@ -364,7 +190,11 @@ function initDashboardPage() {
     bulanFilter.addEventListener('change', filterHandler);
     tahunFilter.addEventListener('change', filterHandler);
 
-    customizeModalEl.addEventListener('show.bs.modal', populateCustomizeModal);
+    // Ganti listener Bootstrap dengan listener klik biasa
+    openCustomizeBtn.addEventListener('click', openCustomizeModal);
+    document.querySelectorAll('[data-modal-close="customizeDashboardModal"]').forEach(btn => {
+        btn.addEventListener('click', closeCustomizeModal);
+    });
 
     saveWidgetsBtn.addEventListener('click', () => {
         const newPrefs = {};
@@ -373,7 +203,7 @@ function initDashboardPage() {
         });
         localStorage.setItem('dashboard_widgets', JSON.stringify(newPrefs));
         showToast('Preferensi dashboard berhasil disimpan.', 'success');
-        bootstrap.Modal.getInstance(customizeModalEl).hide();
+        closeCustomizeModal(); // Ganti dari bootstrap hide()
         // Muat ulang dashboard dengan preferensi baru
         filterHandler();
     });

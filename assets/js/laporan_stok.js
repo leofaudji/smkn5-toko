@@ -27,7 +27,7 @@ function initLaporanStokPage() {
             return;
         }
 
-        reportContent.innerHTML = `<div class="text-center p-5"><div class="spinner-border"></div></div>`;
+        reportContent.innerHTML = `<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>`;
         reportSummary.innerHTML = '';
         reportHeader.textContent = `Laporan Stok Periode ${formatDate(startDate)} s/d ${formatDate(endDate)}`;
 
@@ -36,7 +36,7 @@ function initLaporanStokPage() {
             const response = await fetch(`${basePath}/api/laporan_stok?${params.toString()}`);
             const result = await response.json();
 
-            if (result.status !== 'success') {
+            if (result.status !== 'success') { 
                 throw new Error(result.message);
             }
 
@@ -44,47 +44,47 @@ function initLaporanStokPage() {
             renderReportSummary(result.summary);
 
         } catch (error) {
-            reportContent.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan: ${error.message}</div>`;
+            reportContent.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-4 rounded-md text-center">Gagal memuat laporan: ${error.message}</div>`;
         }
     }
 
     function renderReportTable(data) {
         let tableHtml = `
-            <table class="table table-sm table-bordered table-hover table-sticky-header">
-                <thead class="table-light">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0">
                     <tr>
-                        <th style="width: 5%;">No.</th>
-                        <th>SKU</th>
-                        <th>Nama Barang</th>
-                        <th class="text-end">Stok Awal</th>
-                        <th class="text-end">Masuk</th>
-                        <th class="text-end">Keluar</th>
-                        <th class="text-end">Stok Akhir</th>
-                        <th class="text-end">Harga Beli</th>
-                        <th class="text-end">Nilai Persediaan</th>
+                        <th class="px-4 py-2 text-left text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12">No.</th>
+                        <th class="px-4 py-2 text-left text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">SKU</th>
+                        <th class="px-4 py-2 text-left text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nama Barang</th>
+                        <th class="px-4 py-2 text-right text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Stok Awal</th>
+                        <th class="px-4 py-2 text-right text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Masuk</th>
+                        <th class="px-4 py-2 text-right text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keluar</th>
+                        <th class="px-4 py-2 text-right text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Stok Akhir</th>
+                        <th class="px-4 py-2 text-right text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Beli</th>
+                        <th class="px-4 py-2 text-right text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nilai Persediaan</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
         `;
 
         if (data.length > 0) {
             data.forEach((item, index) => {
                 tableHtml += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${item.sku || '-'}</td>
-                        <td>${item.nama_barang}</td>
-                        <td class="text-end">${item.stok_awal}</td>
-                        <td class="text-end text-success">${item.masuk > 0 ? `+${item.masuk}` : '0'}</td>
-                        <td class="text-end text-danger">${item.keluar > 0 ? `-${item.keluar}` : '0'}</td>
-                        <td class="text-end fw-bold">${item.stok_akhir}</td>
-                        <td class="text-end">${formatCurrencyAccounting(item.harga_beli)}</td>
-                        <td class="text-end fw-bold">${formatCurrencyAccounting(item.nilai_persediaan)}</td>
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${index + 1}</td>
+                        <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${item.sku || '-'}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${item.nama_barang}</td>
+                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${item.stok_awal}</td>
+                        <td class="px-4 py-2 text-sm text-right text-green-600 dark:text-green-400">${item.masuk > 0 ? `+${item.masuk}` : '0'}</td>
+                        <td class="px-4 py-2 text-sm text-right text-red-600 dark:text-red-400">${item.keluar > 0 ? `-${item.keluar}` : '0'}</td>
+                        <td class="px-4 py-2 text-sm text-right font-bold text-gray-900 dark:text-white">${item.stok_akhir}</td>
+                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${formatCurrencyAccounting(item.harga_beli)}</td>
+                        <td class="px-4 py-2 text-sm text-right font-bold text-gray-900 dark:text-white">${formatCurrencyAccounting(item.nilai_persediaan)}</td>
                     </tr>
                 `;
             });
         } else {
-            tableHtml += `<tr><td colspan="9" class="text-center text-muted">Tidak ada data untuk periode ini.</td></tr>`;
+            tableHtml += `<tr><td colspan="9" class="text-center text-gray-500 py-4">Tidak ada data untuk periode ini.</td></tr>`;
         }
 
         tableHtml += `</tbody></table>`;
@@ -93,12 +93,12 @@ function initLaporanStokPage() {
 
     function renderReportSummary(summary) {
         reportSummary.innerHTML = `
-            <div class="row justify-content-end">
-                <div class="col-md-4">
-                    <dl class="row">
-                        <dt class="col-sm-7">Total Nilai Persediaan Akhir</dt>
-                        <dd class="col-sm-5 text-end fw-bold fs-5">${formatCurrencyAccounting(summary.total_nilai_persediaan)}</dd>
-                    </dl>
+            <div class="flex justify-end">
+                <div class="w-full md:w-1/3">
+                    <div class="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <span class="text-base font-medium text-gray-900 dark:text-white">Total Nilai Persediaan Akhir</span>
+                        <span class="text-xl font-bold text-gray-900 dark:text-white">${formatCurrencyAccounting(summary.total_nilai_persediaan)}</span>
+                    </div>
                 </div>
             </div>
         `;

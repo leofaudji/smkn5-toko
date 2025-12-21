@@ -23,7 +23,7 @@ function initDaftarJurnalPage() {
             end_date: endDateFilter.value,
         });
 
-        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>`;
         try {
             const [jurnalRes, settingsRes] = await Promise.all([
                 fetch(`${basePath}/api/entri-jurnal?${params.toString()}`),
@@ -42,7 +42,7 @@ function initDaftarJurnalPage() {
                 let lastRef = null;
                 result.data.forEach((line, index) => {
                     const isFirstRowOfGroup = line.ref !== lastRef;
-                    const borderTopClass = isFirstRowOfGroup && index > 0 ? 'border-top-heavy' : '';
+                    const borderTopClass = isFirstRowOfGroup && index > 0 ? 'border-t-2 border-gray-300 dark:border-gray-600' : '';
 
                     // Info Audit (Created/Updated)
                     const createdAt = new Date(line.created_at);
@@ -60,25 +60,25 @@ function initDaftarJurnalPage() {
 
                     let editBtn, deleteBtn;
                     if (line.source === 'jurnal') {
-                        editBtn = `<a href="${basePath}/entri-jurnal?edit_id=${line.entry_id}" class="btn btn-sm btn-warning edit-jurnal-btn" title="Edit"><i class="bi bi-pencil-fill"></i></a>`;
-                        deleteBtn = `<button class="btn btn-sm btn-danger delete-jurnal-btn" data-id="${line.entry_id}" data-keterangan="${line.keterangan}" title="Hapus"><i class="bi bi-trash-fill"></i></button>`;
+                        editBtn = `<a href="${basePath}/entri-jurnal?edit_id=${line.entry_id}" class="text-yellow-600 hover:text-yellow-900 edit-jurnal-btn" title="Edit"><i class="bi bi-pencil-fill"></i></a>`;
+                        deleteBtn = `<button class="text-red-600 hover:text-red-900 delete-jurnal-btn" data-id="${line.entry_id}" data-keterangan="${line.keterangan}" title="Hapus"><i class="bi bi-trash-fill"></i></button>`;
                     } else { // transaksi, hanya bisa dihapus dari sini, edit di halaman transaksi
-                        editBtn = `<a href="${basePath}/transaksi#tx-${line.entry_id}" class="btn btn-sm btn-secondary" title="Lihat & Edit di Halaman Transaksi"><i class="bi bi-box-arrow-up-right"></i></a>`;
-                        deleteBtn = `<button class="btn btn-sm btn-danger delete-transaksi-btn" data-id="${line.entry_id}" data-keterangan="${line.keterangan}" title="Hapus Transaksi"><i class="bi bi-trash-fill"></i></button>`;
+                        editBtn = `<a href="${basePath}/transaksi#tx-${line.entry_id}" class="text-gray-600 hover:text-gray-900" title="Lihat & Edit di Halaman Transaksi"><i class="bi bi-box-arrow-up-right"></i></a>`;
+                        deleteBtn = `<button class="text-red-600 hover:text-red-900 delete-transaksi-btn" data-id="${line.entry_id}" data-keterangan="${line.keterangan}" title="Hapus Transaksi"><i class="bi bi-trash-fill"></i></button>`;
                     }
 
                     const row = `
-                        <tr class="${borderTopClass}">
-                            <td>${isFirstRowOfGroup ? line.ref : ''}</td>
-                            <td>${isFirstRowOfGroup ? new Date(line.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'}) : ''}</td>
-                            <td>${isFirstRowOfGroup ? line.keterangan : ''}</td>
-                            <td class="${line.debit > 0 ? '' : 'ps-4'}">${line.nama_akun || '-'}</td>
-                            <td class="text-end">${line.debit > 0 ? currencyFormatter.format(line.debit) : ''}</td>
-                            <td class="text-end">${line.kredit > 0 ? currencyFormatter.format(line.kredit) : ''}</td>
-                            <td>${isFirstRowOfGroup ? `<span data-bs-toggle="tooltip" data-bs-placement="top" title="${auditInfo}">${auditIcon}</span>` : ''}</td>
-                            <td class="text-end align-middle">
+                        <tr class="${borderTopClass} hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${isFirstRowOfGroup ? line.ref : ''}</td>
+                            <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${isFirstRowOfGroup ? new Date(line.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'}) : ''}</td>
+                            <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${isFirstRowOfGroup ? line.keterangan : ''}</td>
+                            <td class="px-4 py-2 text-sm text-gray-900 dark:text-white ${line.debit > 0 ? '' : 'pl-8'}">${line.nama_akun || '-'}</td>
+                            <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${line.debit > 0 ? currencyFormatter.format(line.debit) : ''}</td>
+                            <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${line.kredit > 0 ? currencyFormatter.format(line.kredit) : ''}</td>
+                            <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${isFirstRowOfGroup ? `<span title="${auditInfo}">${auditIcon}</span>` : ''}</td>
+                            <td class="px-4 py-2 text-sm text-right align-middle">
                                 ${isFirstRowOfGroup ? `
-                                    <div class="btn-group">
+                                    <div class="flex justify-end gap-2">
                                         ${editBtn}
                                         ${deleteBtn}
                                     </div>
@@ -90,16 +90,11 @@ function initDaftarJurnalPage() {
                     lastRef = line.ref;
                 });
             } else {
-                tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Tidak ada entri jurnal ditemukan.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500 dark:text-gray-400">Tidak ada entri jurnal ditemukan.</td></tr>';
             }
             renderPagination(paginationContainer, result.pagination, loadJurnal);
-            // Inisialisasi ulang tooltip setelah data baru dimuat
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-red-500 py-4">Gagal memuat data: ${error.message}</td></tr>`;
         }
     }
 

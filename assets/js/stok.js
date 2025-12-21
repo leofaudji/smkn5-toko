@@ -12,42 +12,32 @@ function initStokPage() {
     document.getElementById('search-item')?.addEventListener('input', filterHandler);
     document.getElementById('filter-stok')?.addEventListener('change', filterHandler);
     document.getElementById('filter-category')?.addEventListener('change', filterHandler);
-    document.getElementById('filter-limit')?.addEventListener('change', filterHandler);
 
-    // Event listener untuk modal
-    const itemModalEl = document.getElementById('itemModal');
-    if (itemModalEl) {
-        // Pindahkan pemanggilan loadAccountsForItemModal ke sini
-        // Ini memastikan akun hanya dimuat saat modal akan ditampilkan
-        itemModalEl.addEventListener('show.bs.modal', loadAccountsForItemModal);
+    // Event listener untuk tombol "Tambah Barang"
+    document.getElementById('add-item-btn')?.addEventListener('click', () => {
+        const form = document.getElementById('item-form');
+        form.reset();
+        form.classList.remove('was-validated');
 
-        // Tambahkan pemanggilan untuk memuat kategori saat modal ditampilkan
-        itemModalEl.addEventListener('show.bs.modal', loadCategoriesForItemModal);
+        document.getElementById('itemModalLabel').textContent = 'Tambah Barang Baru';
+        document.getElementById('item-id').value = '';
+        document.getElementById('item-action').value = 'save';
+        
+        const stokInput = document.getElementById('stok');
+        stokInput.disabled = false;
+        stokInput.value = '0';
+        
+        const stokHelpText = document.getElementById('stok-help-text');
+        if (stokHelpText) {
+            stokHelpText.textContent = 'Masukkan jumlah stok awal. Untuk mengubah stok selanjutnya, gunakan fitur "Penyesuaian Stok" atau transaksi Pembelian.';
+        }
 
-        itemModalEl.addEventListener('show.bs.modal', (e) => {
-            const button = e.relatedTarget;
-            const form = document.getElementById('item-form');
-            form.reset();
-            form.classList.remove('was-validated');
+        // Muat data yang diperlukan untuk modal
+        loadAccountsForItemModal();
+        loadCategoriesForItemModal();
 
-            if (button && button.classList.contains('edit-item-btn')) {
-                // Panggil fungsi untuk mengisi data saat tombol edit diklik
-                handleEditItem(button.dataset.id);
-            } else { // This handles the "add" case
-                document.getElementById('itemModalLabel').textContent = 'Tambah Barang Baru';
-                document.getElementById('item-id').value = '';
-                document.getElementById('item-action').value = 'save';
-                document.getElementById('stok').disabled = false;
-                document.getElementById('stok').parentElement.querySelector('.form-text').textContent = 'Masukkan jumlah stok saat ini. Untuk mengubah stok, gunakan fitur "Penyesuaian Stok".';
-            }
-        });
-
-        const importModalEl = document.getElementById('importModal');
-        importModalEl.addEventListener('show.bs.modal', () => {
-            // Muat akun penyesuaian untuk modal import
-            loadAdjustmentAccounts('import_adj_account_id');
-        });
-    }
+        openModal('itemModal');
+    });
 
     // Event listener untuk tombol simpan
     document.getElementById('save-item-btn')?.addEventListener('click', saveItem);
@@ -57,6 +47,11 @@ function initStokPage() {
 
     // Event delegation untuk tombol edit & hapus
     document.getElementById('items-table-body')?.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-item-btn');
+        if (editBtn) {
+            handleEditItem(editBtn.dataset.id);
+        }
+
         const deleteBtn = e.target.closest('.delete-item-btn');
         if (deleteBtn) {
             handleDeleteItem(deleteBtn.dataset.id, deleteBtn.dataset.nama);
@@ -71,6 +66,12 @@ function initStokPage() {
 
     // Event listener untuk tombol simpan penyesuaian
     document.getElementById('save-adjustment-btn')?.addEventListener('click', saveAdjustment);
+
+    // Muat akun untuk modal import saat dibuka
+    document.querySelector('[onclick="openModal(\'importModal\')"]')?.addEventListener('click', () => {
+        loadAdjustmentAccounts('import_adj_account_id');
+    });
+
      // Muat data awal untuk daftar barang
     loadItemsList();
     loadCategoriesForFilter(); // Panggil fungsi untuk memuat kategori
@@ -78,14 +79,7 @@ function initStokPage() {
 
 async function saveAdjustment() {
     const form = document.getElementById('adjustment-form');
-    if (!form.checkValidity()) {
-        form.classList.add('was-validated');
-        showToast('Harap isi semua field yang wajib diisi.', 'error');
-        return;
-    }
-
     const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
 
     const confirmed = confirm(`Ini akan menyesuaikan stok barang dan membuat jurnal otomatis. Pastikan data sudah benar.`);
     if (!confirmed) return;
@@ -97,13 +91,12 @@ async function saveAdjustment() {
     try {
         const response = await fetch(`${basePath}/api/stok`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: formData
         });
         const result = await response.json();
         if (result.status === 'success') {
             showToast(result.message);
-            bootstrap.Modal.getInstance(document.getElementById('adjustmentModal')).hide();
+            closeModal('adjustmentModal');
             loadItemsList();
         } else {
             showToast(result.message, 'error');
@@ -121,11 +114,9 @@ function handleAdjustment(btn) {
     const namaBarang = btn.dataset.nama;
     const stokTercatat = btn.dataset.stok;
 
-    const modal = new bootstrap.Modal(document.getElementById('adjustmentModal'));
     const form = document.getElementById('adjustment-form');
     
     form.reset();
-    form.classList.remove('was-validated');
     
     document.getElementById('adj-item-id').value = itemId;
     document.getElementById('adj-nama-barang').value = namaBarang;
@@ -135,7 +126,7 @@ function handleAdjustment(btn) {
     
     loadAdjustmentAccounts(); 
 
-    modal.show();
+    openModal('adjustmentModal');
 }
 
 async function loadAdjustmentAccounts(selectElementId = 'adj_account_id') {
@@ -156,14 +147,14 @@ async function loadAdjustmentAccounts(selectElementId = 'adj_account_id') {
 async function loadItemsList(page = 1) {
     const tableBody = document.getElementById('items-table-body');
     const paginationContainer = document.getElementById('items-pagination');
+    const paginationInfo = document.getElementById('items-pagination-info');
     if (!tableBody) return;
 
-    const limit = document.getElementById('filter-limit').value;
-    const search = document.getElementById('search-item').value;
-    const stokFilter = document.getElementById('filter-stok').value;
-    const categoryFilter = document.getElementById('filter-category').value;
+    const search = document.getElementById('search-item')?.value || '';
+    const stokFilter = document.getElementById('filter-stok')?.value || '';
+    const categoryFilter = document.getElementById('filter-category')?.value || '';
     
-    const params = new URLSearchParams({ page, limit, search, stok_filter: stokFilter, category_filter: categoryFilter });
+    const params = new URLSearchParams({ page, limit: 15, search, stok_filter: stokFilter, category_filter: categoryFilter });
     tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
 
     try {
@@ -176,23 +167,23 @@ async function loadItemsList(page = 1) {
             result.data.forEach(item => {
                 const nilaiStok = parseFloat(item.harga_beli) * parseInt(item.stok);
                 const row = `
-                    <tr>
-                        <td>${item.nama_barang}</td>
-                        <td>${item.sku || '-'}</td>
-                        <td><span class="badge bg-secondary">${item.nama_kategori || 'Tanpa Kategori'}</span></td>
-                        <td class="text-end">${formatCurrencyAccounting(item.harga_beli)}</td>
-                        <td class="text-end">${formatCurrencyAccounting(item.harga_jual)}</td>
-                        <td class="text-end fw-bold">${item.stok}</td>
-                        <td class="text-end">${formatCurrencyAccounting(nilaiStok)}</td>
-                        <td class="text-end">
-                            <div class="btn-group">
-                                <button class="btn btn-info btn-sm adjustment-btn" data-id="${item.id}" data-nama="${item.nama_barang}" data-stok="${item.stok}" title="Penyesuaian Stok">
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nama_barang}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${item.sku || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">${item.nama_kategori || 'Tanpa Kategori'}</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatCurrencyAccounting(item.harga_beli)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatCurrencyAccounting(item.harga_jual)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white text-right">${item.stok}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatCurrencyAccounting(nilaiStok)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <div class="inline-flex rounded-md shadow-sm">
+                                <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-l-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 adjustment-btn" data-id="${item.id}" data-nama="${item.nama_barang}" data-stok="${item.stok}" title="Penyesuaian Stok">
                                     <i class="bi bi-arrow-left-right"></i>
                                 </button>
-                                <button class="btn btn-warning btn-sm edit-item-btn" data-id="${item.id}" title="Edit Barang" data-bs-toggle="modal" data-bs-target="#itemModal">
+                                <button class="px-2 py-1 border-t border-b border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 edit-item-btn" data-id="${item.id}" title="Edit Barang">
                                     <i class="bi bi-pencil-fill"></i>
                                 </button>
-                                <button class="btn btn-danger btn-sm delete-item-btn" data-id="${item.id}" data-nama="${item.nama_barang}" title="Hapus Barang">
+                                <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md text-red-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 delete-item-btn" data-id="${item.id}" data-nama="${item.nama_barang}" title="Hapus Barang">
                                     <i class="bi bi-trash-fill"></i>
                                 </button>
                             </div>
@@ -202,9 +193,13 @@ async function loadItemsList(page = 1) {
                 tableBody.insertAdjacentHTML('beforeend', row);
             });
         } else {
-            tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Tidak ada barang ditemukan.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-500 py-10">Tidak ada barang ditemukan.</td></tr>';
         }
         renderPagination(paginationContainer, result.pagination, loadItemsList);
+        if (paginationInfo && result.pagination) {
+            const { from, to, total } = result.pagination;
+            paginationInfo.textContent = `Menampilkan ${from} - ${to} dari ${total} data.`;
+        }
     } catch (error) {
         tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
     }
@@ -270,11 +265,6 @@ async function loadCategoriesForFilter() {
 
 async function saveItem() {
     const form = document.getElementById('item-form');
-    if (!form.checkValidity()) {
-        form.classList.add('was-validated');
-        showToast('Harap isi semua field yang wajib diisi.', 'error');
-        return;
-    }
 
     const saveBtn = document.getElementById('save-item-btn');
     saveBtn.disabled = true;
@@ -286,7 +276,7 @@ async function saveItem() {
         const result = await response.json();
         if (result.status === 'success') {
             showToast(result.message, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();
+            closeModal('itemModal');
             loadItemsList();
         } else {
             throw new Error(result.message);
@@ -300,25 +290,31 @@ async function saveItem() {
 }
 
 async function handleEditItem(id) {
-    const formData = new FormData();
-    formData.append('action', 'get_single');
-    formData.append('id', id);
-    const response = await fetch(`${basePath}/api/stok`, { method: 'POST', body: formData });
-    const result = await response.json();
-    if (result.status === 'success') {
-        const item = result.data;
-        document.getElementById('itemModalLabel').textContent = 'Edit Barang';
-        Object.keys(item).forEach(key => {
-            const el = document.getElementById(key);
-            if (el) el.value = item[key];
-        });
-        document.getElementById('item-id').value = item.id;
-        document.getElementById('item-action').value = 'update'; // Explicitly set action to 'update' for edit mode
-        document.getElementById('stok').disabled = true;
-        document.getElementById('stok').parentElement.querySelector('.form-text').textContent = 'Stok tidak dapat diubah dari sini. Gunakan fitur "Penyesuaian Stok" atau "Stok Opname".';
-        // Modal sudah dipicu oleh tombol, tidak perlu memanggil .show() lagi di sini.
-    } else {
-        showToast(`Gagal memuat data barang: ${result.message}`, 'error');
+    try {
+        await Promise.all([loadAccountsForItemModal(), loadCategoriesForItemModal()]);
+
+        const formData = new FormData();
+        formData.append('action', 'get_single');
+        formData.append('id', id);
+        const response = await fetch(`${basePath}/api/stok`, { method: 'POST', body: formData });
+        const result = await response.json();
+        if (result.status === 'success') {
+            const item = result.data;
+            document.getElementById('itemModalLabel').textContent = 'Edit Barang';
+            Object.keys(item).forEach(key => {
+                const el = document.getElementById(key);
+                if (el) el.value = item[key];
+            });
+            document.getElementById('item-id').value = item.id;
+            document.getElementById('item-action').value = 'update';
+            document.getElementById('stok').disabled = true;
+            document.getElementById('stok-help-text').textContent = 'Stok tidak dapat diubah dari sini. Gunakan fitur "Penyesuaian Stok" atau "Stok Opname".';
+            openModal('itemModal');
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        showToast(`Gagal memuat data barang: ${error.message}`, 'error');
     }
 }
 
@@ -360,7 +356,7 @@ async function uploadExcel() {
         showToast(result.message, result.status);
 
         if (result.status === 'success') {
-            bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+            closeModal('importModal');
             loadItemsList(); // Muat ulang daftar barang
         }
     } catch (error) {
