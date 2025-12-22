@@ -43,9 +43,9 @@ if (!$is_spa_request) {
 
 <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
     <div class="p-6">
-        <div class="overflow-x-auto">
+        <div class="overflow-auto max-h-[65vh] border border-gray-200 dark:border-gray-700 rounded-md">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tanggal</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th>
@@ -56,7 +56,7 @@ if (!$is_spa_request) {
                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
-                <tbody id="pembelian-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody id="pembelian-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                     <!-- Data akan dimuat oleh JavaScript -->
                 </tbody>
             </table>

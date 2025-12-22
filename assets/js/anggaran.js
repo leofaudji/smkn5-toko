@@ -3,7 +3,7 @@ function initAnggaranPage() {
     const monthFilter = document.getElementById('anggaran-bulan-filter');
     const tampilkanBtn = document.getElementById('anggaran-tampilkan-btn');
     const reportTableBody = document.getElementById('anggaran-report-table-body');
-    const chartCanvas = document.getElementById('anggaran-chart');
+    const budgetChartCanvas = document.getElementById('anggaran-chart');
     const modalEl = document.getElementById('anggaranModal');
     const modalTahunLabel = document.getElementById('modal-tahun-label');
     const managementContainer = document.getElementById('anggaran-management-container');
@@ -12,16 +12,9 @@ function initAnggaranPage() {
     const exportCsvBtn = document.getElementById('export-anggaran-csv');
     const compareSwitch = document.getElementById('anggaran-compare-switch');
     const trendChartCanvas = document.getElementById('anggaran-trend-chart');
-
-    let budgetChart = null;
-    let trendChart = null;
+    const manageAnggaranBtn = document.getElementById('manage-anggaran-btn');
     
     if (!yearFilter || !reportTableBody) return;
-
-    // Inisialisasi instance modal jika belum ada
-    if (!anggaranModalInstance) {
-        anggaranModalInstance = new bootstrap.Modal(modalEl);
-    }
 
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
@@ -91,7 +84,7 @@ function initAnggaranPage() {
         const selectedMonth = monthFilter.value;
         const isComparing = compareSwitch.checked;
 
-        reportTableBody.innerHTML = '<tr><td colspan="5" class="text-center p-5"><div class="spinner-border"></div></td></tr>';
+        reportTableBody.innerHTML = '<tr><td colspan="5" class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>';
         try {
             const params = new URLSearchParams({
                 action: 'get_report',
@@ -104,28 +97,28 @@ function initAnggaranPage() {
 
             // Update Summary Cards
             if (result.status === 'success' && result.summary) {
-                document.getElementById('summary-total-anggaran').textContent = currencyFormatter.format(result.summary.total_anggaran);
-                document.getElementById('summary-total-realisasi').textContent = currencyFormatter.format(result.summary.total_realisasi);
-                document.getElementById('summary-sisa-anggaran').textContent = currencyFormatter.format(result.summary.total_sisa);
+                document.getElementById('summary-total-anggaran').textContent = currencyFormatter.format(result.summary.total_anggaran || 0);
+                document.getElementById('summary-total-realisasi').textContent = currencyFormatter.format(result.summary.total_realisasi || 0);
+                document.getElementById('summary-sisa-anggaran').textContent = currencyFormatter.format(result.summary.total_sisa || 0);
             }
 
             // Update Table Header
             const tableHeader = document.getElementById('anggaran-report-table-header');
             if (isComparing) {
                 tableHeader.innerHTML = `
-                    <th>Akun Beban</th>
-                    <th class="text-end">Anggaran (${selectedYear})</th>
-                    <th class="text-end">Realisasi (${selectedYear})</th>
-                    <th class="text-end">Realisasi (${selectedYear - 1})</th>
-                    <th style="width: 20%;">Penggunaan</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Akun Beban</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Anggaran (${selectedYear})</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Realisasi (${selectedYear})</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Realisasi (${selectedYear - 1})</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/4">Penggunaan</th>
                 `;
             } else {
                 tableHeader.innerHTML = `
-                    <th>Akun Beban</th>
-                    <th class="text-end">Anggaran Bulanan</th>
-                    <th class="text-end">Realisasi Belanja</th>
-                    <th class="text-end">Sisa Anggaran</th>
-                    <th style="width: 25%;">Penggunaan</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Akun Beban</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Anggaran Bulanan</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Realisasi Belanja</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sisa Anggaran</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/4">Penggunaan</th>
                 `;
             }
 
@@ -175,41 +168,40 @@ function initAnggaranPage() {
                     });
                 }
 
-                window.anggaranBudgetChart = new Chart(chartCanvas, chartConfig);
+                window.anggaranBudgetChart = new Chart(budgetChartCanvas, chartConfig);
             }
 
             if (result.status === 'success' && result.data.length > 0) {
                 result.data.forEach(item => {
                     const percentage = parseFloat(item.persentase);
-                    let progressBarColor = 'bg-success';
-                    if (percentage > 75) progressBarColor = 'bg-warning';
-                    if (percentage >= 100) progressBarColor = 'bg-danger';
+                    let progressBarColor = 'bg-green-600';
+                    if (percentage > 75) progressBarColor = 'bg-yellow-500';
+                    if (percentage >= 100) progressBarColor = 'bg-red-600';
 
                     let row;
                     if (isComparing) {
-                        row = `
-                            <tr>
-                                <td>${item.nama_akun}</td>
-                                <td class="text-end">${currencyFormatter.format(item.anggaran_bulanan)}</td>
-                                <td class="text-end">${currencyFormatter.format(item.realisasi_belanja)}</td>
-                                <td class="text-end text-muted">${currencyFormatter.format(item.realisasi_belanja_lalu)}</td>
-                                <td>
-                                    <div class="progress" role="progressbar" style="height: 20px;">
-                                        <div class="progress-bar ${progressBarColor}" style="width: ${Math.min(percentage, 100)}%">${percentage.toFixed(1)}%</div>
+                        row = `<tr class="text-sm">
+                                <td class="px-6 py-4">${item.nama_akun}</td>
+                                <td class="px-6 py-4 text-right">${currencyFormatter.format(item.anggaran_bulanan)}</td>
+                                <td class="px-6 py-4 text-right">${currencyFormatter.format(item.realisasi_belanja)}</td>
+                                <td class="px-6 py-4 text-right text-gray-500">${currencyFormatter.format(item.realisasi_belanja_lalu)}</td>
+                                <td class="px-6 py-4">
+                                    <div class="w-full bg-gray-200 rounded-full h-5 dark:bg-gray-700">
+                                        <div class="${progressBarColor} h-5 rounded-full text-white text-xs flex items-center justify-center" style="width: ${Math.min(percentage, 100)}%">${percentage.toFixed(1)}%</div>
                                     </div>
                                 </td>
                             </tr>
                         `;
                     } else {
                         row = `
-                            <tr>
-                                <td>${item.nama_akun}</td>
-                                <td class="text-end">${currencyFormatter.format(item.anggaran_bulanan)}</td>
-                                <td class="text-end">${currencyFormatter.format(item.realisasi_belanja)}</td>
-                                <td class="text-end fw-bold ${item.sisa_anggaran < 0 ? 'text-danger' : ''}">${currencyFormatter.format(item.sisa_anggaran)}</td>
-                                <td>
-                                    <div class="progress" role="progressbar" style="height: 20px;">
-                                        <div class="progress-bar ${progressBarColor}" style="width: ${Math.min(percentage, 100)}%">${percentage.toFixed(1)}%</div>
+                            <tr class="text-sm">
+                                <td class="px-6 py-4">${item.nama_akun}</td>
+                                <td class="px-6 py-4 text-right">${currencyFormatter.format(item.anggaran_bulanan)}</td>
+                                <td class="px-6 py-4 text-right">${currencyFormatter.format(item.realisasi_belanja)}</td>
+                                <td class="px-6 py-4 text-right font-bold ${item.sisa_anggaran < 0 ? 'text-red-600' : ''}">${currencyFormatter.format(item.sisa_anggaran)}</td>
+                                <td class="px-6 py-4">
+                                    <div class="w-full bg-gray-200 rounded-full h-5 dark:bg-gray-700">
+                                        <div class="${progressBarColor} h-5 rounded-full text-white text-xs flex items-center justify-center" style="width: ${Math.min(percentage, 100)}%">${percentage.toFixed(1)}%</div>
                                     </div>
                                 </td>
                             </tr>
@@ -218,7 +210,7 @@ function initAnggaranPage() {
                     reportTableBody.insertAdjacentHTML('beforeend', row);
                 });
             } else {
-                reportTableBody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada data anggaran untuk periode ini.</td></tr>';
+                reportTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500">Belum ada data anggaran untuk periode ini.</td></tr>';
             }
         } catch (error) {
             reportTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Gagal memuat laporan: ${error.message}</td></tr>`;
@@ -229,7 +221,7 @@ function initAnggaranPage() {
     async function loadBudgetManagement() {
         const selectedYear = yearFilter.value;
         modalTahunLabel.textContent = selectedYear;
-        managementContainer.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        managementContainer.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
         try {
             const response = await fetch(`${basePath}/api/anggaran?action=list_budget&tahun=${selectedYear}`);
             const result = await response.json();
@@ -237,18 +229,18 @@ function initAnggaranPage() {
             if (result.status === 'success' && result.data.length > 0) {
                 result.data.forEach(item => {
                     const itemHtml = `
-                        <div class="input-group mb-2">
-                            <span class="input-group-text" style="width: 250px; font-size: 0.9rem;">${item.nama_akun}</span>
-                            <input type="number" class="form-control budget-amount-input" name="budgets[${item.account_id}]" value="${item.jumlah_anggaran}" placeholder="Anggaran Tahunan">
+                        <div class="flex rounded-md shadow-sm">
+                            <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400" style="width: 250px;">${item.nama_akun}</span>
+                            <input type="number" class="block w-full flex-1 rounded-none rounded-r-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:border-primary focus:ring-primary sm:text-sm" name="budgets[${item.account_id}]" value="${item.jumlah_anggaran}" placeholder="Anggaran Tahunan">
                         </div>
                     `;
                     managementContainer.insertAdjacentHTML('beforeend', itemHtml);
                 });
             } else {
-                managementContainer.innerHTML = '<p class="text-muted text-center">Tidak ada akun beban yang dapat dianggarkan.</p>';
+                managementContainer.innerHTML = '<p class="text-gray-500 text-center">Tidak ada akun beban yang dapat dianggarkan.</p>';
             }
         } catch (error) {
-            managementContainer.innerHTML = `<div class="alert alert-danger">Gagal memuat data anggaran.</div>`;
+            managementContainer.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">Gagal memuat data anggaran.</div>`;
         }
     }
 
@@ -261,7 +253,10 @@ function initAnggaranPage() {
         const response = await fetch(`${basePath}/api/anggaran`, { method: 'POST', body: formData });
         const result = await response.json();
         showToast(result.message, result.status === 'success' ? 'success' : 'error');
-        if (result.status === 'success') anggaranModalInstance.hide();
+        if (result.status === 'success') {
+            closeModal('anggaranModal');
+            loadReport();
+        }
     });
 
     exportPdfBtn.addEventListener('click', (e) => {
@@ -316,19 +311,10 @@ function initAnggaranPage() {
     });
     compareSwitch.addEventListener('change', loadReport);
 
-    // Inisialisasi instance modal jika belum ada
-    if (!anggaranModalInstance) {
-        anggaranModalInstance = new bootstrap.Modal(modalEl);
-    }
-    // Cek apakah listener sudah ada sebelum menambahkannya
-    // Listener untuk modal ini perlu dicek karena modal ada di luar area konten utama SPA
-    if (!modalEl.dataset.listenerAttached) {
-        modalEl.addEventListener('show.bs.modal', loadBudgetManagement);
-        modalEl.addEventListener('hidden.bs.modal', () => {
-            loadReport(); // Muat ulang laporan setelah modal ditutup
-        });
-        modalEl.dataset.listenerAttached = 'true';
-    }
+    manageAnggaranBtn.addEventListener('click', () => {
+        loadBudgetManagement();
+        openModal('anggaranModal');
+    });
 
     setupFilters();
     loadReport(); // Muat laporan detail

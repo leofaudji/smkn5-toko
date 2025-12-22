@@ -26,7 +26,11 @@ function initLaporanPertumbuhanLabaPage() {
         const selectedYear = yearFilter.value;
         const viewMode = document.querySelector('input[name="view_mode"]:checked').value;
         const isComparing = compareSwitch.checked;
-        tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
+        
+        const originalBtnHtml = tampilkanBtn.innerHTML;
+        tampilkanBtn.disabled = true;
+        tampilkanBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memuat...`;
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>`;
 
         try {
             const params = new URLSearchParams({
@@ -50,28 +54,33 @@ function initLaporanPertumbuhanLabaPage() {
 
 
             if (isComparing) {
-                tableHeader.innerHTML = `
-                    <th>${periodLabel}</th>
-                    <th class="text-end">Laba Bersih (${selectedYear})</th>
-                    <th class="text-end">Laba Bersih (${selectedYear - 1})</th>
-                    <th class="text-end">Pertumbuhan ${growthLabel}</th>
-                    <th class="text-end">Pertumbuhan YoY</th>
-                `;
+                tableHeader.innerHTML = `<tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">${periodLabel}</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Laba Bersih (${selectedYear})</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Laba Bersih (${selectedYear - 1})</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pertumbuhan ${growthLabel}</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pertumbuhan YoY</th>
+                </tr>`;
             } else {
-                tableHeader.innerHTML = `
-                    <th>${periodLabel}</th>
-                    <th class="text-end">Total Pendapatan</th>
-                    <th class="text-end">Total Beban</th>
-                    <th class="text-end">Laba (Rugi) Bersih</th>
-                    <th class="text-end">Pertumbuhan ${growthLabel}</th>
-                `;
+                tableHeader.innerHTML = `<tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">${periodLabel}</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Pendapatan</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Beban</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Laba (Rugi) Bersih</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pertumbuhan ${growthLabel}</th>
+                </tr>`;
             }
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">Tidak ada data untuk periode ini.</td></tr>`;
+            }
+
             data.forEach(row => {
                 let growthHtml;
                 if (row.pertumbuhan > 0) {
-                    growthHtml = `<span class="text-success"><i class="bi bi-arrow-up"></i> ${row.pertumbuhan.toFixed(2)}%</span>`;
+                    growthHtml = `<span class="text-green-600 dark:text-green-400"><i class="bi bi-arrow-up"></i> ${row.pertumbuhan.toFixed(2)}%</span>`;
                 } else if (row.pertumbuhan < 0) {
-                    growthHtml = `<span class="text-danger"><i class="bi bi-arrow-down"></i> ${Math.abs(row.pertumbuhan).toFixed(2)}%</span>`;
+                    growthHtml = `<span class="text-red-600 dark:text-red-400"><i class="bi bi-arrow-down"></i> ${Math.abs(row.pertumbuhan).toFixed(2)}%</span>`;
                 } else {
                     growthHtml = `<span>-</span>`;
                 }
@@ -88,29 +97,29 @@ function initLaporanPertumbuhanLabaPage() {
                 if (isComparing) {
                     let yoyGrowthHtml;
                     if (row.pertumbuhan_yoy > 0) {
-                        yoyGrowthHtml = `<span class="text-success"><i class="bi bi-arrow-up"></i> ${row.pertumbuhan_yoy.toFixed(2)}%</span>`;
+                        yoyGrowthHtml = `<span class="text-green-600 dark:text-green-400"><i class="bi bi-arrow-up"></i> ${row.pertumbuhan_yoy.toFixed(2)}%</span>`;
                     } else if (row.pertumbuhan_yoy < 0) {
-                        yoyGrowthHtml = `<span class="text-danger"><i class="bi bi-arrow-down"></i> ${Math.abs(row.pertumbuhan_yoy).toFixed(2)}%</span>`;
+                        yoyGrowthHtml = `<span class="text-red-600 dark:text-red-400"><i class="bi bi-arrow-down"></i> ${Math.abs(row.pertumbuhan_yoy).toFixed(2)}%</span>`;
                     } else {
                         yoyGrowthHtml = `<span>-</span>`;
                     }
                     tableRow = `
-                        <tr>
-                            <td>${periodName}</td>
-                            <td class="text-end fw-bold ${row.laba_bersih < 0 ? 'text-danger' : ''}">${currencyFormatter.format(row.laba_bersih)}</td>
-                            <td class="text-end text-muted">${currencyFormatter.format(row.laba_bersih_lalu)}</td>
-                            <td class="text-end">${growthHtml}</td>
-                            <td class="text-end">${yoyGrowthHtml}</td>
+                        <tr class="text-sm">
+                            <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${periodName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right font-bold ${row.laba_bersih < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}">${currencyFormatter.format(row.laba_bersih)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-500 dark:text-gray-400">${currencyFormatter.format(row.laba_bersih_lalu)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">${growthHtml}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">${yoyGrowthHtml}</td>
                         </tr>
                     `;
                 } else {
                     tableRow = `
-                        <tr>
-                            <td>${periodName}</td>
-                            <td class="text-end">${currencyFormatter.format(row.total_pendapatan)}</td>
-                            <td class="text-end">${currencyFormatter.format(row.total_beban)}</td>
-                            <td class="text-end fw-bold ${row.laba_bersih < 0 ? 'text-danger' : ''}">${currencyFormatter.format(row.laba_bersih)}</td>
-                            <td class="text-end">${growthHtml}</td>
+                        <tr class="text-sm">
+                            <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">${periodName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-900 dark:text-white">${currencyFormatter.format(row.total_pendapatan)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-900 dark:text-white">${currencyFormatter.format(row.total_beban)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right font-bold ${row.laba_bersih < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}">${currencyFormatter.format(row.laba_bersih)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">${growthHtml}</td>
                         </tr>
                     `;
                 }
@@ -193,7 +202,10 @@ function initLaporanPertumbuhanLabaPage() {
             window.lplProfitChart = new Chart(chartCanvas, chartConfig);
 
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Gagal memuat laporan: ${error.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-red-500 dark:text-red-400 py-10">Gagal memuat laporan: ${error.message}</td></tr>`;
+        } finally {
+            tampilkanBtn.disabled = false;
+            tampilkanBtn.innerHTML = `<i class="bi bi-search mr-2"></i> Tampilkan`;
         }
     }
 

@@ -9,7 +9,7 @@
 </div> <!-- end #app-container -->
 
 <!-- Toast Container -->
-<div id="toast-container" class="fixed bottom-0 right-0 p-6 space-y-2 z-[100]">
+<div id="toast-container" class="fixed bottom-0 right-0 p-6 space-y-2 z-[100] w-full max-w-md">
     <!-- Toasts will be appended here by JavaScript -->
 </div>
 

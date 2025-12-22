@@ -384,6 +384,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/penjualan.js`)
             .then(() => initPenjualanPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/neraca-saldo') {
+        loadScript(`${basePath}/assets/js/neraca_saldo.js`)
+            .then(() => initNeracaSaldoPage())
+            .catch(err => console.error(err));
     }else if (cleanPath === '/buku-panduan') {
         // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
         // Cukup daftarkan agar tidak error dan hentikan eksekusi.

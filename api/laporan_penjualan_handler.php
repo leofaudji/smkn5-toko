@@ -105,7 +105,13 @@ try {
     $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 
-    $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records, 'summary' => $summary_data];
+    $pagination = [
+        'current_page' => $page, 
+        'total_pages' => ceil($total_records / $limit), 
+        'total_records' => $total_records, 
+        'limit' => $limit, // Tambahkan limit ke objek pagination
+        'summary' => $summary_data
+    ];
     echo json_encode(['status' => 'success', 'data' => $data, 'pagination' => $pagination]);
 
 } catch (Exception $e) {

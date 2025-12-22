@@ -137,30 +137,28 @@ try {
             if (!$item_info) throw new Exception("Barang tidak ditemukan.");
 
             // 2. Calculate Saldo Awal (stock at the beginning of start_date)
-            $saldo_awal = 0;
             $stmt = $conn->prepare("
-                SELECT 
-                    (SELECT COALESCE(SUM(jumlah), 0) FROM kartu_stok WHERE item_id = ? AND tanggal < ? AND jenis = 'Masuk') +
-                    (SELECT COALESCE(SUM(selisih_kuantitas), 0) FROM stock_adjustments WHERE item_id = ? AND tanggal < ? AND selisih_kuantitas > 0)
-                    AS total_masuk_sebelum,
-                    (SELECT COALESCE(SUM(jumlah), 0) FROM kartu_stok WHERE item_id = ? AND tanggal < ? AND jenis = 'Keluar') +
-                    (SELECT COALESCE(SUM(ABS(selisih_kuantitas)), 0) FROM stock_adjustments WHERE item_id = ? AND tanggal < ? AND selisih_kuantitas < 0)
-                    AS total_keluar_sebelum
+                SELECT COALESCE(SUM(CASE WHEN jenis = 'Masuk' THEN jumlah ELSE -jumlah END), 0) as saldo
+                FROM kartu_stok 
+                WHERE item_id = ? AND tanggal < ?
             ");
-            $stmt->bind_param("isisisis", $item_id, $start_date, $item_id, $start_date, $item_id, $start_date, $item_id, $start_date);
+            $stmt->bind_param("is", $item_id, $start_date);
             $stmt->execute();
             $result = $stmt->get_result()->fetch_assoc();
-            $saldo_awal = $result['total_masuk_sebelum'] - $result['total_keluar_sebelum'];
+            $saldo_awal = (int)$result['saldo'];
             $stmt->close();
 
             // 3. Get all transactions within the date range
             $stmt = $conn->prepare("
-                (SELECT tanggal, keterangan, IF(selisih_kuantitas > 0, selisih_kuantitas, 0) as masuk, IF(selisih_kuantitas < 0, ABS(selisih_kuantitas), 0) as keluar FROM stock_adjustments WHERE item_id = ? AND tanggal BETWEEN ? AND ?)
-                UNION ALL
-                (SELECT tanggal, keterangan, IF(jenis = 'Masuk', jumlah, 0) as masuk, IF(jenis = 'Keluar', jumlah, 0) as keluar FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ?)
-                ORDER BY tanggal ASC, keterangan ASC
+                SELECT 
+                    id, tanggal, keterangan, 
+                    IF(jenis = 'Masuk', jumlah, 0) as masuk, 
+                    IF(jenis = 'Keluar', jumlah, 0) as keluar 
+                FROM kartu_stok 
+                WHERE item_id = ? AND tanggal BETWEEN ? AND ?
+                ORDER BY tanggal ASC, id ASC
             ");
-            $stmt->bind_param("isssis", $item_id, $start_date, $end_date, $item_id, $start_date, $end_date);
+            $stmt->bind_param("iss", $item_id, $start_date, $end_date);
             $stmt->execute();
             $transactions_raw = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             $stmt->close();
@@ -299,6 +297,7 @@ try {
                 $selisihNilai = $selisihKuantitas * $hargaBeli;
 
                 if ($selisihKuantitas == 0) {
+                    $conn->rollback(); // Batalkan transaksi jika tidak ada perubahan
                     throw new Exception("Tidak ada perubahan stok. Stok fisik sama dengan stok tercatat.");
                 }
 
@@ -334,6 +333,14 @@ try {
                 $stmt->bind_param("iiisiisds", $itemId, $userId, $journalId, $tanggal, $stokSebelum, $stokFisik, $selisihKuantitas, $selisihNilai, $keterangan);
                 $stmt->execute();
 
+                // 6. Catat ke kartu stok
+                $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
+                $jenis_ks = $selisihKuantitas > 0 ? 'Masuk' : 'Keluar';
+                $jumlah_ks = abs($selisihKuantitas);
+                $stmt_ks->bind_param('siisisi', $tanggal, $itemId, $jenis_ks, $jumlah_ks, $keteranganJurnal, $journalId, $userId);
+                $stmt_ks->execute();
+                $stmt_ks->close();
+
                 $conn->commit();
                 echo json_encode(['status' => 'success', 'message' => 'Penyesuaian stok berhasil disimpan.']);
             } catch (Exception $e) {
@@ -367,6 +374,7 @@ try {
                 $itemStmt = $conn->prepare("SELECT stok, harga_beli, inventory_account_id FROM items WHERE id = ? AND user_id = ? FOR UPDATE");
                 $updateStmt = $conn->prepare("UPDATE items SET stok = ? WHERE id = ?");
                 $historyStmt = $conn->prepare("INSERT INTO stock_adjustments (item_id, user_id, journal_id, tanggal, stok_sebelum, stok_setelah, selisih_kuantitas, selisih_nilai, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $kartuStokStmt = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
 
                 // Variabel untuk menampung rekapitulasi total untuk general ledger
                 $ledgerTotals = [];
@@ -422,6 +430,13 @@ try {
                     $updateStmt->execute();
                     $historyStmt->bind_param("iiisiisds", $itemId, $userId, $journalId, $tanggal, $stokSebelum, $stokFisik, $selisihKuantitas, $selisihNilai, $keterangan);
                     $historyStmt->execute();
+
+                    // 5. Catat ke kartu stok
+                    $jenis_ks = $selisihKuantitas > 0 ? 'Masuk' : 'Keluar';
+                    $jumlah_ks = abs($selisihKuantitas);
+                    $keterangan_ks = "Stok Opname Batch: " . $keterangan;
+                    $kartuStokStmt->bind_param('siisisi', $tanggal, $itemId, $jenis_ks, $jumlah_ks, $keterangan_ks, $journalId, $userId);
+                    $kartuStokStmt->execute();
                 }
 
                 // 5. Setelah loop selesai, insert rekapitulasi total ke general_ledger
@@ -500,8 +515,8 @@ try {
             $processed = 0;
             $errors = [];
 
-            // Siapkan statement untuk penyesuaian stok
-            $stmt_adj = $conn->prepare("INSERT INTO stock_adjustments (item_id, user_id, journal_id, tanggal, stok_sebelum, stok_setelah, selisih_kuantitas, selisih_nilai, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            // Siapkan statement untuk kartu stok
+            $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'import', ?)");
 
             $ledgerTotals = []; // Array untuk rekapitulasi ke General Ledger
 
@@ -604,9 +619,11 @@ try {
                     $stmt_update->bind_param('ddii', $harga_beli, $harga_jual, $stok, $item_id);
                     $stmt_update->execute();
 
-                    // Catat ke history adjustment
-                    $stmt_adj->bind_param("iiisiisds", $item_id, $user_id, $journalId, $tanggal_import, $stok_sebelum, $stok, $selisih_kuantitas, $selisih_nilai, $keterangan_impor);
-                    $stmt_adj->execute();
+                    // Catat ke kartu stok sebagai saldo awal/penyesuaian
+                    $jenis_ks = $selisih_kuantitas > 0 ? 'Masuk' : 'Keluar';
+                    $jumlah_ks = abs($selisih_kuantitas);
+                    $stmt_ks->bind_param('siisisi', $tanggal_import, $item_id, $jenis_ks, $jumlah_ks, $keterangan_impor, $journalId, $user_id);
+                    $stmt_ks->execute();
                 } 
 
                 $processed++;

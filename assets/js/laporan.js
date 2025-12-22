@@ -1,7 +1,6 @@
 function initLaporanPage() {
     const neracaTanggalInput = document.getElementById('neraca-tanggal');
     const neracaContent = document.getElementById('neraca-content');
-    const labaRugiTab = document.getElementById('laba-rugi-tab');
     const labaRugiContent = document.getElementById('laba-rugi-content');
     const labaRugiTglMulai = document.getElementById('laba-rugi-tanggal-mulai');
     const labaRugiTglAkhir = document.getElementById('laba-rugi-tanggal-akhir');
@@ -10,7 +9,6 @@ function initLaporanPage() {
     const labaRugiTglMulai2 = document.getElementById('laba-rugi-tanggal-mulai-2');
     const lrCommonSizeSwitch = document.getElementById('lr-common-size-switch');
     const labaRugiTglAkhir2 = document.getElementById('laba-rugi-tanggal-akhir-2');
-    const arusKasTab = document.getElementById('arus-kas-tab');
     const arusKasContent = document.getElementById('arus-kas-content');
     const arusKasTglMulai = document.getElementById('arus-kas-tanggal-mulai');
     const arusKasTglAkhir = document.getElementById('arus-kas-tanggal-akhir');
@@ -25,6 +23,9 @@ function initLaporanPage() {
     const exportNeracaCsvBtn = document.getElementById('export-neraca-csv');
     const exportLrCsvBtn = document.getElementById('export-lr-csv');
     const exportAkCsvBtn = document.getElementById('export-ak-csv');
+
+    const tooltipEl = document.getElementById('custom-tooltip');
+    const tooltipContentEl = document.getElementById('custom-tooltip-content');
 
 
     const storageKey = 'laporan_filters';
@@ -73,9 +74,9 @@ function initLaporanPage() {
         const renderRows = (items, level = 0) => {
             let html = '';
             items.forEach(item => {
-                const isParent = item.children && item.children.length > 0;
+                const isParent = item.children && item.children.length > 0; // This logic might be flawed if buildHierarchy isn't used
                 const padding = level * 20;
-                const fw = isParent ? 'fw-bold' : '';
+                const fw = isParent ? 'font-bold' : '';
                 
                 // Saldo yang akan ditampilkan. Untuk akun induk, ini adalah jumlah dari saldo anak-anaknya.
                 // Untuk akun anak (tanpa turunan), ini adalah saldo akhirnya sendiri.
@@ -92,12 +93,12 @@ function initLaporanPage() {
                 }
 
                 html += `
-                    <tr>
-                        <td style="padding-left: ${padding}px;" class="${fw}">${item.nama_akun}</td>
-                        <td class="text-end ${fw}">${formatCurrencyAccounting(saldoToShow)}</td>
+                    <tr class="text-sm">
+                        <td style="padding-left: ${padding + 16}px;" class="py-2 ${fw} text-gray-800 dark:text-gray-200">${item.nama_akun}</td>
+                        <td class="text-right py-2 pr-4 ${fw} text-gray-800 dark:text-gray-200">${formatCurrencyAccounting(saldoToShow)}</td>
                     </tr>
                 `;
-                if (isParent) {
+                if (isParent && item.children) {
                     html += renderRows(item.children, level + 1);
                 }
             });
@@ -109,7 +110,11 @@ function initLaporanPage() {
             .map(item => ({ ...item, children: buildHierarchy(list, item.id) }));
 
         // Perbaiki fungsi calculateTotal untuk menjumlahkan semua item dalam data, bukan hanya root.
-        const calculateTotal = (data) => data.reduce((acc, item) => acc + parseFloat(item.saldo_akhir), 0);
+        const calculateTotal = (data) => data
+            .filter(item => {
+                const hasChildren = data.some(child => child.parent_id === item.id);
+                return !hasChildren;
+            }).reduce((acc, item) => acc + parseFloat(item.saldo_akhir), 0);
 
         const asetData = data.filter(d => d.tipe_akun === 'Aset');
         const liabilitasData = data.filter(d => d.tipe_akun === 'Liabilitas');
@@ -125,35 +130,35 @@ function initLaporanPage() {
         const totalLiabilitasEkuitas = totalLiabilitas + totalEkuitas;
 
         const isBalanced = Math.abs(totalAset - totalLiabilitasEkuitas) < 0.01;
-        const balanceStatusClass = isBalanced ? 'table-success' : 'table-danger';
+        const balanceStatusClass = isBalanced ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30';
         const balanceStatusText = isBalanced ? 'BALANCE' : 'TIDAK BALANCE';
         const balanceBadge = document.getElementById('neraca-balance-status-badge');
         if (balanceBadge) {
-            balanceBadge.innerHTML = `<span class="badge ${isBalanced ? 'bg-success' : 'bg-danger'}">${balanceStatusText}</span>`;
+            balanceBadge.innerHTML = `<span class="px-2 py-1 text-xs font-semibold rounded-full ${isBalanced ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${balanceStatusText}</span>`;
         }
 
         const neracaHtml = `
-            <div class="row">
-                <div class="col-md-6">
-                    <h5>Aset</h5>
-                    <table class="table table-sm"><tbody>${renderRows(asetData)}</tbody></table><br>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h5 class="text-lg font-semibold mb-2 text-gray-800 dark:text-white">Aset</h5>
+                    <table class="w-full"><tbody class="divide-y divide-gray-200 dark:divide-gray-700">${renderRows(aset)}</tbody></table>
                 </div>
-                <div class="col-md-6">
-                    <h5>Liabilitas</h5>
-                    <table class="table table-sm"><tbody>${renderRows(liabilitasData)}</tbody></table>
-                    <table class="table"><tbody><tr class="table-light"><td class="fw-bold">TOTAL LIABILITAS</td><td class="text-end fw-bold">${formatCurrencyAccounting(totalLiabilitas)}</td></tr></tbody></table><br>
+                <div>
+                    <h5 class="text-lg font-semibold mb-2 text-gray-800 dark:text-white">Liabilitas</h5>
+                    <table class="w-full"><tbody class="divide-y divide-gray-200 dark:divide-gray-700">${renderRows(liabilitas)}</tbody></table>
+                    <table class="w-full mt-2"><tbody><tr class="bg-gray-100 dark:bg-gray-700"><td class="font-bold p-2 text-sm">TOTAL LIABILITAS</td><td class="text-right font-bold p-2 text-sm">${formatCurrencyAccounting(totalLiabilitas)}</td></tr></tbody></table>
 
-                    <h5 class="mt-4">Ekuitas</h5>
-                    <table class="table table-sm"><tbody>${renderRows(ekuitasData)}</tbody></table>
-                    <table class="table"><tbody><tr class="table-light"><td class="fw-bold">TOTAL EKUITAS</td><td class="text-end fw-bold">${formatCurrencyAccounting(totalEkuitas)}</td></tr></tbody></table><br>
+                    <h5 class="mt-6 text-lg font-semibold mb-2 text-gray-800 dark:text-white">Ekuitas</h5>
+                    <table class="w-full"><tbody class="divide-y divide-gray-200 dark:divide-gray-700">${renderRows(ekuitas)}</tbody></table>
+                    <table class="w-full mt-2"><tbody><tr class="bg-gray-100 dark:bg-gray-700"><td class="font-bold p-2 text-sm">TOTAL EKUITAS</td><td class="text-right font-bold p-2 text-sm">${formatCurrencyAccounting(totalEkuitas)}</td></tr></tbody></table>
                 </div>
             </div>
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <table class="table"><tbody><tr class="${balanceStatusClass}"><td class="fw-bold">TOTAL ASET</td><td class="text-end fw-bold">${formatCurrencyAccounting(totalAset)}</td></tr></tbody></table>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                <div>
+                    <table class="w-full"><tbody><tr class="${balanceStatusClass}"><td class="font-bold p-3 text-gray-800 dark:text-gray-100">TOTAL ASET</td><td class="text-right font-bold p-3 text-gray-800 dark:text-gray-100">${formatCurrencyAccounting(totalAset)}</td></tr></tbody></table>
                 </div>
-                <div class="col-md-6">
-                    <table class="table"><tbody><tr class="${balanceStatusClass}"><td class="fw-bold">TOTAL LIABILITAS + EKUITAS</td><td class="text-end fw-bold">${formatCurrencyAccounting(totalLiabilitasEkuitas)}</td></tr></tbody></table>
+                <div>
+                    <table class="w-full"><tbody><tr class="${balanceStatusClass}"><td class="font-bold p-3 text-gray-800 dark:text-gray-100">TOTAL LIABILITAS + EKUITAS</td><td class="text-right font-bold p-3 text-gray-800 dark:text-gray-100">${formatCurrencyAccounting(totalLiabilitasEkuitas)}</td></tr></tbody></table>
                 </div>
             </div>
         `;
@@ -162,7 +167,7 @@ function initLaporanPage() {
 
     async function loadNeraca() {
         const tanggal = neracaTanggalInput.value;
-        neracaContent.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        neracaContent.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
         
         const params = new URLSearchParams({
             tanggal: tanggal
@@ -175,7 +180,7 @@ function initLaporanPage() {
             if (result.status !== 'success') throw new Error(result.message);
             renderNeraca(result.data);
         } catch (error) {
-            neracaContent.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan: ${error.message}</div>`;
+            neracaContent.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">Gagal memuat laporan: ${error.message}</div>`;
         }
     }
 
@@ -201,78 +206,80 @@ function initLaporanPage() {
 
         const calculateChange = (currentVal, prevVal) => {
             if (prevVal === 0) return currentVal > 0 ? '<span class="text-success">Baru</span>' : '-';
-            const change = ((currentVal - prevVal) / Math.abs(prevVal)) * 100;
-            const color = change >= 0 ? 'text-success' : 'text-danger';
+            const change = ((currentVal - prevVal) / Math.abs(prevVal)) * 100; // Avoid division by zero
+            const color = change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
             const icon = change >= 0 ? '<i class="bi bi-arrow-up"></i>' : '<i class="bi bi-arrow-down"></i>';
             return `<span class="${color}">${icon} ${Math.abs(change).toFixed(1)}%</span>`;
         };
 
         const renderRows = (tipe) => {
             let html = '';
-            const colCount = 2 + (isComparison ? 1 : 0) + (isCommonSize ? (isComparison ? 2 : 1) : 0);
+            const colCount = 2 + (isComparison ? 2 : 0) + (isCommonSize ? (isComparison ? 2 : 1) : 0);
             const accountsOfType = Array.from(allAccounts.values()).filter(acc => acc.tipe_akun === tipe);
-            if (accountsOfType.length === 0) return `<tr><td colspan="${colCount}" class="text-muted">Tidak ada data.</td></tr>`;
+            if (accountsOfType.length === 0) return `<tr><td colspan="${colCount}" class="text-gray-500 dark:text-gray-400 px-4 py-2">Tidak ada data.</td></tr>`;
 
             accountsOfType.forEach(acc => {
                 const currentData = findAccountTotal(current, acc.id);
-                html += `<tr><td>${acc.nama_akun}</td><td class="text-end">${formatCurrencyAccounting(currentData.total)}</td>`;
+                html += `<tr class="text-sm"><td class="px-4 py-2">${acc.nama_akun}</td><td class="text-right px-4 py-2">${formatCurrencyAccounting(currentData.total)}</td>`;
                 if (isCommonSize) {
-                    html += `<td class="text-end text-muted small">${currentData.percentage.toFixed(2)}%</td>`;
+                    html += `<td class="text-right px-4 py-2 text-gray-500 dark:text-gray-400 text-xs">${currentData.percentage.toFixed(2)}%</td>`;
                 }
                 if (isComparison) {
                     const prevData = findAccountTotal(previous, acc.id);
-                    html += `<td class="text-end">${formatCurrencyAccounting(prevData.total)}</td>`;
-                    if (isCommonSize) html += `<td class="text-end text-muted small">${prevData.percentage.toFixed(2)}%</td>`;
-                    html += `<td class="text-end small">${calculateChange(currentData.total, prevData.total)}</td>`;
+                    html += `<td class="text-right px-4 py-2">${formatCurrencyAccounting(prevData.total)}</td>`;
+                    if (isCommonSize) html += `<td class="text-right px-4 py-2 text-gray-500 dark:text-gray-400 text-xs">${prevData.percentage.toFixed(2)}%</td>`;
+                    html += `<td class="text-right px-4 py-2 text-xs">${calculateChange(currentData.total, prevData.total)}</td>`;
                 }
                 html += `</tr>`;
             });
             return html;
         };
 
+        const headerColSpan = 2 + (isComparison ? 2 : 0) + (isCommonSize ? (isComparison ? 2 : 1) : 0);
+
         const labaRugiHtml = `
-            <table class="table table-sm">
-                <thead>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                        <th>Keterangan</th>
-                        <th class="text-end">Periode Saat Ini</th>
-                        ${isCommonSize ? '<th class="text-end">%</th>' : ''}
-                        ${isComparison ? '<th class="text-end">Periode Pembanding</th>' : ''}
-                        ${isComparison && isCommonSize ? '<th class="text-end">%</th>' : ''}
-                        ${isComparison ? '<th class="text-end">Perubahan</th>' : ''}
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keterangan</th>
+                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Periode Saat Ini</th>
+                        ${isCommonSize ? '<th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>' : ''}
+                        ${isComparison ? '<th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Periode Pembanding</th>' : ''}
+                        ${isComparison && isCommonSize ? '<th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>' : ''}
+                        ${isComparison ? '<th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Perubahan</th>' : ''}
                     </tr>
                 </thead>
-                <tbody>
-                    <tr class="table-light"><td colspan="${2 + (isComparison ? 1 : 0) + (isCommonSize ? (isComparison ? 2 : 1) : 0)}" class="fw-bold">Pendapatan</td></tr>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr class="bg-gray-100 dark:bg-gray-700"><td colspan="${headerColSpan}" class="px-4 py-2 font-bold text-sm">Pendapatan</td></tr>
                     ${renderRows('Pendapatan')}
-                    <tr class="table-light">
-                        <td class="fw-bold">TOTAL PENDAPATAN</td>
-                        <td class="text-end fw-bold">${formatCurrencyAccounting(current.summary.total_pendapatan)}</td>
-                        ${isCommonSize ? '<td class="text-end fw-bold text-muted small">100.00%</td>' : ''}
-                        ${isComparison ? `<td class="text-end fw-bold">${formatCurrencyAccounting(previous.summary.total_pendapatan)}</td>` : ''}
-                        ${isComparison && isCommonSize ? '<td class="text-end fw-bold text-muted small">100.00%</td>' : ''}
-                        ${isComparison ? `<td class="text-end small">${calculateChange(current.summary.total_pendapatan, previous.summary.total_pendapatan)}</td>` : ''}
+                    <tr class="bg-gray-100 dark:bg-gray-700 text-sm">
+                        <td class="font-bold px-4 py-2">TOTAL PENDAPATAN</td>
+                        <td class="text-right font-bold px-4 py-2">${formatCurrencyAccounting(current.summary.total_pendapatan)}</td>
+                        ${isCommonSize ? '<td class="text-right font-bold px-4 py-2 text-gray-500 dark:text-gray-400 text-xs">100.00%</td>' : ''}
+                        ${isComparison ? `<td class="text-right font-bold px-4 py-2">${formatCurrencyAccounting(previous.summary.total_pendapatan)}</td>` : ''}
+                        ${isComparison && isCommonSize ? '<td class="text-right font-bold px-4 py-2 text-gray-500 dark:text-gray-400 text-xs">100.00%</td>' : ''}
+                        ${isComparison ? `<td class="text-right text-xs px-4 py-2">${calculateChange(current.summary.total_pendapatan, previous.summary.total_pendapatan)}</td>` : ''}
                     </tr>
                     
-                    <tr class="table-light"><td colspan="${2 + (isComparison ? 1 : 0) + (isCommonSize ? (isComparison ? 2 : 1) : 0)}" class="fw-bold pt-4">Beban</td></tr>
+                    <tr class="bg-gray-100 dark:bg-gray-700"><td colspan="${headerColSpan}" class="px-4 py-2 font-bold text-sm pt-4">Beban</td></tr>
                     ${renderRows('Beban')}
-                    <tr class="table-light">
-                        <td class="fw-bold">TOTAL BEBAN</td>
-                        <td class="text-end fw-bold">${formatCurrencyAccounting(current.summary.total_beban)}</td>
-                        ${isCommonSize ? `<td class="text-end fw-bold text-muted small">${(current.summary.total_beban_percentage || 0).toFixed(2)}%</td>` : ''}
-                        ${isComparison ? `<td class="text-end fw-bold">${formatCurrencyAccounting(previous.summary.total_beban)}</td>` : ''}
-                        ${isComparison && isCommonSize ? `<td class="text-end fw-bold text-muted small">${(previous.summary.total_beban_percentage || 0).toFixed(2)}%</td>` : ''}
-                        ${isComparison ? `<td class="text-end small">${calculateChange(current.summary.total_beban, previous.summary.total_beban)}</td>` : ''}
+                    <tr class="bg-gray-100 dark:bg-gray-700 text-sm">
+                        <td class="font-bold px-4 py-2">TOTAL BEBAN</td>
+                        <td class="text-right font-bold px-4 py-2">${formatCurrencyAccounting(current.summary.total_beban)}</td>
+                        ${isCommonSize ? `<td class="text-right font-bold px-4 py-2 text-gray-500 dark:text-gray-400 text-xs">${(current.summary.total_beban_percentage || 0).toFixed(2)}%</td>` : ''}
+                        ${isComparison ? `<td class="text-right font-bold px-4 py-2">${formatCurrencyAccounting(previous.summary.total_beban)}</td>` : ''}
+                        ${isComparison && isCommonSize ? `<td class="text-right font-bold px-4 py-2 text-gray-500 dark:text-gray-400 text-xs">${(previous.summary.total_beban_percentage || 0).toFixed(2)}%</td>` : ''}
+                        ${isComparison ? `<td class="text-right text-xs px-4 py-2">${calculateChange(current.summary.total_beban, previous.summary.total_beban)}</td>` : ''}
                     </tr>
                 </tbody>
-                <tfoot class="table-group-divider">
-                    <tr class="${current.summary.laba_bersih >= 0 ? 'table-success' : 'table-danger'}">
-                        <td class="fw-bold fs-5">LABA (RUGI) BERSIH</td>
-                        <td class="text-end fw-bold fs-5">${formatCurrencyAccounting(current.summary.laba_bersih)}</td>
-                        ${isCommonSize ? `<td class="text-end fw-bold fs-5 text-muted small">${(current.summary.laba_bersih_percentage || 0).toFixed(2)}%</td>` : ''}
-                        ${isComparison ? `<td class="text-end fw-bold fs-5">${formatCurrencyAccounting(previous.summary.laba_bersih)}</td>` : ''}
-                        ${isComparison && isCommonSize ? `<td class="text-end fw-bold fs-5 text-muted small">${(previous.summary.laba_bersih_percentage || 0).toFixed(2)}%</td>` : ''}
-                        ${isComparison ? `<td class="text-end small">${calculateChange(current.summary.laba_bersih, previous.summary.laba_bersih)}</td>` : ''}
+                <tfoot class="border-t-2 border-gray-300 dark:border-gray-600">
+                    <tr class="${current.summary.laba_bersih >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}">
+                        <td class="font-bold text-lg px-4 py-3">LABA (RUGI) BERSIH</td>
+                        <td class="text-right font-bold text-lg px-4 py-3">${formatCurrencyAccounting(current.summary.laba_bersih)}</td>
+                        ${isCommonSize ? `<td class="text-right font-bold text-lg px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">${(current.summary.laba_bersih_percentage || 0).toFixed(2)}%</td>` : ''}
+                        ${isComparison ? `<td class="text-right font-bold text-lg px-4 py-3">${formatCurrencyAccounting(previous.summary.laba_bersih)}</td>` : ''}
+                        ${isComparison && isCommonSize ? `<td class="text-right font-bold text-lg px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">${(previous.summary.laba_bersih_percentage || 0).toFixed(2)}%</td>` : ''}
+                        ${isComparison ? `<td class="text-right text-xs px-4 py-2">${calculateChange(current.summary.laba_bersih, previous.summary.laba_bersih)}</td>` : ''}
                     </tr>
                 </tfoot>
             </table>
@@ -326,14 +333,14 @@ function initLaporanPage() {
             params.append('end2', end2);
         }
 
-        labaRugiContent.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        labaRugiContent.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
         try {
             const response = await fetch(`${basePath}/api/laporan_laba_rugi_handler.php?${params.toString()}`);
             const result = await response.json();
             if (result.status !== 'success') throw new Error(result.message);
             renderLabaRugi(result.data);
         } catch (error) {
-            labaRugiContent.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan: ${error.message}</div>`;
+            labaRugiContent.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">Gagal memuat laporan: ${error.message}</div>`;
         }
     }
 
@@ -342,77 +349,65 @@ function initLaporanPage() {
         const { arus_kas_operasi, arus_kas_investasi, arus_kas_pendanaan, kenaikan_penurunan_kas, saldo_kas_awal, saldo_kas_akhir_terhitung } = data;
 
         const renderSection = (title, amount) => `
-            <tr>
-                <td>${title}</td>
-                <td class="text-end">${formatCurrencyAccounting(amount)}</td>
+            <tr class="text-sm">
+                <td class="px-4 py-2">${title}</td>
+                <td class="text-right px-4 py-2">${formatCurrencyAccounting(amount)}</td>
             </tr>
         `;
         
         const createTooltipContent = (details) => {
             // 'details' adalah objek, bukan array. Kita cek dengan Object.keys.
             if (!details || Object.keys(details).length === 0) return 'Tidak ada rincian.';
-            let content = '<ul class="list-unstyled mb-0">';
+            let content = '<ul class="list-none mb-0 space-y-1">';
             // Gunakan Object.entries untuk iterasi pada objek
             for (const [akun, jumlah] of Object.entries(details)) {
-                content += `<li class="d-flex justify-content-between"><span>${akun}</span> <span class="fw-bold">${formatCurrencyAccounting(jumlah)}</span></li>`;
+                content += `<li class="flex justify-between gap-4"><span>${akun}</span> <span class="font-bold">${formatCurrencyAccounting(jumlah)}</span></li>`;
             }
             content += '</ul>';
             return content;
         };
 
         const arusKasHtml = `
-            <table class="table table-sm">
-                <tbody>
-                    <tr class="table-light"><td colspan="2" class="fw-bold">Arus Kas dari Aktivitas Operasi
-                        <i class="bi bi-info-circle-fill ms-2 text-primary" data-bs-toggle="tooltip" data-bs-html="true" data-details='${JSON.stringify(arus_kas_operasi.details)}'></i>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr class="bg-gray-100 dark:bg-gray-700"><td colspan="2" class="px-4 py-2 font-bold text-sm">Arus Kas dari Aktivitas Operasi
+                        <i class="bi bi-info-circle-fill ml-2 text-primary cursor-pointer" data-tooltip-trigger data-tooltip-details='${JSON.stringify(arus_kas_operasi.details)}'></i>
                     </td></tr>
                     ${renderSection('Total Arus Kas Operasi', arus_kas_operasi.total)}
                     
-                    <tr class="table-light"><td colspan="2" class="fw-bold mt-3">Arus Kas dari Aktivitas Investasi
-                        <i class="bi bi-info-circle-fill ms-2 text-primary" data-bs-toggle="tooltip" data-bs-html="true" data-details='${JSON.stringify(arus_kas_investasi.details)}'></i>
+                    <tr class="bg-gray-100 dark:bg-gray-700"><td colspan="2" class="px-4 py-2 font-bold text-sm mt-3">Arus Kas dari Aktivitas Investasi
+                        <i class="bi bi-info-circle-fill ml-2 text-primary cursor-pointer" data-tooltip-trigger data-tooltip-details='${JSON.stringify(arus_kas_investasi.details)}'></i>
                     </td></tr>
                     ${renderSection('Total Arus Kas Investasi', arus_kas_investasi.total)}
 
-                    <tr class="table-light"><td colspan="2" class="fw-bold mt-3">Arus Kas dari Aktivitas Pendanaan
-                        <i class="bi bi-info-circle-fill ms-2 text-primary" data-bs-toggle="tooltip" data-bs-html="true" data-details='${JSON.stringify(arus_kas_pendanaan.details)}'></i>
+                    <tr class="bg-gray-100 dark:bg-gray-700"><td colspan="2" class="px-4 py-2 font-bold text-sm mt-3">Arus Kas dari Aktivitas Pendanaan
+                        <i class="bi bi-info-circle-fill ml-2 text-primary cursor-pointer" data-tooltip-trigger data-tooltip-details='${JSON.stringify(arus_kas_pendanaan.details)}'></i>
                     </td></tr>
                     ${renderSection('Total Arus Kas Pendanaan', arus_kas_pendanaan.total)}
                 </tbody>
-                <tfoot class="table-group-divider">
-                    <tr class="fw-bold">
-                        <td>Kenaikan (Penurunan) Bersih Kas</td>
-                        <td class="text-end">${formatCurrencyAccounting(kenaikan_penurunan_kas)}</td>
+                <tfoot class="border-t-2 border-gray-300 dark:border-gray-600 text-sm">
+                    <tr class="font-bold">
+                        <td class="px-4 py-2">Kenaikan (Penurunan) Bersih Kas</td>
+                        <td class="text-right px-4 py-2">${formatCurrencyAccounting(kenaikan_penurunan_kas)}</td>
                     </tr>
                     <tr>
-                        <td>Saldo Kas pada Awal Periode</td>
-                        <td class="text-end">${formatCurrencyAccounting(saldo_kas_awal)}</td>
+                        <td class="px-4 py-2">Saldo Kas pada Awal Periode</td>
+                        <td class="text-right px-4 py-2">${formatCurrencyAccounting(saldo_kas_awal)}</td>
                     </tr>
-                    <tr class="fw-bold table-success">
-                        <td>Saldo Kas pada Akhir Periode</td>
-                        <td class="text-end">${formatCurrencyAccounting(saldo_kas_akhir_terhitung)}</td>
+                    <tr class="font-bold bg-green-100 dark:bg-green-900/30">
+                        <td class="px-4 py-3">Saldo Kas pada Akhir Periode</td>
+                        <td class="text-right px-4 py-3">${formatCurrencyAccounting(saldo_kas_akhir_terhitung)}</td>
                     </tr>
                 </tbody>
             </table>
         `;
         arusKasContent.innerHTML = arusKasHtml;
-
-        // Initialize tooltips
-        const tooltipTriggerList = arusKasContent.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltipTriggerList.forEach(tooltipTriggerEl => {
-            const tooltip = new bootstrap.Tooltip(tooltipTriggerEl, {
-                title: 'Memuat rincian...' // Placeholder title
-            });
-            tooltipTriggerEl.addEventListener('show.bs.tooltip', function () {
-                const details = JSON.parse(this.dataset.details || '{}');
-                tooltip.setContent({ '.tooltip-inner': createTooltipContent(details) });
-            });
-        });
     }
 
     async function loadArusKas() {
         const startDate = arusKasTglMulai.value;
         const endDate = arusKasTglAkhir.value;
-        arusKasContent.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        arusKasContent.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
 
         const params = new URLSearchParams({
             start: startDate,
@@ -426,8 +421,88 @@ function initLaporanPage() {
             if (result.status !== 'success') throw new Error(result.message);
             renderArusKas(result.data);
         } catch (error) {
-            arusKasContent.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan: ${error.message}</div>`;
+            arusKasContent.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">Gagal memuat laporan: ${error.message}</div>`;
         }
+    }
+
+    // --- Custom Tab and Dropdown Logic ---
+    function setupTabs() {
+        const tabContainer = document.getElementById('laporanTab');
+        const tabButtons = tabContainer.querySelectorAll('.laporan-tab-btn');
+        const tabPanes = document.getElementById('laporanTabContent').querySelectorAll('.laporan-tab-pane');
+
+        function switchTab(targetId) {
+            tabPanes.forEach(pane => {
+                pane.classList.toggle('hidden', pane.id !== targetId);
+            });
+            tabButtons.forEach(button => {
+                const isActive = button.dataset.target === `#${targetId}`;
+                button.classList.toggle('border-primary', isActive);
+                button.classList.toggle('text-primary', isActive);
+                button.classList.toggle('border-transparent', !isActive);
+                button.classList.toggle('text-gray-500', !isActive);
+                button.classList.toggle('dark:text-gray-400', !isActive);
+                button.classList.toggle('hover:text-gray-700', !isActive);
+                button.classList.toggle('hover:border-gray-300', !isActive);
+            });
+
+            // Load content for the new active tab
+            if (targetId === 'neraca-pane') loadNeraca();
+            else if (targetId === 'laba-rugi-pane') loadLabaRugi();
+            else if (targetId === 'arus-kas-pane') loadArusKas();
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                switchTab(button.dataset.target.substring(1));
+            });
+        });
+
+        // Initial setup
+        switchTab('neraca-pane');
+    }
+
+    function setupDropdowns() {
+        document.querySelectorAll('[data-dropdown-toggle]').forEach(button => {
+            const dropdownId = button.getAttribute('data-dropdown-toggle');
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown) {
+                button.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    dropdown.classList.toggle('hidden');
+                });
+            }
+        });
+        // Close dropdowns when clicking outside
+        window.addEventListener('click', (event) => {
+            document.querySelectorAll('[id$="-export-dropdown"]').forEach(dropdown => {
+                if (!dropdown.classList.contains('hidden') && !dropdown.previousElementSibling.contains(event.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        });
+    }
+
+    function setupTooltips() {
+        document.body.addEventListener('mouseover', (e) => {
+            const trigger = e.target.closest('[data-tooltip-trigger]');
+            if (trigger) {
+                const details = JSON.parse(trigger.dataset.tooltipDetails || '{}');
+                tooltipContentEl.innerHTML = createTooltipContent(details);
+                tooltipEl.classList.remove('hidden');
+                
+                const rect = trigger.getBoundingClientRect();
+                tooltipEl.style.left = `${rect.left + window.scrollX}px`;
+                tooltipEl.style.top = `${rect.bottom + window.scrollY + 5}px`;
+            }
+        });
+
+        document.body.addEventListener('mouseout', (e) => {
+            const trigger = e.target.closest('[data-tooltip-trigger]');
+            if (trigger) {
+                tooltipEl.classList.add('hidden');
+            }
+        });
     }
 
     // Fungsi untuk memanggil load dan save
@@ -435,23 +510,19 @@ function initLaporanPage() {
     const handleLabaRugiChange = () => { saveFilters(); loadLabaRugi(); };
     const handleArusKasChange = () => { saveFilters(); loadArusKas(); };
 
-    neracaTanggalInput.addEventListener('change', handleNeracaChange);
-    neracaIncludeClosing.addEventListener('change', handleNeracaChange);
-    labaRugiTab?.addEventListener('shown.bs.tab', loadLabaRugi);
-    labaRugiTglMulai.addEventListener('change', handleLabaRugiChange);
-    labaRugiTglAkhir.addEventListener('change', handleLabaRugiChange);
-    labaRugiTglMulai2.addEventListener('change', handleLabaRugiChange);
-    labaRugiTglAkhir2.addEventListener('change', handleLabaRugiChange);    
-    lrCommonSizeSwitch.addEventListener('change', handleLabaRugiChange);
+    [neracaTanggalInput, neracaIncludeClosing, labaRugiTglMulai, labaRugiTglAkhir, labaRugiTglMulai2, labaRugiTglAkhir2, lrCommonSizeSwitch, lrIncludeClosing, arusKasTglMulai, arusKasTglAkhir, akIncludeClosing].forEach(el => {
+        el?.addEventListener('change', () => {
+            const activeTab = document.querySelector('.laporan-tab-pane:not(.hidden)');
+            if (activeTab.id === 'neraca-pane') handleNeracaChange();
+            else if (activeTab.id === 'laba-rugi-pane') handleLabaRugiChange();
+            else if (activeTab.id === 'arus-kas-pane') handleArusKasChange();
+        });
+    });
+
     lrCompareModeSelect.addEventListener('change', () => {        
-        lrPeriod2Container.classList.toggle('d-none', lrCompareModeSelect.value !== 'custom');
+        lrPeriod2Container.classList.toggle('hidden', lrCompareModeSelect.value !== 'custom');
         handleLabaRugiChange();
     });
-    lrIncludeClosing.addEventListener('change', handleLabaRugiChange);
-    arusKasTab?.addEventListener('shown.bs.tab', loadArusKas);
-    arusKasTglMulai.addEventListener('change', handleArusKasChange);
-    arusKasTglAkhir.addEventListener('change', handleArusKasChange);
-    akIncludeClosing.addEventListener('change', handleArusKasChange);
 
     // --- Event Listeners untuk Export ---
 
@@ -540,5 +611,7 @@ function initLaporanPage() {
 
     // Initial Load
     loadAndSetFilters();
-    loadNeraca();
+    setupTabs();
+    setupDropdowns();
+    setupTooltips();
 }

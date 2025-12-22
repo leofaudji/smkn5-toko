@@ -2,21 +2,15 @@ function initKonsinyasiPage() {
     // --- Element Selectors ---
     const supplierTableBody = document.getElementById('suppliers-table-body');
     const itemTableBody = document.getElementById('items-table-body');
-    const supplierModalEl = document.getElementById('supplierModal');
-    const itemModalEl = document.getElementById('itemModal');
     const saleForm = document.getElementById('consignment-sale-form');
     const reportLink = document.getElementById('view-consignment-report-link');
-    const reportModalEl = document.getElementById('consignmentReportModal');
     const debtSummaryReportLink = document.getElementById('view-debt-summary-report-link');
     const printDebtSummaryBtn = document.getElementById('print-debt-summary-btn');
-    const debtSummaryModalEl = document.getElementById('debtSummaryReportModal');
     const filterSisaUtangBtn = document.getElementById('filter-sisa-utang-btn');
+    const addSupplierBtn = document.getElementById('add-supplier-btn');
+    const addItemBtn = document.getElementById('add-item-btn');
 
-    if (!supplierTableBody || !itemTableBody || !reportModalEl) return;
-
-    const supplierModal = new bootstrap.Modal(supplierModalEl);
-    const itemModal = new bootstrap.Modal(itemModalEl);
-    const reportModal = new bootstrap.Modal(reportModalEl);
+    if (!supplierTableBody || !itemTableBody) return;
 
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
@@ -35,19 +29,19 @@ function initKonsinyasiPage() {
         }
 
         const reportBody = document.getElementById('consignment-report-body');
-        reportBody.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        reportBody.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
         
         const params = new URLSearchParams({ action: 'get_sales_report', start_date: startDate, end_date: endDate });
         const response = await fetch(`${basePath}/api/konsinyasi?${params.toString()}`);
         const result = await response.json();
 
         if (result.status === 'success') {
-            let html = '<table class="table table-sm table-hover"><thead><tr><th>Pemasok</th><th>Barang</th><th class="text-end">Terjual</th><th class="text-end">Harga Beli</th><th class="text-end">Total Utang</th></tr></thead><tbody>';
+            let html = '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Barang</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Terjual</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Beli</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Utang</th></tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
             let totalUtangKeseluruhan = 0;
             if (result.data.length > 0) {
                 result.data.forEach(row => {
                     totalUtangKeseluruhan += parseFloat(row.total_utang);
-                    html += `<tr><td>${row.nama_pemasok}</td><td>${row.nama_barang}</td><td class="text-end">${row.total_terjual}</td><td class="text-end">${currencyFormatter.format(row.harga_beli)}</td><td class="text-end">${currencyFormatter.format(row.total_utang)}</td></tr>`;
+                    html += `<tr class="text-sm"><td class="px-6 py-4">${row.nama_pemasok}</td><td class="px-6 py-4">${row.nama_barang}</td><td class="px-6 py-4 text-right">${row.total_terjual}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(row.harga_beli)}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(row.total_utang)}</td></tr>`;
                 });
             } else {
                 html += '<tr><td colspan="5" class="text-center text-muted">Tidak ada penjualan pada periode ini.</td></tr>';
@@ -55,36 +49,36 @@ function initKonsinyasiPage() {
             html += `</tbody><tfoot><tr class="table-light fw-bold"><td colspan="4" class="text-end">Total Utang Konsinyasi</td><td class="text-end">${currencyFormatter.format(totalUtangKeseluruhan)}</td></tr></tfoot></table>`;
             reportBody.innerHTML = html;
         } else {
-            reportBody.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+            reportBody.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">${result.message}</div>`;
         }
     }
 
     // --- Load Functions ---
     async function loadSuppliers() {
-        supplierTableBody.innerHTML = '<tr><td colspan="3" class="text-center p-4"><div class="spinner-border spinner-border-sm"></div></td></tr>';
+        supplierTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>';
         const response = await fetch(`${basePath}/api/konsinyasi?action=list_suppliers`);
         const result = await response.json();
         supplierTableBody.innerHTML = '';
         if (result.status === 'success' && result.data.length > 0) {
             result.data.forEach(s => {
-                supplierTableBody.innerHTML += `<tr><td>${s.nama_pemasok}</td><td>${s.kontak || '-'}</td><td class="text-end"><button class="btn btn-sm btn-info edit-supplier-btn" data-id="${s.id}" data-nama="${s.nama_pemasok}" data-kontak="${s.kontak}"><i class="bi bi-pencil-fill"></i></button> <button class="btn btn-sm btn-danger delete-supplier-btn" data-id="${s.id}"><i class="bi bi-trash-fill"></i></button></td></tr>`;
+                supplierTableBody.innerHTML += `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm"><td class="px-6 py-4">${s.nama_pemasok}</td><td class="px-6 py-4">${s.kontak || '-'}</td><td class="px-6 py-4 text-right"><div class="flex justify-end gap-4"><button class="text-blue-600 hover:text-blue-900 edit-supplier-btn" data-id="${s.id}" data-nama="${s.nama_pemasok}" data-kontak="${s.kontak}"><i class="bi bi-pencil-fill"></i></button> <button class="text-red-600 hover:text-red-900 delete-supplier-btn" data-id="${s.id}"><i class="bi bi-trash-fill"></i></button></div></td></tr>`;
             });
         } else {
-            supplierTableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Belum ada pemasok.</td></tr>';
+            supplierTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-10 text-gray-500">Belum ada pemasok.</td></tr>';
         }
     }
 
     async function loadItems() {
-        itemTableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4"><div class="spinner-border spinner-border-sm"></div></td></tr>';
+        itemTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>';
         const response = await fetch(`${basePath}/api/konsinyasi?action=list_items`);
         const result = await response.json();
         itemTableBody.innerHTML = '';
         if (result.status === 'success' && result.data.length > 0) {
             result.data.forEach(i => {
-                itemTableBody.innerHTML += `<tr><td>${i.nama_barang}</td><td>${i.nama_pemasok}</td><td class="text-end">${currencyFormatter.format(i.harga_jual)}</td><td class="text-end">${currencyFormatter.format(i.harga_beli)}</td><td class="text-end">${i.stok_saat_ini} / ${i.stok_awal}</td><td class="text-end"><button class="btn btn-sm btn-info edit-item-btn" data-id="${i.id}"><i class="bi bi-pencil-fill"></i></button> <button class="btn btn-sm btn-danger delete-item-btn" data-id="${i.id}"><i class="bi bi-trash-fill"></i></button></td></tr>`;
+                itemTableBody.innerHTML += `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm"><td class="px-6 py-4">${i.nama_barang}</td><td class="px-6 py-4">${i.nama_pemasok}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(i.harga_jual)}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(i.harga_beli)}</td><td class="px-6 py-4 text-right">${i.stok_saat_ini} / ${i.stok_awal}</td><td class="px-6 py-4 text-right"><div class="flex justify-end gap-4"><button class="text-blue-600 hover:text-blue-900 edit-item-btn" data-id="${i.id}"><i class="bi bi-pencil-fill"></i></button> <button class="text-red-600 hover:text-red-900 delete-item-btn" data-id="${i.id}"><i class="bi bi-trash-fill"></i></button></div></td></tr>`;
             });
         } else {
-            itemTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada barang konsinyasi.</td></tr>';
+            itemTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500">Belum ada barang konsinyasi.</td></tr>';
         }
     }
 
@@ -127,18 +121,18 @@ function initKonsinyasiPage() {
 
     async function loadPaymentHistory() {
         const tableBody = document.getElementById('payment-history-table-body');
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-4"><div class="spinner-border spinner-border-sm"></div></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>';
         const response = await fetch(`${basePath}/api/konsinyasi?action=list_payments`);
         const result = await response.json();
         tableBody.innerHTML = '';
         if (result.status === 'success' && result.data.length > 0) {
             result.data.forEach(p => {
                 tableBody.innerHTML += `
-                    <tr>
-                        <td>${new Date(p.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'})}</td>
-                        <td>${p.nama_pemasok || '<i>Tidak terdeteksi</i>'}</td>
-                        <td><small>${p.keterangan}</small></td>
-                        <td class="text-end">${currencyFormatter.format(p.jumlah)}</td>
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
+                        <td class="px-6 py-4">${new Date(p.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'})}</td>
+                        <td class="px-6 py-4">${p.nama_pemasok || '<i>Tidak terdeteksi</i>'}</td>
+                        <td class="px-6 py-4"><small>${p.keterangan}</small></td>
+                        <td class="px-6 py-4 text-right">${currencyFormatter.format(p.jumlah)}</td>
                     </tr>
                 `;
             });
@@ -169,8 +163,8 @@ function initKonsinyasiPage() {
         formData.set('action', document.getElementById('supplier-action').value);
         const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
         const result = await response.json();
-        showToast(result.message, result.status);
-        if (result.status === 'success') { supplierModal.hide(); loadSuppliers(); }
+        showToast(result.message, result.status === 'success' ? 'success' : 'error');
+        if (result.status === 'success') { closeModal('supplierModal'); loadSuppliers(); }
     });
 
     document.getElementById('save-item-btn').addEventListener('click', async () => {
@@ -179,8 +173,8 @@ function initKonsinyasiPage() {
         formData.set('action', document.getElementById('item-action').value);
         const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
         const result = await response.json();
-        showToast(result.message, result.status);
-        if (result.status === 'success') { itemModal.hide(); loadItems(); loadItemsForSale(); }
+        showToast(result.message, result.status === 'success' ? 'success' : 'error');
+        if (result.status === 'success') { closeModal('itemModal'); loadItems(); loadItemsForSale(); }
     });
 
     saleForm.addEventListener('submit', async (e) => {
@@ -205,7 +199,7 @@ function initKonsinyasiPage() {
         
         const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
         const result = await response.json();
-        showToast(result.message, result.status);
+        showToast(result.message, result.status === 'success' ? 'success' : 'error');
         if (result.status === 'success') {
             saleForm.reset();
             document.getElementById('cs-tanggal').valueAsDate = new Date();
@@ -215,24 +209,11 @@ function initKonsinyasiPage() {
 
     reportLink.addEventListener('click', async (e) => {
         e.preventDefault();
-        const reportBody = document.getElementById('consignment-report-body');
-        reportBody.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
-        reportModal.show();
-        const response = await fetch(`${basePath}/api/konsinyasi?action=get_sales_report`);
-        const result = await response.json();
-        if (result.status === 'success') {
-            let html = '<table class="table table-sm"><thead><tr><th>Pemasok</th><th>Barang</th><th class="text-end">Terjual</th><th class="text-end">Harga Beli</th><th class="text-end">Total Utang</th></tr></thead><tbody>';
-            let totalUtangKeseluruhan = 0;
-            result.data.forEach(row => {
-                totalUtangKeseluruhan += parseFloat(row.total_utang);
-                html += `<tr><td>${row.nama_pemasok}</td><td>${row.nama_barang}</td><td class="text-end">${row.total_terjual}</td><td class="text-end">${currencyFormatter.format(row.harga_beli)}</td><td class="text-end">${currencyFormatter.format(row.total_utang)}</td></tr>`;
-            });
-            html += `</tbody><tfoot><tr class="table-light fw-bold"><td colspan="4" class="text-end">Total Utang Konsinyasi</td><td class="text-end">${currencyFormatter.format(totalUtangKeseluruhan)}</td></tr></tfoot></table>`;
-            reportBody.innerHTML = html;
-        } else {
-            reportBody.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
-        }
+        document.getElementById('consignment-report-body').innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center">Silakan atur filter tanggal dan klik "Tampilkan" untuk melihat laporan.</p>';
+        openModal('consignmentReportModal');
         const now = new Date();
+        reportStartDateEl.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        reportEndDateEl.value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
     });
 
     filterReportBtn.addEventListener('click', loadConsignmentReport);
@@ -252,17 +233,6 @@ function initKonsinyasiPage() {
         document.body.removeChild(form);
     });
 
-    document.getElementById('barang-tab').addEventListener('shown.bs.tab', () => {
-        loadItems();
-    });
-
-    document.getElementById('pembayaran-tab').addEventListener('shown.bs.tab', () => {
-        loadSuppliersForPayment();
-        loadCashAccountsForPayment();
-        loadPaymentHistory();
-        document.getElementById('cp-tanggal').valueAsDate = new Date();
-    });
-
     async function loadDebtSummaryReport() {
         const startDate = document.getElementById('sisa-utang-start-date').value;
         const endDate = document.getElementById('sisa-utang-end-date').value;
@@ -273,7 +243,7 @@ function initKonsinyasiPage() {
             return;
         }
 
-        reportBody.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        reportBody.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
 
         try {
             const params = new URLSearchParams({ action: 'get_debt_summary_report', start_date: startDate, end_date: endDate });
@@ -281,21 +251,22 @@ function initKonsinyasiPage() {
             const result = await response.json();
             if (result.status !== 'success') throw new Error(result.message);
 
-            let html = '<table class="table table-sm table-hover"><thead><tr><th>Pemasok</th><th class="text-end">Total Utang</th><th class="text-end">Total Bayar</th><th class="text-end">Sisa Utang</th></tr></thead><tbody>';
+            let html = '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Utang</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Bayar</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sisa Utang</th></tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
             let grandTotalSisa = 0;
             result.data.forEach(row => {
                 grandTotalSisa += parseFloat(row.sisa_utang);
-                html += `<tr><td>${row.nama_pemasok}</td><td class="text-end">${currencyFormatter.format(row.total_utang)}</td><td class="text-end">${currencyFormatter.format(row.total_bayar)}</td><td class="text-end fw-bold">${currencyFormatter.format(row.sisa_utang)}</td></tr>`;
+                html += `<tr class="text-sm"><td class="px-6 py-4">${row.nama_pemasok}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(row.total_utang)}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(row.total_bayar)}</td><td class="px-6 py-4 text-right font-bold">${currencyFormatter.format(row.sisa_utang)}</td></tr>`;
             });
-            html += `</tbody><tfoot><tr class="table-light fw-bold"><td colspan="3" class="text-end">Total Sisa Utang Keseluruhan</td><td class="text-end">${currencyFormatter.format(grandTotalSisa)}</td></tr></tfoot></table>`;
+            html += `</tbody><tfoot class="bg-gray-100 dark:bg-gray-700 font-bold"><tr class="text-sm"><td colspan="3" class="px-6 py-3 text-right">Total Sisa Utang Keseluruhan</td><td class="px-6 py-3 text-right">${currencyFormatter.format(grandTotalSisa)}</td></tr></tfoot></table>`;
             reportBody.innerHTML = html;
 
         } catch (error) {
-            reportBody.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            reportBody.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">${error.message}</div>`;
         }
     }
 
-    debtSummaryModalEl.addEventListener('show.bs.modal', () => {
+    debtSummaryReportLink.addEventListener('click', (e) => {
+        e.preventDefault();
         const startDateEl = document.getElementById('sisa-utang-start-date');
         const endDateEl = document.getElementById('sisa-utang-end-date');
         const now = new Date();
@@ -324,48 +295,41 @@ function initKonsinyasiPage() {
         document.body.removeChild(form);
     });
 
-    // --- Modal & Table Delegation ---
-    supplierModalEl.addEventListener('show.bs.modal', (e) => {
-        const button = e.relatedTarget;
+    addSupplierBtn.addEventListener('click', () => {
         const form = document.getElementById('supplier-form');
         form.reset();
-        if (button.dataset.action === 'add') {
-            document.getElementById('supplierModalLabel').textContent = 'Tambah Pemasok';
-            document.getElementById('supplier-action').value = 'save_supplier';
-        }
+        document.getElementById('supplierModalLabel').textContent = 'Tambah Pemasok';
+        document.getElementById('supplier-action').value = 'save_supplier';
+        openModal('supplierModal');
     });
 
-    itemModalEl.addEventListener('show.bs.modal', async (e) => {
-        const button = e.relatedTarget;
+    addItemBtn.addEventListener('click', async () => {
         const form = document.getElementById('item-form');
-        // form.reset(); // Reset is handled in the specific 'add' or 'edit' logic
-        // Populate supplier dropdown
         const supplierSelect = document.getElementById('supplier_id');
         supplierSelect.innerHTML = '<option>Memuat...</option>';
         const response = await fetch(`${basePath}/api/konsinyasi?action=list_suppliers`);
         const result = await response.json();
         supplierSelect.innerHTML = '<option value="">-- Pilih Pemasok --</option>';
-        if (result.status === 'success') {
-            result.data.forEach(s => supplierSelect.add(new Option(s.nama_pemasok, s.id)));
-        }
-
-        if (button && button.dataset.action === 'add') {
-            form.reset();
-            document.getElementById('itemModalLabel').textContent = 'Tambah Barang Konsinyasi';
-            document.getElementById('item-action').value = 'save_item';
-            document.getElementById('tanggal_terima').valueAsDate = new Date();
-        }
+        if (result.status === 'success') result.data.forEach(s => supplierSelect.add(new Option(s.nama_pemasok, s.id)));
+        
+        form.reset();
+        document.getElementById('itemModalLabel').textContent = 'Tambah Barang Konsinyasi';
+        document.getElementById('item-action').value = 'save_item';
+        document.getElementById('tanggal_terima').valueAsDate = new Date();
+        openModal('itemModal');
     });
 
     document.getElementById('pemasok-pane').addEventListener('click', e => {
         const editBtn = e.target.closest('.edit-supplier-btn');
         if (editBtn) {
+            const form = document.getElementById('supplier-form');
+            form.reset();
             document.getElementById('supplierModalLabel').textContent = 'Edit Pemasok';
             document.getElementById('supplier-action').value = 'save_supplier';
             document.getElementById('supplier-id').value = editBtn.dataset.id;
             document.getElementById('nama_pemasok').value = editBtn.dataset.nama;
             document.getElementById('kontak').value = editBtn.dataset.kontak;
-            supplierModal.show();
+            openModal('supplierModal');
         }
         const deleteBtn = e.target.closest('.delete-supplier-btn');
         if (deleteBtn) {
@@ -374,7 +338,7 @@ function initKonsinyasiPage() {
                 formData.append('action', 'delete_supplier');
                 formData.append('id', deleteBtn.dataset.id);
                 fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData }).then(res => res.json()).then(result => {
-                    showToast(result.message, result.status);
+                    showToast(result.message, result.status === 'success' ? 'success' : 'error');
                     if (result.status === 'success') loadSuppliers();
                 });
             }
@@ -386,12 +350,21 @@ function initKonsinyasiPage() {
         if (editBtn) {
             const id = editBtn.dataset.id;
             try {
+                // Populate supplier dropdown first
+                const supplierSelect = document.getElementById('supplier_id');
+                supplierSelect.innerHTML = '<option>Memuat...</option>';
+                const supResponse = await fetch(`${basePath}/api/konsinyasi?action=list_suppliers`);
+                const supResult = await supResponse.json();
+                supplierSelect.innerHTML = '<option value="">-- Pilih Pemasok --</option>';
+                if (supResult.status === 'success') supResult.data.forEach(s => supplierSelect.add(new Option(s.nama_pemasok, s.id)));
+
                 const response = await fetch(`${basePath}/api/konsinyasi?action=get_single_item&id=${id}`);
                 const result = await response.json();
                 if (result.status !== 'success') throw new Error(result.message);
                 
                 const item = result.data;
-                await itemModalEl.querySelector('#supplier_id').dispatchEvent(new Event('show.bs.modal')); // Trigger supplier load
+                const form = document.getElementById('item-form');
+                form.reset();
                 document.getElementById('itemModalLabel').textContent = 'Edit Barang Konsinyasi';
                 document.getElementById('item-action').value = 'save_item';
                 document.getElementById('item-id').value = item.id;
@@ -401,14 +374,38 @@ function initKonsinyasiPage() {
                 document.getElementById('harga_beli').value = item.harga_beli;
                 document.getElementById('stok_awal').value = item.stok_awal;
                 document.getElementById('tanggal_terima').value = item.tanggal_terima;
-                itemModal.show();
+                openModal('itemModal');
             } catch (error) { showToast(`Gagal memuat data barang: ${error.message}`, 'error'); }
         }
     });
+
+    function setupTabs() {
+        const tabContainer = document.getElementById('konsinyasiTab');
+        const tabButtons = tabContainer.querySelectorAll('.konsinyasi-tab-btn');
+        const tabPanes = document.getElementById('konsinyasiTabContent').querySelectorAll('.konsinyasi-tab-pane');
+
+        function switchTab(targetId) {
+            tabPanes.forEach(pane => pane.classList.toggle('hidden', pane.id !== targetId));
+            tabButtons.forEach(button => {
+                const isActive = button.dataset.target === `#${targetId}`;
+                button.classList.toggle('border-primary', isActive);
+                button.classList.toggle('text-primary', isActive);
+                button.classList.toggle('border-transparent', !isActive);
+                button.classList.toggle('text-gray-500', !isActive);
+                button.classList.toggle('dark:text-gray-400', !isActive);
+            });
+            // Load content for the new active tab
+            if (targetId === 'barang-pane') loadItems();
+            else if (targetId === 'pembayaran-pane') { loadSuppliersForPayment(); loadCashAccountsForPayment(); loadPaymentHistory(); document.getElementById('cp-tanggal').valueAsDate = new Date(); }
+        }
+        tabButtons.forEach(button => button.addEventListener('click', () => switchTab(button.dataset.target.substring(1))));
+        switchTab('pemasok-pane'); // Initial active tab
+    }
 
     // --- Initial Load ---
     loadSuppliers();
     loadItems();
     loadItemsForSale();
     document.getElementById('cs-tanggal').valueAsDate = new Date();
+    setupTabs();
 }

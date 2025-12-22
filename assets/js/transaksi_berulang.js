@@ -3,7 +3,7 @@ function initTransaksiBerulangPage() {
     if (!tableBody) return;
 
     async function loadTemplates() {
-        tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>`;
         try {
             const response = await fetch(`${basePath}/api/recurring?action=list_templates`);
             const result = await response.json();
@@ -12,19 +12,24 @@ function initTransaksiBerulangPage() {
             tableBody.innerHTML = '';
             if (result.data.length > 0) {
                 result.data.forEach(t => {
-                    const statusBadge = t.is_active == 1 ? `<span class="badge bg-success">Aktif</span>` : `<span class="badge bg-secondary">Non-Aktif</span>`;
+                    const statusBadge = t.is_active == 1 
+                        ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-200">Aktif</span>` 
+                        : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">Non-Aktif</span>`;
+                    
                     const toggleText = t.is_active == 1 ? 'Non-aktifkan' : 'Aktifkan';
+                    const toggleIconColor = t.is_active == 1 ? 'text-green-500' : 'text-gray-500';
+
                     const row = `
-                        <tr>
-                            <td>${t.name}</td>
-                            <td>Setiap ${t.frequency_interval} ${t.frequency_unit}</td>
-                            <td>${new Date(t.next_run_date).toLocaleDateString('id-ID', {dateStyle: 'long'})}</td>
-                            <td>${statusBadge}</td>
-                            <td class="text-end">
-                                <div class="btn-group">
-                                    <button class="btn btn-sm btn-info edit-recurring-btn" data-id="${t.id}"><i class="bi bi-pencil-fill"></i></button>
-                                    <button class="btn btn-sm btn-secondary toggle-status-btn" data-id="${t.id}" data-active="${t.is_active}" title="${toggleText}"><i class="bi bi-power"></i></button>
-                                    <button class="btn btn-sm btn-danger delete-recurring-btn" data-id="${t.id}"><i class="bi bi-trash-fill"></i></button>
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${t.name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">Setiap ${t.frequency_interval} ${t.frequency_unit}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${new Date(t.next_run_date).toLocaleDateString('id-ID', {dateStyle: 'long'})}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${statusBadge}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div class="flex items-center justify-end space-x-4">
+                                    <button class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 edit-recurring-btn" data-id="${t.id}" title="Edit"><i class="bi bi-pencil-fill"></i></button>
+                                    <button class="toggle-status-btn ${toggleIconColor} hover:text-gray-900 dark:hover:text-gray-300" data-id="${t.id}" data-active="${t.is_active}" title="${toggleText}"><i class="bi bi-power"></i></button>
+                                    <button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-recurring-btn" data-id="${t.id}" title="Hapus"><i class="bi bi-trash-fill"></i></button>
                                 </div>
                             </td>
                         </tr>
@@ -32,10 +37,10 @@ function initTransaksiBerulangPage() {
                     tableBody.insertAdjacentHTML('beforeend', row);
                 });
             } else {
-                tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Belum ada template yang dibuat.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">Belum ada template yang dibuat.</td></tr>`;
             }
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Gagal memuat data: ${error.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-red-500">Gagal memuat data: ${error.message}</td></tr>`;
         }
     }
 

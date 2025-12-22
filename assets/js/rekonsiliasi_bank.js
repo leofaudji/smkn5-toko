@@ -68,8 +68,12 @@ function initRekonsiliasiBankPage() {
             return;
         }
 
-        reconciliationContent.classList.remove('d-none');
-        appTransactionsBody.innerHTML = `<tr><td colspan="5" class="text-center p-4"><div class="spinner-border"></div></td></tr>`;
+        const originalBtnHtml = tampilkanBtn.innerHTML;
+        tampilkanBtn.disabled = true;
+        tampilkanBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memuat...`;
+
+        reconciliationContent.classList.remove('hidden');
+        appTransactionsBody.innerHTML = `<tr><td colspan="5" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>`;
 
         try {
             const response = await fetch(`${basePath}/api/rekonsiliasi-bank?action=get_transactions&account_id=${accountId}&end_date=${endDate}`);
@@ -81,24 +85,27 @@ function initRekonsiliasiBankPage() {
             if (result.data.length > 0) {
                 result.data.forEach(tx => {
                     const row = `
-                        <tr data-debit="${tx.debit}" data-kredit="${tx.kredit}">
-                            <td><input class="form-check-input recon-check" type="checkbox" value="${tx.id}"></td>
-                            <td>${new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
-                            <td>${tx.keterangan}</td>
-                            <td class="text-end">${tx.debit > 0 ? currencyFormatter.format(tx.debit) : '-'}</td>
-                            <td class="text-end">${tx.kredit > 0 ? currencyFormatter.format(tx.kredit) : '-'}</td>
+                        <tr data-debit="${tx.debit}" data-kredit="${tx.kredit}" class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td class="px-6 py-4"><input class="rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring focus:ring-offset-0 focus:ring-primary focus:ring-opacity-50 recon-check" type="checkbox" value="${tx.id}"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${new Date(tx.tanggal).toLocaleDateString('id-ID')}</td>
+                            <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">${tx.keterangan}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 dark:text-green-400">${tx.debit > 0 ? currencyFormatter.format(tx.debit) : '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 dark:text-red-400">${tx.kredit > 0 ? currencyFormatter.format(tx.kredit) : '-'}</td>
                         </tr>
                     `;
                     appTransactionsBody.insertAdjacentHTML('beforeend', row);
                 });
             } else {
-                appTransactionsBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Tidak ada transaksi untuk direkonsiliasi.</td></tr>`;
+                appTransactionsBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">Tidak ada transaksi untuk direkonsiliasi.</td></tr>`;
             }
             updateSummary();
 
         } catch (error) {
             showToast(`Gagal memuat transaksi: ${error.message}`, 'error');
-            appTransactionsBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${error.message}</td></tr>`;
+            appTransactionsBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-red-500">${error.message}</td></tr>`;
+        } finally {
+            tampilkanBtn.disabled = false;
+            tampilkanBtn.innerHTML = `<i class="bi bi-search mr-2"></i> Mulai`;
         }
     }
 
@@ -139,7 +146,7 @@ function initRekonsiliasiBankPage() {
         const result = await response.json();
         showToast(result.message, result.status);
         if (result.status === 'success') {
-            reconciliationContent.classList.add('d-none');
+            reconciliationContent.classList.add('hidden');
             appTransactionsBody.innerHTML = '';
         }
     });

@@ -33,40 +33,44 @@ try {
     // Siapkan prepared statements di luar loop
     $stmt_stok_awal = $conn->prepare("
         SELECT 
-            (SELECT COALESCE(SUM(pd.quantity), 0) FROM pembelian_details pd JOIN pembelian p ON pd.pembelian_id = p.id WHERE pd.item_id = ? AND p.tanggal_pembelian < ?) +
-            (SELECT COALESCE(SUM(sa.selisih_kuantitas), 0) FROM stock_adjustments sa WHERE sa.item_id = ? AND sa.tanggal < ?)
-        AS stok_awal
+            (
+                COALESCE((SELECT SUM(jumlah) FROM kartu_stok WHERE item_id = ? AND tanggal < ? AND jenis = 'Masuk'), 0)
+                -
+                COALESCE((SELECT SUM(jumlah) FROM kartu_stok WHERE item_id = ? AND tanggal < ? AND jenis = 'Keluar'), 0)
+                +
+                COALESCE((SELECT SUM(selisih_kuantitas) FROM stock_adjustments WHERE item_id = ? AND tanggal < ?), 0)
+            ) as stok_awal
     ");
 
     $stmt_pergerakan = $conn->prepare("
         SELECT 
-            (SELECT COALESCE(SUM(pd.quantity), 0) FROM pembelian_details pd JOIN pembelian p ON pd.pembelian_id = p.id WHERE pd.item_id = ? AND p.tanggal_pembelian BETWEEN ? AND ?) AS masuk,
-            (SELECT COALESCE(SUM(sa.selisih_kuantitas), 0) FROM stock_adjustments sa WHERE sa.item_id = ? AND sa.tanggal BETWEEN ? AND ?) AS penyesuaian
+            (
+                COALESCE((SELECT SUM(jumlah) FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ? AND jenis = 'Masuk'), 0)
+                +
+                COALESCE((SELECT SUM(selisih_kuantitas) FROM stock_adjustments WHERE item_id = ? AND tanggal BETWEEN ? AND ? AND selisih_kuantitas > 0), 0)
+            ) AS masuk,
+            (
+                COALESCE((SELECT SUM(jumlah) FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ? AND jenis = 'Keluar'), 0)
+                +
+                COALESCE((SELECT SUM(ABS(selisih_kuantitas)) FROM stock_adjustments WHERE item_id = ? AND tanggal BETWEEN ? AND ? AND selisih_kuantitas < 0), 0)
+            ) AS keluar
     ");
 
     foreach ($items_result as $item) {
         $item_id = $item['id'];
 
         // 2. Hitung Stok Awal
-        $stmt_stok_awal->bind_param("isis", $item_id, $start_date, $item_id, $start_date);
+        $stmt_stok_awal->bind_param("isisis", $item_id, $start_date, $item_id, $start_date, $item_id, $start_date);
         $stmt_stok_awal->execute();
         $stok_awal = (int)$stmt_stok_awal->get_result()->fetch_assoc()['stok_awal'];
 
         // 3. Hitung Pergerakan Stok (Masuk & Keluar) dalam periode
-        $stmt_pergerakan->bind_param("ississ", $item_id, $start_date, $end_date, $item_id, $start_date, $end_date);
+        $stmt_pergerakan->bind_param("ississississ", $item_id, $start_date, $end_date, $item_id, $start_date, $end_date, $item_id, $start_date, $end_date, $item_id, $start_date, $end_date);
         $stmt_pergerakan->execute();
         $pergerakan = $stmt_pergerakan->get_result()->fetch_assoc();
         
         $masuk = (int)$pergerakan['masuk'];
-        $penyesuaian = (int)$pergerakan['penyesuaian'];
-
-        // Pisahkan penyesuaian positif (masuk) dan negatif (keluar)
-        if ($penyesuaian > 0) {
-            $masuk += $penyesuaian;
-            $keluar = 0;
-        } else {
-            $keluar = abs($penyesuaian);
-        }
+        $keluar = (int)$pergerakan['keluar'];
 
         // 4. Hitung Stok Akhir
         $stok_akhir = $stok_awal + $masuk - $keluar;

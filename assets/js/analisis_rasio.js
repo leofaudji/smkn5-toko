@@ -20,8 +20,8 @@ function initAnalisisRasioPage() {
             formula: '(Laba Bersih / Total Pendapatan) * 100%',
             description: 'Mengukur seberapa besar laba bersih yang dihasilkan dari setiap rupiah pendapatan. Semakin tinggi, semakin baik.',
             format: (val) => val.toFixed(2),
-            interpret: (val) => val < 0.5 ? 'Sehat' : (val < 0.8 ? 'Waspada' : 'Berisiko Tinggi'),
-            color: (val) => val < 0.5 ? 'text-success' : (val < 0.8 ? 'text-warning' : 'text-danger'),
+        interpret: (val) => val > 0.1 ? 'Sehat' : (val > 0.05 ? 'Waspada' : 'Berisiko'),
+        color: (val) => val > 0.1 ? 'text-green-600 dark:text-green-400' : (val > 0.05 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'),
         },
         debt_to_equity: {
             name: 'Debt to Equity Ratio',
@@ -29,15 +29,15 @@ function initAnalisisRasioPage() {
             description: 'Mengukur proporsi pembiayaan perusahaan antara utang dan modal sendiri. Semakin rendah, semakin aman posisi keuangan perusahaan.',
             format: (val) => val.toFixed(2),
             interpret: (val) => val < 1 ? 'Sehat' : (val < 2 ? 'Waspada' : 'Berisiko Tinggi'),
-            color: (val) => val < 1 ? 'text-success' : (val < 2 ? 'text-warning' : 'text-danger'),
+        color: (val) => val < 1 ? 'text-green-600 dark:text-green-400' : (val < 2 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'),
         },
         debt_to_asset: {
             name: 'Debt to Asset Ratio',
             formula: 'Total Liabilitas / Total Aset',
             description: 'Mengukur seberapa besar aset perusahaan yang dibiayai oleh utang. Semakin rendah, semakin baik.',
             format: (val) => val.toFixed(2),
-            interpret: (val) => val < 0.4 ? 'Sangat Sehat' : (val < 0.6 ? 'Sehat' : 'Berisiko'),
-            color: (val) => val < 0.4 ? 'text-success' : (val < 0.6 ? 'text-primary' : 'text-danger'),
+        interpret: (val) => val < 0.4 ? 'Sangat Sehat' : (val < 0.6 ? 'Waspada' : 'Berisiko'),
+        color: (val) => val < 0.4 ? 'text-green-600 dark:text-green-400' : (val < 0.6 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'),
         },
         return_on_equity: {
             name: 'Return on Equity (ROE)',
@@ -45,7 +45,7 @@ function initAnalisisRasioPage() {
             description: 'Mengukur kemampuan perusahaan menghasilkan laba dari modal yang diinvestasikan oleh pemilik/anggota. Semakin tinggi, semakin efisien penggunaan modal.',
             format: (val) => `${(val * 100).toFixed(2)}%`,
             interpret: (val) => val > 0.15 ? 'Sangat Baik' : (val > 0.05 ? 'Baik' : 'Kurang Efisien'),
-            color: (val) => val > 0.15 ? 'text-success' : (val > 0.05 ? 'text-warning' : 'text-danger'),
+        color: (val) => val > 0.15 ? 'text-green-600 dark:text-green-400' : (val > 0.05 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'),
         },
         return_on_assets: {
             name: 'Return on Assets (ROA)',
@@ -53,7 +53,7 @@ function initAnalisisRasioPage() {
             description: 'Mengukur efisiensi perusahaan dalam menggunakan asetnya untuk menghasilkan laba. Semakin tinggi, semakin baik.',
             format: (val) => `${(val * 100).toFixed(2)}%`,
             interpret: (val) => val > 0.1 ? 'Sangat Efisien' : (val > 0.05 ? 'Efisien' : 'Kurang Efisien'),
-            color: (val) => val > 0.1 ? 'text-success' : (val > 0.05 ? 'text-primary' : 'text-warning'),
+        color: (val) => val > 0.1 ? 'text-green-600 dark:text-green-400' : (val > 0.05 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'),
         },
         asset_turnover: {
             name: 'Asset Turnover Ratio',
@@ -61,7 +61,7 @@ function initAnalisisRasioPage() {
             description: 'Mengukur efisiensi penggunaan aset untuk menghasilkan pendapatan. Semakin tinggi, semakin efisien.',
             format: (val) => val.toFixed(2) + 'x',
             interpret: (val) => val > 1.5 ? 'Sangat Efisien' : (val > 1 ? 'Efisien' : 'Kurang Efisien'),
-            color: (val) => val > 1.5 ? 'text-success' : (val > 1 ? 'text-primary' : 'text-warning'),
+        color: (val) => val > 1.5 ? 'text-green-600 dark:text-green-400' : (val > 1 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'),
         }
     };
 
@@ -74,7 +74,10 @@ function initAnalisisRasioPage() {
             return;
         }
 
-        contentContainer.innerHTML = '<div class="text-center p-5"><div class="spinner-border"></div></div>';
+        const originalBtnHtml = analyzeBtn.innerHTML;
+        analyzeBtn.disabled = true;
+        analyzeBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menganalisis...`;
+        contentContainer.innerHTML = '<div class="text-center p-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
 
         try {
             const params = new URLSearchParams({ date });
@@ -86,44 +89,41 @@ function initAnalisisRasioPage() {
             if (result.status !== 'success') throw new Error(result.message);
 
             const { current, previous } = result.data;
-            contentContainer.innerHTML = '<div class="row"></div>';
-            const rowContainer = contentContainer.querySelector('.row');
+            contentContainer.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>';
+            const gridContainer = contentContainer.querySelector('.grid');
 
             for (const key in current) {
                 if (ratioDefinitions[key]) {
                     const def = ratioDefinitions[key];
-                    const card = cardTemplate.content.cloneNode(true);
+                    const cardContent = cardTemplate.content.cloneNode(true);
+                    const card = cardContent.firstElementChild;
                     
                     card.querySelector('.ratio-name').textContent = def.name;
-                    card.querySelector('[data-bs-toggle="tooltip"]').setAttribute('title', def.description);
-                    card.querySelector('.ratio-value').textContent = def.format(current[key]);
+                    card.querySelector('[title]').setAttribute('title', def.description);
+                    card.querySelector('.ratio-value').textContent = def.format(current[key] || 0);
                     card.querySelector('.ratio-formula').textContent = `Rumus: ${def.formula}`;
                     
                     const interpretationEl = card.querySelector('.ratio-interpretation');
-                    interpretationEl.textContent = `Interpretasi: ${def.interpret(current[key])}`;
-                    interpretationEl.classList.add(def.color(current[key]));
+                    interpretationEl.innerHTML = `<span class="font-semibold">Interpretasi:</span> <span class="${def.color(current[key] || 0)} ml-2">${def.interpret(current[key] || 0)}</span>`;
 
-                    if (previous && previous[key] !== null) {
+                    if (previous && previous[key] !== null && previous[key] !== undefined) {
                         const change = current[key] - previous[key];
                         const changeIcon = change >= 0 ? '<i class="bi bi-arrow-up"></i>' : '<i class="bi bi-arrow-down"></i>';
-                        const changeColor = change >= 0 ? 'text-success' : 'text-danger';
-                        card.querySelector('.ratio-comparison').innerHTML = `${changeIcon} <span class="${changeColor}">${Math.abs(change * (def.name.includes('%') ? 100 : 1)).toFixed(2)}</span> vs periode sebelumnya`;
+                        const changeColor = change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                        const changeValue = Math.abs(change * (def.format(1).includes('%') ? 100 : 1)).toFixed(2);
+                        card.querySelector('.ratio-comparison').innerHTML = `${changeIcon} <span class="${changeColor} ml-1">${changeValue}${def.format(1).includes('%') ? '%' : ''}</span> vs periode sebelumnya`;
                     } else {
                         card.querySelector('.ratio-comparison').textContent = 'Tidak ada data pembanding.';
                     }
 
-                    rowContainer.appendChild(card);
+                    gridContainer.appendChild(card);
                 }
             }
-
-            // Re-initialize tooltips
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-
         } catch (error) {
-            contentContainer.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            contentContainer.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">${error.message}</div>`;
+        } finally {
+            analyzeBtn.disabled = false;
+            analyzeBtn.innerHTML = originalBtnHtml;
         }
     }
 

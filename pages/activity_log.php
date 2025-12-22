@@ -14,25 +14,25 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 }
 ?>
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-list-check"></i> Log Aktivitas Pengguna</h1>
+<div class="flex flex-wrap md:flex-nowrap justify-between items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">
+    <h1 class="text-2xl font-semibold text-gray-900 dark:text-white"><i class="bi bi-list-check mr-2"></i> Log Aktivitas Pengguna</h1>
 </div>
 
 <!-- Filter -->
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="row g-2">
-            <div class="col-md-4">
-                <input type="text" id="search-log" class="form-control" placeholder="Cari username, aksi, atau detail...">
+<div class="bg-white dark:bg-gray-800 shadow-md rounded-lg mb-6">
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div class="md:col-span-5">
+                <input type="text" id="search-log" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Cari username, aksi, atau detail...">
             </div>
-            <div class="col-md-3">
-                <input type="date" id="filter-log-mulai" class="form-control">
+            <div class="md:col-span-3">
+                <input type="date" id="filter-log-mulai" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm">
             </div>
-            <div class="col-md-3">
-                <input type="date" id="filter-log-akhir" class="form-control">
+            <div class="md:col-span-3">
+                <input type="date" id="filter-log-akhir" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm">
             </div>
-            <div class="col-md-2">
-                <select id="filter-log-limit" class="form-select">
+            <div class="md:col-span-1">
+                <select id="filter-log-limit" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm">
                     <option value="15">15</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
@@ -42,19 +42,23 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover table-sm">
-                <thead>
+<div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+    <div class="p-6">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                        <th>Waktu</th><th>Username</th><th>Aksi</th><th>Detail</th><th>Alamat IP</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Waktu</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Username</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Detail</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Alamat IP</th>
                     </tr>
                 </thead>
-                <tbody id="activity-log-table-body"></tbody>
+                <tbody id="activity-log-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"></tbody>
             </table>
         </div>
-        <nav><ul class="pagination justify-content-center" id="activity-log-pagination"></ul></nav>
+        <nav class="mt-4 flex justify-center" id="activity-log-pagination"></nav>
     </div>
 </div>
 
