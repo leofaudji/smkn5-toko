@@ -41,68 +41,86 @@ try {
 function handle_backup() {
     // Get DB credentials from the Config class, which is loaded by bootstrap.php
     $db_host = Config::get('DB_SERVER');
-    $db_user = Config::get('DB_USERNAME');
-    $db_pass = Config::get('DB_PASSWORD');
     $db_name = Config::get('DB_NAME');
 
-    // Path ke mysqldump. Sesuaikan jika perlu.
-    // Untuk XAMPP di Windows, biasanya ada di dalam folder xampp\mysql\bin
-    $mysqldump_path = 'C:\xampp\mysql\bin\mysqldump.exe'; // Ganti dengan path absolut Anda
-
-    if (!file_exists($mysqldump_path)) {
-        throw new Exception("Executable 'mysqldump' tidak ditemukan di path: $mysqldump_path. Silakan periksa konfigurasi path di backup_restore.php.");
-    }
+    // Use the existing database connection from bootstrap
+    $conn = Database::getInstance()->getConnection();
 
     $backup_file_name = 'backup-' . $db_name . '-' . date("Y-m-d-H-i-s") . '.sql';
-    
-    // Perintah untuk menjalankan mysqldump
-    $command = sprintf(
-        '"%s" --host=%s --user=%s --password=%s %s > %s',
-        $mysqldump_path,
-        escapeshellarg($db_host),
-        escapeshellarg($db_user),
-        escapeshellarg($db_pass),
-        escapeshellarg($db_name),
-        escapeshellarg(TMP_PATH . '/' . $backup_file_name)
-    );
 
-    // Jalankan perintah
-    exec($command, $output, $return_var);
+    // Set headers for download
+    // Note: We remove the initial 'Content-Type: application/json' for this specific action
+    // because we are streaming a file.
+    header_remove('Content-Type');
+    header('Content-Type: application/octet-stream');
+    header('Content-Disposition: attachment; filename="' . basename($backup_file_name) . '"');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate');
+    header('Pragma: public');
 
-    if ($return_var !== 0) {
-        throw new Exception("Gagal membuat file backup. Error: " . implode("\n", $output));
-    }
+    // Open output stream
+    $handle = fopen('php://output', 'w');
 
-    $file_path = TMP_PATH . '/' . $backup_file_name;
+    // Write SQL header
+    fwrite($handle, "-- SMKN5-Toko SQL Dump\n");
+    fwrite($handle, "-- Host: " . $db_host . "\n");
+    fwrite($handle, "-- Generation Time: " . date('Y-m-d H:i:s') . "\n");
+    fwrite($handle, "--\n\n");
+    fwrite($handle, "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";\n");
+    fwrite($handle, "START TRANSACTION;\n");
+    fwrite($handle, "SET time_zone = \"+00:00\";\n\n");
 
-    if (file_exists($file_path)) {
-        // Set header untuk download
-        header('Content-Description: File Transfer');
-        header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="' . basename($backup_file_name) . '"');
-        header('Expires: 0');
-        header('Cache-Control: must-revalidate');
-        header('Pragma: public');
-        header('Content-Length: ' . filesize($file_path));
-        
-        // Baca file dan kirim ke output
-        readfile($file_path);
-        
-        // Hapus file sementara setelah diunduh
-        unlink($file_path);
+    // Get all tables
+    $tables_result = $conn->query('SHOW TABLES');
+    if (!$tables_result) {
+        fclose($handle);
+        // We can't throw an exception here as headers are already sent.
+        // Log the error and exit.
+        error_log("Gagal mendapatkan daftar tabel: " . $conn->error);
         exit;
-    } else {
-        throw new Exception('File backup tidak dapat dibuat.');
     }
+
+    while ($row = $tables_result->fetch_row()) {
+        $table = $row[0];
+
+        // Get CREATE TABLE statement
+        $create_table_result = $conn->query('SHOW CREATE TABLE `' . $table . '`');
+        $create_table_row = $create_table_result->fetch_assoc();
+        fwrite($handle, "\n-- --------------------------------------------------------\n\n");
+        fwrite($handle, "--\n-- Table structure for table `$table`\n--\n\n");
+        fwrite($handle, "DROP TABLE IF EXISTS `$table`;\n");
+        fwrite($handle, $create_table_row['Create Table'] . ";\n\n");
+        $create_table_result->free();
+
+        // Get table data
+        $data_result = $conn->query('SELECT * FROM `' . $table . '`');
+        if ($data_result->num_rows > 0) {
+            fwrite($handle, "--\n-- Dumping data for table `$table`\n--\n\n");
+            while ($data_row = $data_result->fetch_assoc()) {
+                $columns = array_keys($data_row);
+                $values = array_map(function ($value) use ($conn) {
+                    if ($value === null) {
+                        return 'NULL';
+                    }
+                    return "'" . $conn->real_escape_string($value) . "'";
+                }, array_values($data_row));
+
+                fwrite($handle, 'INSERT INTO `' . $table . '` (`' . implode('`, `', $columns) . '`) VALUES (' . implode(', ', $values) . ");\n");
+            }
+            fwrite($handle, "\n");
+        }
+        $data_result->free();
+    }
+    $tables_result->free();
+
+    // Write SQL footer
+    fwrite($handle, "COMMIT;\n");
+
+    fclose($handle);
+    exit;
 }
 
 function handle_restore() {
-    // Get DB credentials from the Config class
-    $db_host = Config::get('DB_SERVER');
-    $db_user = Config::get('DB_USERNAME');
-    $db_pass = Config::get('DB_PASSWORD');
-    $db_name = Config::get('DB_NAME');
-
     if (!isset($_FILES['backup_file']) || $_FILES['backup_file']['error'] !== UPLOAD_ERR_OK) {
         throw new Exception('Gagal mengunggah file backup. Error code: ' . ($_FILES['backup_file']['error'] ?? 'N/A'));
     }
@@ -117,37 +135,38 @@ function handle_restore() {
         throw new Exception('File tidak valid. Harap unggah file dengan ekstensi .sql');
     }
 
-    // Path ke mysql client. Sesuaikan jika perlu.
-    $mysql_path = 'C:\xampp\mysql\bin\mysql.exe'; // Ganti dengan path absolut Anda
+    // Use the existing database connection from bootstrap
+    $conn = Database::getInstance()->getConnection();
 
-    if (!file_exists($mysql_path)) {
-        throw new Exception("Executable 'mysql' tidak ditemukan di path: $mysql_path. Silakan periksa konfigurasi path di backup_restore.php.");
+    // Read the SQL file content
+    $sql_script = file_get_contents($file_path);
+    if ($sql_script === false) {
+        throw new Exception('Gagal membaca file backup.');
     }
 
-    // Perintah untuk menjalankan mysql client dan mengimpor database
-    $command = sprintf(
-        '"%s" --host=%s --user=%s --password=%s %s < %s',
-        $mysql_path,
-        escapeshellarg($db_host),
-        escapeshellarg($db_user),
-        escapeshellarg($db_pass),
-        escapeshellarg($db_name),
-        escapeshellarg($file_path)
-    );
+    // Disable foreign key checks to avoid issues with table order
+    $conn->query('SET foreign_key_checks = 0');
 
-    // Jalankan perintah
-    exec($command, $output, $return_var);
+    // Execute the multi-query
+    if ($conn->multi_query($sql_script)) {
+        // Loop through all query results to clear them from the buffer
+        do {
+            if ($result = $conn->store_result()) {
+                $result->free();
+            }
+        } while ($conn->more_results() && $conn->next_result());
+    }
 
-    if ($return_var !== 0) {
-        // Coba berikan pesan error yang lebih informatif jika ada
-        $error_message = "Gagal memulihkan database. ";
-        if (!empty($output)) {
-            $error_message .= "Detail: " . implode("\n", $output);
-        } else {
-            $error_message .= "Pastikan detail koneksi database sudah benar.";
-        }
+    // Check for any errors during the multi-query execution
+    if ($conn->errno) {
+        $error_message = "Gagal memulihkan database. Error: " . $conn->error;
+        // Re-enable foreign key checks even if it fails
+        $conn->query('SET foreign_key_checks = 1');
         throw new Exception($error_message);
     }
+
+    // Re-enable foreign key checks
+    $conn->query('SET foreign_key_checks = 1');
 
     echo json_encode(['status' => 'success', 'message' => 'Database berhasil dipulihkan.']);
 }

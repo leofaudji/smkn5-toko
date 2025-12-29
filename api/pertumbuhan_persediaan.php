@@ -33,7 +33,7 @@ try {
             FROM items i
             WHERE i.user_id = ?
         ");
-        $user_id = $_SESSION['user_id'];
+        $user_id = 1; // ID Pemilik Data (Toko)
         $stmt->bind_param('ssi', $tanggal_akhir_bulan, $tanggal_akhir_bulan, $user_id);
         $stmt->execute();
         $hasil = $stmt->get_result()->fetch_assoc();

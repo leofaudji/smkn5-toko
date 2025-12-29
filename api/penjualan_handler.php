@@ -1,8 +1,8 @@
 <?php
 header('Content-Type: application/json');
 
-// Pastikan file bootstrap.php sudah di-include di file pemanggil (index.php)
-// require_once '../includes/bootstrap.php'; // Sesuaikan path jika perlu
+// Muat komponen inti aplikasi
+require_once __DIR__ . '/../includes/bootstrap.php';
 
 $db = Database::getInstance()->getConnection();
 
@@ -39,8 +39,8 @@ function get_all_penjualan($db) {
 
         $sql = "SELECT p.id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.total, p.status, u.username 
                 FROM penjualan p
-                JOIN users u ON p.user_id = u.id";
-        $countSql = "SELECT COUNT(p.id) as total FROM penjualan p JOIN users u ON p.user_id = u.id";
+                LEFT JOIN users u ON p.created_by = u.id";
+        $countSql = "SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id";
 
         if (!empty($searchTerm)) {
             $sql .= " WHERE p.nomor_referensi LIKE ? OR u.username LIKE ?";
@@ -124,8 +124,9 @@ function store_penjualan($db) {
         $total = $data['total'];
         $bayar = $data['bayar'];
         $kembali = $data['kembali'];
-        $keterangan = $data['catatan'] ?? null;
-        $user_id = $_SESSION['user_id'];
+        $keterangan = isset($data['catatan']) ? trim($data['catatan']) : '';
+        $user_id = 1; // ID Pemilik Data (Toko)
+        $logged_in_user_id = (int)$_SESSION['user_id']; // ID User yang login (Actor)
 
         // Tambahkan info metode pembayaran ke keterangan jika bukan tunai
         // (Opsional: jika tabel penjualan punya kolom payment_method, simpan di sana)
@@ -135,11 +136,15 @@ function store_penjualan($db) {
             $keterangan = trim("[" . strtoupper($payment_method) . "] " . $keterangan);
         }
 
+        if (empty($keterangan)) {
+            $keterangan = "Penjualan " . $nomor_referensi;
+        }
+
         $stmt = $db->prepare(
             "INSERT INTO penjualan (user_id, nomor_referensi, tanggal_penjualan, customer_name, subtotal, discount, total, bayar, kembali, keterangan, created_by) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
-        $stmt->bind_param('isssdddsssi', $user_id, $nomor_referensi, $tanggal, $customer_name, $subtotal, $discount, $total, $bayar, $kembali, $keterangan, $user_id);
+        $stmt->bind_param('isssdddsssi', $user_id, $nomor_referensi, $tanggal, $customer_name, $subtotal, $discount, $total, $bayar, $kembali, $keterangan, $logged_in_user_id);
         $stmt->execute();
         $penjualanId = $stmt->insert_id;
         $stmt->close();
@@ -150,7 +155,7 @@ function store_penjualan($db) {
              VALUES (?, ?, ?, ?, ?, ?, ?)"
         );
         $updateStokStmt = $db->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
-        $kartuStokStmt = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, 'Keluar', ?, ?, ?, 'penjualan', ?)");
+        $kartuStokStmt = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, 0, ?, ?, ?, 'penjualan', ?)");
  
         foreach ($data['items'] as $item) {
             // Cek stok sebelum mengurangi
@@ -197,6 +202,9 @@ function store_penjualan($db) {
         }
 
         $stmt_gl = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?)");
+        if (!$stmt_gl) {
+            throw new Exception("Gagal prepare statement GL: " . $db->error);
+        }
         $zero = 0.00;
 
         // Jurnal 1: (Dr) Kas, (Cr) Pendapatan Penjualan
@@ -233,12 +241,16 @@ function store_penjualan($db) {
         $item_details_stmt->close();
 
         // (Dr) Kas
-        $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $total, $zero, $penjualanId, $user_id);
-        $stmt_gl->execute();
+        $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $total, $zero, $penjualanId, $logged_in_user_id);
+        if (!$stmt_gl->execute()) {
+            throw new Exception("Gagal insert GL (Kas): " . $stmt_gl->error);
+        }
         // (Cr) Pendapatan (bisa lebih dari satu akun)
         foreach ($revenue_totals as $acc_id => $sub_total) {
-            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $acc_id, $zero, $sub_total, $penjualanId, $user_id);
-            $stmt_gl->execute();
+            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $acc_id, $zero, $sub_total, $penjualanId, $logged_in_user_id);
+            if (!$stmt_gl->execute()) {
+                throw new Exception("Gagal insert GL (Pendapatan): " . $stmt_gl->error);
+            }
         }
 
         // Jurnal 2: (Dr) HPP, (Cr) Persediaan
@@ -247,16 +259,20 @@ function store_penjualan($db) {
         // (Dr) Beban Pokok Penjualan (HPP)
         foreach ($cogs_totals as $acc_id => $amount) {
             if ($amount > 0) {
-                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $acc_id, $amount, $zero, $penjualanId, $user_id);
-                $stmt_gl->execute();
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $acc_id, $amount, $zero, $penjualanId, $logged_in_user_id);
+                if (!$stmt_gl->execute()) {
+                    throw new Exception("Gagal insert GL (HPP): " . $stmt_gl->error);
+                }
             }
         }
 
         // (Cr) Persediaan Barang
         foreach ($inventory_totals as $acc_id => $amount) {
             if ($amount > 0) {
-                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $acc_id, $zero, $amount, $penjualanId, $user_id);
-                $stmt_gl->execute();
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $acc_id, $zero, $amount, $penjualanId, $logged_in_user_id);
+                if (!$stmt_gl->execute()) {
+                    throw new Exception("Gagal insert GL (Persediaan): " . $stmt_gl->error);
+                }
             }
         }
         
@@ -275,7 +291,8 @@ function store_penjualan($db) {
 function void_penjualan($db) {
     $data = json_decode(file_get_contents('php://input'), true);
     $id = $data['id'] ?? 0;
-    $user_id = $_SESSION['user_id'];
+    $user_id = 1; // ID Pemilik Data (Toko)
+    $logged_in_user_id = (int)$_SESSION['user_id'];
 
     if (!$id) {
         http_response_code(400);
@@ -308,7 +325,7 @@ function void_penjualan($db) {
 
         // 3. Kembalikan stok barang
         $stmt_update_stok = $db->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
-        $stmt_ks_void = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, 'Masuk', ?, ?, ?, 'void_penjualan', ?)");
+        $stmt_ks_void = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, ?, 0, ?, ?, 'void_penjualan', ?)");
 
         foreach ($details as $item) {
             $stmt_update_stok->bind_param('iii', $item['quantity'], $item['item_id'], $user_id);
@@ -352,7 +369,7 @@ function void_penjualan($db) {
                 ? "PEMBATALAN: " . $entry['keterangan'] 
                 : $reversal_keterangan;
 
-            $stmt_gl_reverse->bind_param('isssiddii', $user_id, $reversal_date, $entry_keterangan, $penjualan['nomor_referensi'], $entry['account_id'], $new_debit, $new_kredit, $id, $user_id);
+            $stmt_gl_reverse->bind_param('isssiddii', $user_id, $reversal_date, $entry_keterangan, $penjualan['nomor_referensi'], $entry['account_id'], $new_debit, $new_kredit, $id, $logged_in_user_id);
             $stmt_gl_reverse->execute();
         }
         $stmt_gl_reverse->close();
@@ -414,10 +431,11 @@ function get_penjualan_detail($db) {
 }
 
 function search_produk($db) {
+    $user_id = 1; // ID Pemilik Data (Toko)
     $term = $_GET['term'] ?? '';
     $search = "%{$term}%";
-    $stmt = $db->prepare("SELECT id, sku, nama_barang, harga_jual, stok FROM items WHERE (nama_barang LIKE ? OR sku LIKE ?) AND stok > 0 LIMIT 10");
-    $stmt->bind_param('ss', $search, $search);
+    $stmt = $db->prepare("SELECT id, sku, nama_barang, harga_jual, stok FROM items WHERE user_id = ? AND (nama_barang LIKE ? OR sku LIKE ?) AND stok > 0 LIMIT 10");
+    $stmt->bind_param('iss', $user_id, $search, $search);
     $stmt->execute();
     $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();

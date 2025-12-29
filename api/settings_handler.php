@@ -92,7 +92,7 @@ try {
         }
 
         if ($action === 'get_accounts_for_accounting') {
-            $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
+            $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? AND tipe_akun IN ('Ekuitas', 'Aset', 'Pendapatan', 'Beban') ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
             $all_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);

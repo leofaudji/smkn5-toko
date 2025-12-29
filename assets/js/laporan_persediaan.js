@@ -116,9 +116,14 @@ function initLaporanPersediaanPage() {
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", "laporan_persediaan.csv");
+
+        // Beri tahu router SPA untuk mengabaikan klik ini, mencegah error navigasi.
+        link.setAttribute('data-spa-ignore', 'true');
+
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        // Hapus link setelah jeda singkat untuk memastikan download dimulai.
+        setTimeout(() => document.body.removeChild(link), 150);
     });
 
     // Muat data saat halaman pertama kali dibuka

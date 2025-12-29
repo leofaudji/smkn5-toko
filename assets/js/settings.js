@@ -311,10 +311,18 @@ function initSettingsPage() {
                     <div>
                         <label for="default_inventory_account_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Akun Persediaan Default</label>
                         <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="default_inventory_account_id" name="default_inventory_account_id">
-                        <option value="">-- Pilih Akun Ekuitas --</option>
+                        <option value="">-- Pilih Akun Aset --</option>
                         ${inventoryOptions}
                     </select>
                         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Akun persediaan yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</p>
+                    </div>
+                    <div>
+                        <label for="default_cogs_account_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Akun HPP (COGS) Default</label>
+                        <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="default_cogs_account_id" name="default_cogs_account_id">
+                            <option value="">-- Pilih Akun Beban --</option>
+                            ${cogsOptions}
+                        </select>
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Akun HPP yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</p>
                     </div>
                 </div>
             `;
@@ -330,6 +338,9 @@ function initSettingsPage() {
             }
             if (settings.default_inventory_account_id) {
                 document.getElementById('default_inventory_account_id').value = settings.default_inventory_account_id;
+            }
+            if (settings.default_cogs_account_id) {
+                document.getElementById('default_cogs_account_id').value = settings.default_cogs_account_id;
             }
 
         } catch (error) {
@@ -478,20 +489,31 @@ function initSettingsPage() {
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            // Get filename from Content-Disposition header
+            // Dapatkan nama file dari header Content-Disposition
             const disposition = response.headers.get('Content-Disposition');
             let filename = 'backup.sql';
             if (disposition && disposition.indexOf('attachment') !== -1) {
                 const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
                 const matches = filenameRegex.exec(disposition);
-                if (matches != null && matches[1]) {
+                if (matches && matches[1]) {
                     filename = matches[1].replace(/['"]/g, '');
                 }
             }
             a.download = filename;
+
+            // Beri tahu router SPA di main.js untuk mengabaikan klik ini.
+            // Ini adalah solusi yang lebih andal daripada hanya mengandalkan setTimeout.
+            a.setAttribute('data-spa-ignore', 'true');
+
             document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
+
+            // Bersihkan elemen link dan URL blob setelah jeda singkat untuk memastikan download dimulai.
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 150);
+
             showToast('Backup berhasil diunduh.', 'success');
 
         } catch (error) {

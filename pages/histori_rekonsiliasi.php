@@ -3,27 +3,30 @@ $is_spa_request = isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_
 if (!$is_spa_request) {
     require_once PROJECT_ROOT . '/views/header.php';
 }
+
+// Security check
+check_permission('rekonsiliasi_bank', 'menu');
 ?>
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-clock-history"></i> Histori Rekonsiliasi Bank</h1>
+<div class="flex justify-between flex-wrap md:flex-nowrap items-center pt-3 pb-2 mb-3 border-b border-gray-200">
+    <h1 class="text-2xl font-semibold text-gray-800"><i class="bi bi-clock-history mr-2"></i> Histori Rekonsiliasi Bank</h1>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
+<div class="bg-white shadow rounded-lg">
+    <div class="p-6">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
                     <tr>
-                        <th>ID</th>
-                        <th>Akun</th>
-                        <th>Tanggal Laporan</th>
-                        <th class="text-end">Saldo Bank</th>
-                        <th>Dibuat Pada</th>
-                        <th class="text-end">Aksi</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akun</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Laporan</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Bank</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dibuat Pada</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
-                <tbody id="history-recon-table-body">
+                <tbody id="history-recon-table-body" class="bg-white divide-y divide-gray-200">
                     <!-- Data dimuat oleh JS -->
                 </tbody>
             </table>

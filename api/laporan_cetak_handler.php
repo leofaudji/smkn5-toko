@@ -48,7 +48,7 @@ $pdf->AliasNbPages(); // Penting untuk mengetahui total halaman
 
 // Parameter yang akan diteruskan ke builder
 $params = $_REQUEST; // Gunakan $_REQUEST untuk menerima GET dan POST
-$params['user_id'] = $_SESSION['user_id'];
+$params['user_id'] = 1; // ID Pemilik Data (Toko)
 
 // Peta dari tipe laporan ke kelas builder-nya
 $builder_map = [

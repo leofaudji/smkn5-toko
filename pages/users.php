@@ -5,18 +5,35 @@ if (!$is_spa_request) {
 }
 
 // Security check
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    echo '<div class="alert alert-danger m-3">Akses ditolak. Anda harus menjadi Admin untuk melihat halaman ini.</div>';
-    if (!$is_spa_request) {
-        require_once PROJECT_ROOT . '/views/footer.php';
+check_permission('users', 'menu');
+
+$conn = Database::getInstance()->getConnection();
+$roles_res = $conn->query("SELECT id, name FROM roles ORDER BY name ASC");
+$roles_options = [];
+while ($role = $roles_res->fetch_assoc()) {
+    $roles_options[] = $role;
+}
+
+$role_id_filter = isset($_GET['role_id']) ? (int)$_GET['role_id'] : null;
+$role_name_filter = '';
+if ($role_id_filter) {
+    $stmt = $conn->prepare("SELECT name FROM roles WHERE id = ?");
+    $stmt->bind_param('i', $role_id_filter);
+    $stmt->execute();
+    if ($res = $stmt->get_result()->fetch_assoc()) {
+        $role_name_filter = htmlspecialchars($res['name']);
     }
-    return; // Stop rendering
 }
 ?>
 
 <div class="flex justify-between flex-wrap items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">
-    <h1 class="text-2xl font-semibold text-gray-800 dark:text-white flex items-center gap-2"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h1>
+    <h1 class="text-2xl font-semibold text-gray-800 dark:text-white flex items-center gap-2"><i class="bi bi-people-fill"></i> Manajemen Pengguna <?= $role_name_filter ? '<span class="text-base font-normal text-gray-500 dark:text-gray-400">- Filter: ' . $role_name_filter . '</span>' : '' ?></h1>
     <div class="flex mb-2 md:mb-0">
+        <?php if ($role_id_filter): ?>
+        <a href="<?= base_url('/users') ?>" class="inline-flex items-center px-4 py-2 bg-yellow-500 border border-transparent rounded-md font-semibold text-sm text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 mr-2">
+            <i class="bi bi-x-circle-fill mr-2"></i> Hapus Filter
+        </a>
+        <?php endif; ?>
         <button type="button" class="inline-flex items-center px-4 py-2 bg-primary border border-transparent rounded-md font-semibold text-sm text-white shadow-sm hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" id="add-user-btn">
             <i class="bi bi-plus-circle-fill mr-2"></i> Tambah Pengguna
         </button>
@@ -39,6 +56,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                 </thead>
                 <tbody id="users-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     <!-- Data akan dimuat di sini oleh JavaScript -->
+                    <tr>
+                        <td colspan="5" class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -74,9 +94,10 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
             </div>
             <div>
                 <label for="role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
-                <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="role" name="role">
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
+                <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="role_id" name="role_id" required>
+                    <?php foreach ($roles_options as $role): ?>
+                        <option value="<?= $role['id'] ?>"><?= htmlspecialchars($role['name']) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
         </form>

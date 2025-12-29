@@ -5,13 +5,7 @@ if (!$is_spa_request) {
 }
 
 // Security check
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    echo '<div class="alert alert-danger m-3">Akses ditolak. Anda harus menjadi Admin untuk melihat halaman ini.</div>';
-    if (!$is_spa_request) {
-        require_once PROJECT_ROOT . '/views/footer.php';
-    }
-    return; // Stop rendering
-}
+check_permission('tutup_buku', 'menu');
 ?>
 
 <div class="flex flex-wrap md:flex-nowrap justify-between items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">

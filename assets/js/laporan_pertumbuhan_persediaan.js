@@ -44,7 +44,7 @@ function initLaporanPertumbuhanPersediaanPage() {
             renderChart(result.data);
 
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Gagal memuat laporan: ${error.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-center text-red-600 dark:text-red-400">Gagal memuat laporan: ${error.message}</td></tr>`;
         } finally {
             loadingIndicator.style.display = 'none';
         }
@@ -52,15 +52,15 @@ function initLaporanPertumbuhanPersediaanPage() {
 
     function renderTable(data) {
         data.forEach(row => {
-            let selisihClass = row.selisih > 0 ? 'text-success' : (row.selisih < 0 ? 'text-danger' : '');
+            let selisihClass = row.selisih > 0 ? 'text-green-600 dark:text-green-400' : (row.selisih < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white');
             let selisihIcon = row.selisih > 0 ? '<i class="bi bi-arrow-up"></i>' : (row.selisih < 0 ? '<i class="bi bi-arrow-down"></i>' : '');
 
             // Jika nilai persediaan 0, anggap tidak ada data opname
             if (parseFloat(row.nilai_persediaan) === 0) {
                 tableBody.innerHTML += `
                     <tr>
-                        <td>${row.nama_bulan}</td>
-                        <td class="text-end text-muted" colspan="2"><em>Tidak ada data stok opname</em></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${row.nama_bulan}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-400 italic" colspan="2">Tidak ada data stok opname</td>
                     </tr>
                 `;
                 return; // Lanjut ke bulan berikutnya
@@ -68,9 +68,9 @@ function initLaporanPertumbuhanPersediaanPage() {
 
             tableBody.innerHTML += `
                 <tr>
-                    <td>${row.nama_bulan}</td>
-                    <td class="text-end fw-bold">${formatRupiah(row.nilai_persediaan)}</td>
-                    <td class="text-end ${selisihClass}">${selisihIcon} ${formatRupiah(row.selisih)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${row.nama_bulan}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-900 dark:text-white">${formatRupiah(row.nilai_persediaan)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right ${selisihClass}">${selisihIcon} ${formatRupiah(row.selisih)}</td>
                 </tr>
             `;
         });

@@ -388,8 +388,11 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/neraca_saldo.js`)
             .then(() => initNeracaSaldoPage())
             .catch(err => console.error(err));
-    }else if (cleanPath === '/buku-panduan') {
-        // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
+    } else if (cleanPath === '/roles') {
+        loadScript(`${basePath}/assets/js/roles.js`)
+            .then(() => initRolesPage())
+            .catch(err => console.error(err));
+    }else if (cleanPath === '/buku-panduan') {        // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
         // Cukup daftarkan agar tidak error dan hentikan eksekusi.
         return; 
     }

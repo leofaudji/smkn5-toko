@@ -12,7 +12,8 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id'];
+$user_id = 1; // ID Pemilik Data (Toko)
+$logged_in_user_id = $_SESSION['user_id'];
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -138,7 +139,7 @@ try {
 
             // 2. Calculate Saldo Awal (stock at the beginning of start_date)
             $stmt = $conn->prepare("
-                SELECT COALESCE(SUM(CASE WHEN jenis = 'Masuk' THEN jumlah ELSE -jumlah END), 0) as saldo
+                SELECT COALESCE(SUM(debit - kredit), 0) as saldo
                 FROM kartu_stok 
                 WHERE item_id = ? AND tanggal < ?
             ");
@@ -152,8 +153,8 @@ try {
             $stmt = $conn->prepare("
                 SELECT 
                     id, tanggal, keterangan, 
-                    IF(jenis = 'Masuk', jumlah, 0) as masuk, 
-                    IF(jenis = 'Keluar', jumlah, 0) as keluar 
+                    debit, 
+                    kredit 
                 FROM kartu_stok 
                 WHERE item_id = ? AND tanggal BETWEEN ? AND ?
                 ORDER BY tanggal ASC, id ASC
@@ -166,30 +167,34 @@ try {
             // 4. Process transactions and calculate running balance
             $transactions = [];
             $saldo_berjalan = $saldo_awal;
-            $total_masuk = 0;
-            $total_keluar = 0;
+            $total_debit = 0;
+            $total_kredit = 0;
 
             foreach ($transactions_raw as $trx) {
-                $saldo_berjalan += $trx['masuk'] - $trx['keluar'];
-                $total_masuk += $trx['masuk'];
-                $total_keluar += $trx['keluar'];
+                $saldo_berjalan += $trx['debit'] - $trx['kredit'];
+                $total_debit += $trx['debit'];
+                $total_kredit += $trx['kredit'];
                 $transactions[] = [
                     'tanggal' => $trx['tanggal'],
                     'keterangan' => $trx['keterangan'],
-                    'masuk' => (int)$trx['masuk'],
-                    'keluar' => (int)$trx['keluar'],
+                    'debit' => (int)$trx['debit'],
+                    'kredit' => (int)$trx['kredit'],
+                    'masuk' => (int)$trx['debit'], // Alias untuk kompatibilitas frontend
+                    'keluar' => (int)$trx['kredit'], // Alias untuk kompatibilitas frontend
                     'saldo' => $saldo_berjalan
                 ];
             }
 
-            $saldo_akhir = $saldo_awal + $total_masuk - $total_keluar;
+            $saldo_akhir = $saldo_awal + $total_debit - $total_kredit;
 
             $response_data = [
                 'item_info' => $item_info,
                 'summary' => [
                     'saldo_awal' => $saldo_awal,
-                    'total_masuk' => $total_masuk,
-                    'total_keluar' => $total_keluar,
+                    'total_debit' => $total_debit,
+                    'total_kredit' => $total_kredit,
+                    'total_masuk' => $total_debit, // Alias untuk kompatibilitas frontend
+                    'total_keluar' => $total_kredit, // Alias untuk kompatibilitas frontend
                     'saldo_akhir' => $saldo_akhir
                 ],
                 'transactions' => $transactions
@@ -286,7 +291,7 @@ try {
 
                 $stokSebelum = (int)$item['stok'];
                 $hargaBeli = (float)$item['harga_beli'];
-                $inventoryAccountId = $item['inventory_account_id'] ?: get_setting('default_inventory_account');
+                $inventoryAccountId = $item['inventory_account_id'] ?: get_setting('default_inventory_account_id');
 
                 if (empty($inventoryAccountId)) {
                     throw new Exception("Akun persediaan untuk barang ini belum diatur. Silakan atur di halaman edit barang atau di Pengaturan > Akuntansi.");
@@ -311,16 +316,16 @@ try {
 
                 if ($selisihNilai < 0) { // Pengurangan Stok
                     add_journal_line($journalId, $adjAccountId, abs($selisihNilai), $zero_val);
-                    update_general_ledger($conn, $userId, $adjAccountId, $tanggal, abs($selisihNilai), $zero_val, $keteranganJurnal, $nomorReferensi, $journalId);
+                    update_general_ledger($conn, $user_id, $adjAccountId, $tanggal, abs($selisihNilai), $zero_val, $keteranganJurnal, $nomorReferensi, $journalId);
 
                     add_journal_line($journalId, $inventoryAccountId, $zero_val, abs($selisihNilai));
-                    update_general_ledger($conn, $userId, $inventoryAccountId, $tanggal, $zero_val, abs($selisihNilai), $keteranganJurnal, $nomorReferensi, $journalId);
+                    update_general_ledger($conn, $user_id, $inventoryAccountId, $tanggal, $zero_val, abs($selisihNilai), $keteranganJurnal, $nomorReferensi, $journalId);
                 } else { // Penambahan Stok
                     add_journal_line($journalId, $inventoryAccountId, $selisihNilai, $zero_val);
-                    update_general_ledger($conn, $userId, $inventoryAccountId, $tanggal, $selisihNilai, $zero_val, $keteranganJurnal, $nomorReferensi, $journalId);
+                    update_general_ledger($conn, $user_id, $inventoryAccountId, $tanggal, $selisihNilai, $zero_val, $keteranganJurnal, $nomorReferensi, $journalId);
 
                     add_journal_line($journalId, $adjAccountId, $zero_val, $selisihNilai);
-                    update_general_ledger($conn, $userId, $adjAccountId, $tanggal, $zero_val, $selisihNilai, $keteranganJurnal, $nomorReferensi, $journalId);
+                    update_general_ledger($conn, $user_id, $adjAccountId, $tanggal, $zero_val, $selisihNilai, $keteranganJurnal, $nomorReferensi, $journalId);
                 }
 
                 // 4. Update stok di tabel items
@@ -334,10 +339,10 @@ try {
                 $stmt->execute();
 
                 // 6. Catat ke kartu stok
-                $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
-                $jenis_ks = $selisihKuantitas > 0 ? 'Masuk' : 'Keluar';
-                $jumlah_ks = abs($selisihKuantitas);
-                $stmt_ks->bind_param('siisisi', $tanggal, $itemId, $jenis_ks, $jumlah_ks, $keteranganJurnal, $journalId, $userId);
+                $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
+                $debit = $selisihKuantitas > 0 ? $selisihKuantitas : 0;
+                $kredit = $selisihKuantitas < 0 ? abs($selisihKuantitas) : 0;
+                $stmt_ks->bind_param('siiisii', $tanggal, $itemId, $debit, $kredit, $keteranganJurnal, $journalId, $userId);
                 $stmt_ks->execute();
                 $stmt_ks->close();
 
@@ -374,7 +379,7 @@ try {
                 $itemStmt = $conn->prepare("SELECT stok, harga_beli, inventory_account_id FROM items WHERE id = ? AND user_id = ? FOR UPDATE");
                 $updateStmt = $conn->prepare("UPDATE items SET stok = ? WHERE id = ?");
                 $historyStmt = $conn->prepare("INSERT INTO stock_adjustments (item_id, user_id, journal_id, tanggal, stok_sebelum, stok_setelah, selisih_kuantitas, selisih_nilai, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $kartuStokStmt = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
+                $kartuStokStmt = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
 
                 // Variabel untuk menampung rekapitulasi total untuk general ledger
                 $ledgerTotals = [];
@@ -399,7 +404,7 @@ try {
 
                     $hargaBeli = (float)$item['harga_beli'];
                     $selisihNilai = $selisihKuantitas * $hargaBeli;
-                    $inventoryAccountId = $item['inventory_account_id'] ?: get_setting('default_inventory_account');
+                    $inventoryAccountId = $item['inventory_account_id'] ?: get_setting('default_inventory_account_id');
 
                     if (empty($inventoryAccountId)) throw new Exception("Akun persediaan untuk salah satu barang belum diatur.");
 
@@ -432,10 +437,10 @@ try {
                     $historyStmt->execute();
 
                     // 5. Catat ke kartu stok
-                    $jenis_ks = $selisihKuantitas > 0 ? 'Masuk' : 'Keluar';
-                    $jumlah_ks = abs($selisihKuantitas);
+                    $debit = $selisihKuantitas > 0 ? $selisihKuantitas : 0;
+                    $kredit = $selisihKuantitas < 0 ? abs($selisihKuantitas) : 0;
                     $keterangan_ks = "Stok Opname Batch: " . $keterangan;
-                    $kartuStokStmt->bind_param('siisisi', $tanggal, $itemId, $jenis_ks, $jumlah_ks, $keterangan_ks, $journalId, $userId);
+                    $kartuStokStmt->bind_param('siiisii', $tanggal, $itemId, $debit, $kredit, $keterangan_ks, $journalId, $userId);
                     $kartuStokStmt->execute();
                 }
 
@@ -447,7 +452,7 @@ try {
                     // Jika sebuah akun memiliki total debit dan kredit (jarang terjadi dalam skenario ini, tapi untuk keamanan),
                     // buat dua baris GL terpisah. Namun, untuk stok opname, satu akun hanya akan didebit atau dikredit.
                     if ($debit > 0 || $credit > 0) {
-                        update_general_ledger($conn, $userId, $accountId, $tanggal, $debit, $credit, $keteranganJurnal, $nomorReferensi, $journalId);
+                        update_general_ledger($conn, $user_id, $accountId, $tanggal, $debit, $credit, $keteranganJurnal, $nomorReferensi, $journalId);
                     }
                 }
 
@@ -492,10 +497,10 @@ try {
                 throw new Exception("Akun Penyeimbang Saldo Awal wajib dipilih.");
             }
             // Tambahan: Validasi bahwa akun persediaan default sudah diatur
-            $defaultInventoryAccountId = get_setting('default_inventory_account', null, $conn);
+            $defaultInventoryAccountId = get_setting('default_inventory_account_id', null, $conn);
             if (empty($defaultInventoryAccountId)) {
                 throw new Exception("Akun Persediaan Default belum diatur. Silakan atur di Pengaturan > Akuntansi sebelum melakukan impor.");
-            }
+            } 
 
             $tanggal_import = date('Y-m-d'); // Gunakan tanggal hari ini untuk penyesuaian
 
@@ -509,14 +514,14 @@ try {
             // 1. Buat satu Jurnal Induk untuk seluruh proses impor
             $keterangan_impor = "Penyesuaian Saldo Awal dari Impor CSV";
             // Argumen ke-3 adalah user_id pemilik data (selalu 1), argumen ke-4 adalah user yang login
-            $journalId = create_journal_entry($tanggal_import, $keterangan_impor, 1, $user_id);
+            $journalId = create_journal_entry($tanggal_import, $keterangan_impor, 1, $logged_in_user_id);
             $nomorReferensi = "IMP-" . $journalId;
 
             $processed = 0;
             $errors = [];
 
             // Siapkan statement untuk kartu stok
-            $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'import', ?)");
+            $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'import', ?)");
 
             $ledgerTotals = []; // Array untuk rekapitulasi ke General Ledger
 
@@ -620,9 +625,9 @@ try {
                     $stmt_update->execute();
 
                     // Catat ke kartu stok sebagai saldo awal/penyesuaian
-                    $jenis_ks = $selisih_kuantitas > 0 ? 'Masuk' : 'Keluar';
-                    $jumlah_ks = abs($selisih_kuantitas);
-                    $stmt_ks->bind_param('siisisi', $tanggal_import, $item_id, $jenis_ks, $jumlah_ks, $keterangan_impor, $journalId, $user_id);
+                    $debit = $selisih_kuantitas > 0 ? $selisih_kuantitas : 0;
+                    $kredit = $selisih_kuantitas < 0 ? abs($selisih_kuantitas) : 0;
+                    $stmt_ks->bind_param('siiisii', $tanggal_import, $item_id, $debit, $kredit, $keterangan_impor, $journalId, $logged_in_user_id);
                     $stmt_ks->execute();
                 } 
 

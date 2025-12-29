@@ -9,8 +9,8 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id']; // Menggunakan ID pengguna yang sedang login
-$logged_in_user_id = $_SESSION['user_id'];
+$user_id = 1; // ID Pemilik Data (Toko)
+$logged_in_user_id = $_SESSION['user_id']; // Actor
 
 try {
     $action = $_REQUEST['action'] ?? '';

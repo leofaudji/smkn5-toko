@@ -6,6 +6,7 @@ $is_spa_request = isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_
 if (!$is_spa_request) {
     require_once PROJECT_ROOT . '/views/header.php';
 }
+
 ?>
 
                 <!-- Dashboard Header & Filters -->
@@ -107,12 +108,14 @@ if (!$is_spa_request) {
                         <h6 class="font-semibold text-gray-700">Tambah Transaksi</h6>
                     </a>
                     
+                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                     <a href="<?= base_url('/entri-jurnal') ?>" class="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow text-center group">
                         <div class="w-12 h-12 mx-auto bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mb-3 group-hover:bg-yellow-500 group-hover:text-white transition-colors">
                             <i class="bi bi-journal-plus text-2xl"></i>
                         </div>
                         <h6 class="font-semibold text-gray-700">Buat Jurnal Umum</h6>
                     </a>
+                    <?php endif; ?>
 
                     <a href="<?= base_url('/konsinyasi') ?>" class="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow text-center group">
                         <div class="w-12 h-12 mx-auto bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -128,12 +131,14 @@ if (!$is_spa_request) {
                         <h6 class="font-semibold text-gray-700">Lihat Laporan</h6>
                     </a>
 
+                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                     <a href="<?= base_url('/coa') ?>" class="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow text-center group">
                         <div class="w-12 h-12 mx-auto bg-gray-100 text-gray-600 rounded-full flex items-center justify-center mb-3 group-hover:bg-gray-600 group-hover:text-white transition-colors">
                             <i class="bi bi-journal-bookmark-fill text-2xl"></i>
                         </div>
                         <h6 class="font-semibold text-gray-700">Bagan Akun (COA)</h6>
                     </a>
+                    <?php endif; ?>
                 </div>
 
             

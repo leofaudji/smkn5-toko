@@ -9,7 +9,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id'];
+$user_id = 1; // ID Pemilik Data (Toko)
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {

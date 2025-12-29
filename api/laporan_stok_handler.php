@@ -9,7 +9,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id'];
+$user_id = 1; // ID Pemilik Data (Toko)
 
 try {
     $start_date = $_GET['start_date'] ?? null;
@@ -34,25 +34,17 @@ try {
     $stmt_stok_awal = $conn->prepare("
         SELECT 
             (
-                COALESCE((SELECT SUM(jumlah) FROM kartu_stok WHERE item_id = ? AND tanggal < ? AND jenis = 'Masuk'), 0)
-                -
-                COALESCE((SELECT SUM(jumlah) FROM kartu_stok WHERE item_id = ? AND tanggal < ? AND jenis = 'Keluar'), 0)
-                +
-                COALESCE((SELECT SUM(selisih_kuantitas) FROM stock_adjustments WHERE item_id = ? AND tanggal < ?), 0)
+                COALESCE((SELECT SUM(debit - kredit) FROM kartu_stok WHERE item_id = ? AND tanggal < ?), 0)
             ) as stok_awal
     ");
 
     $stmt_pergerakan = $conn->prepare("
         SELECT 
             (
-                COALESCE((SELECT SUM(jumlah) FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ? AND jenis = 'Masuk'), 0)
-                +
-                COALESCE((SELECT SUM(selisih_kuantitas) FROM stock_adjustments WHERE item_id = ? AND tanggal BETWEEN ? AND ? AND selisih_kuantitas > 0), 0)
+                COALESCE((SELECT SUM(debit) FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ?), 0)
             ) AS masuk,
             (
-                COALESCE((SELECT SUM(jumlah) FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ? AND jenis = 'Keluar'), 0)
-                +
-                COALESCE((SELECT SUM(ABS(selisih_kuantitas)) FROM stock_adjustments WHERE item_id = ? AND tanggal BETWEEN ? AND ? AND selisih_kuantitas < 0), 0)
+                COALESCE((SELECT SUM(kredit) FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ?), 0)
             ) AS keluar
     ");
 
@@ -60,12 +52,12 @@ try {
         $item_id = $item['id'];
 
         // 2. Hitung Stok Awal
-        $stmt_stok_awal->bind_param("isisis", $item_id, $start_date, $item_id, $start_date, $item_id, $start_date);
+        $stmt_stok_awal->bind_param("is", $item_id, $start_date);
         $stmt_stok_awal->execute();
         $stok_awal = (int)$stmt_stok_awal->get_result()->fetch_assoc()['stok_awal'];
 
         // 3. Hitung Pergerakan Stok (Masuk & Keluar) dalam periode
-        $stmt_pergerakan->bind_param("ississississ", $item_id, $start_date, $end_date, $item_id, $start_date, $end_date, $item_id, $start_date, $end_date, $item_id, $start_date, $end_date);
+        $stmt_pergerakan->bind_param("ississ", $item_id, $start_date, $end_date, $item_id, $start_date, $end_date);
         $stmt_pergerakan->execute();
         $pergerakan = $stmt_pergerakan->get_result()->fetch_assoc();
         

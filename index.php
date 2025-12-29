@@ -82,6 +82,8 @@ $router->get('/laporan-harian', 'pages/laporan_harian.php', ['auth']);
 $router->get('/buku-besar', 'pages/buku_besar.php', ['auth']);
 $router->get('/settings', 'pages/settings.php', ['auth']);
 $router->get('/users', 'pages/users.php', ['auth', 'admin']); // Halaman manajemen pengguna
+$router->get('/roles', 'pages/roles.php', ['auth', 'admin']);
+$router->post('/roles', 'pages/roles.php', ['auth', 'admin']);
 
 // --- Rute API (Untuk proses data via AJAX) ---
 // Rute ini akan dipanggil oleh JavaScript untuk mendapatkan, menambah, mengubah, dan menghapus data tanpa reload halaman.

@@ -10,7 +10,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id'];
+$user_id = 1; // ID Pemilik Data (Toko)
 
 $tahun = (int)($_GET['tahun'] ?? date('Y'));
 $view_mode = $_GET['view_mode'] ?? 'monthly';

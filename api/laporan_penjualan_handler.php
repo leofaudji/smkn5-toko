@@ -9,7 +9,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id'];
+$user_id = 1; // ID Pemilik Data (Toko)
 
 try {
     $limit = (int)($_GET['limit'] ?? 15);
@@ -51,7 +51,7 @@ try {
         FROM penjualan p
         LEFT JOIN penjualan_details pd ON p.id = pd.penjualan_id
         LEFT JOIN items i ON pd.item_id = i.id
-        LEFT JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.created_by = u.id
         $summary_where_sql
     ");
     $bind_params_summary = [&$params[0]];
@@ -63,7 +63,7 @@ try {
     $summary_stmt->close();
 
     // Get total count for pagination
-    $total_stmt = $conn->prepare("SELECT COUNT(p.id) as total FROM penjualan p JOIN users u ON p.user_id = u.id $where_sql");
+    $total_stmt = $conn->prepare("SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id $where_sql");
     $bind_params_total = [&$params[0]];
     for ($i = 1; $i < count($params); $i++) { $bind_params_total[] = &$params[$i]; }
     call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
@@ -83,7 +83,7 @@ try {
             u.username,
             (p.total - COALESCE(cogs.total_hpp, 0)) as profit
         FROM penjualan p
-        JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.created_by = u.id
         LEFT JOIN (
             SELECT pd.penjualan_id, SUM(pd.quantity * i.harga_beli) as total_hpp
             FROM penjualan_details pd

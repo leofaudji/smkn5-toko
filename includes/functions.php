@@ -401,3 +401,99 @@ function check_period_lock($date_to_check, $conn) {
         }
     }
 }
+
+/**
+ * Memeriksa apakah pengguna yang sedang login memiliki permission tertentu.
+ *
+ * @param string $permission_slug Slug dari permission yang akan dicek.
+ * @return bool True jika punya akses, false jika tidak.
+ */
+function has_permission($permission_slug) {
+    // Jika role adalah 'Admin' (case-insensitive), selalu berikan akses (superuser).
+    if (isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin') {
+        return true;
+    }
+    
+    // Jika tidak ada daftar permission di session, berarti tidak punya akses.
+    if (!isset($_SESSION['permissions']) || !is_array($_SESSION['permissions'])) {
+        return false;
+    }
+        
+    // Cek apakah slug permission ada di dalam array permission milik user.
+    return in_array($permission_slug, $_SESSION['permissions']);
+}
+
+
+/**
+ * Memeriksa hak akses pengguna (Role atau Menu) dan menangani penolakan akses.
+ *
+ * @param string|array $required Izin yang dibutuhkan (Role atau Menu Key).
+ * @param string $type Tipe pemeriksaan: 'role' (default) atau 'menu'.
+ * @return void Jika akses ditolak, fungsi ini akan menghentikan eksekusi skrip.
+ */
+function check_permission($required, $type = 'role') {
+    $has_access = false;
+
+    // 1. Admin selalu punya akses (Superuser)
+    if ((isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin') || (isset($_SESSION['role_id']) && $_SESSION['role_id'] == 1)) {
+        $has_access = true;
+    }
+
+    if (!$has_access) {
+        if ($type === 'role') {
+            // Logika pemeriksaan Role
+            $required_roles = is_array($required) ? $required : [$required];
+            $required_roles = array_map('strtolower', $required_roles);
+            
+            if (isset($_SESSION['role']) && in_array(strtolower($_SESSION['role']), $required_roles)) {
+                $has_access = true;
+            }
+        } elseif ($type === 'menu') {
+            // Logika pemeriksaan Menu
+            $menu_key = $required;
+            $role_id = $_SESSION['role_id'] ?? null;
+
+            // Fallback role_id jika belum ada di session
+            if (!$role_id && isset($_SESSION['username'])) {
+                $conn = Database::getInstance()->getConnection();
+                $stmt = $conn->prepare("SELECT role_id FROM users WHERE username = ?");
+                $stmt->bind_param("s", $_SESSION['username']);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($row = $res->fetch_assoc()) {
+                    $role_id = $row['role_id'];
+                    $_SESSION['role_id'] = $role_id;
+                }
+            }
+
+            if ($role_id) {
+                $conn = Database::getInstance()->getConnection();
+                $stmt = $conn->prepare("SELECT COUNT(*) as count FROM role_menus WHERE role_id = ? AND menu_key = ?");
+                $stmt->bind_param("is", $role_id, $menu_key);
+                $stmt->execute();
+                $count = $stmt->get_result()->fetch_assoc()['count'];
+                if ($count > 0) {
+                    $has_access = true;
+                }
+            }
+        }
+    }
+
+    if (!$has_access) {
+        $is_spa_request = isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_REQUEST'] === 'true';
+        
+        if (strpos($_SERVER['REQUEST_URI'], '/api/') !== false) {
+            http_response_code(403);
+
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Akses ditolak. Anda tidak memiliki izin untuk menu ini.']);
+            exit;
+        }
+
+        require PROJECT_ROOT . '/pages/403.php';
+        if (!$is_spa_request) {
+            require_once PROJECT_ROOT . '/views/footer.php';
+        }
+        exit;
+    }
+}

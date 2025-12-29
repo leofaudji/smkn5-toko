@@ -5,13 +5,7 @@ if (!$is_spa_request) {
 }
 
 // Security check
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    echo '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-3" role="alert"><p>Akses ditolak. Anda harus menjadi Admin untuk melihat halaman ini.</p></div>';
-    if (!$is_spa_request) {
-        require_once PROJECT_ROOT . '/views/footer.php';
-    }
-    return; // Stop rendering
-}
+check_permission('settings', 'menu');
 ?>
 
 <div class="flex justify-between flex-wrap items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">

@@ -9,3 +9,13 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule . index.php [L]
 </IfModule>
+
+Options -Indexes
+
+# Arahkan error 403 (Forbidden) ke halaman kustom
+ErrorDocument 403 /smkn5-toko/403.php
+
+# Blokir akses ke semua file yang diawali dengan titik (seperti .env, .git, .htaccess)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

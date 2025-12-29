@@ -3,6 +3,9 @@ $is_spa_request = isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_
 if (!$is_spa_request) {
     require_once PROJECT_ROOT . '/views/header.php';
 }
+
+// Security check
+check_permission('penjualan', 'menu');
 ?>
 <div class="flex flex-col sm:flex-row items-center justify-between mb-6">
     <h1 class="text-2xl font-bold text-gray-800 dark:text-white mb-4 sm:mb-0">Transaksi Penjualan</h1>

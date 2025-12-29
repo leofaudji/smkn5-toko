@@ -509,23 +509,23 @@ CHANGE COLUMN `deskripsi` `deskripsi` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE
 ALTER TABLE `pembelian_details`
 ADD CONSTRAINT `pembelian_details_fk_item` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`) ON DELETE SET NULL;
 
-CREATE TABLE `stock_adjustments` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `item_id` int(11) NOT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `journal_id` int(11) DEFAULT NULL,
-  `tanggal` date NOT NULL,
-  `stok_sebelum` int(11) NOT NULL,
-  `stok_setelah` int(11) NOT NULL,
-  `selisih_kuantitas` int(11) NOT NULL,
-  `selisih_nilai` decimal(15,2) NOT NULL,
-  `keterangan` text DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `item_id` (`item_id`),
-  KEY `user_id` (`user_id`),
-  KEY `journal_id` (`journal_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  CREATE TABLE `stock_adjustments` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `item_id` int(11) NOT NULL,
+    `user_id` int(11) DEFAULT NULL,
+    `journal_id` int(11) DEFAULT NULL,
+    `tanggal` date NOT NULL,
+    `stok_sebelum` int(11) NOT NULL,
+    `stok_setelah` int(11) NOT NULL,
+    `selisih_kuantitas` int(11) NOT NULL,
+    `selisih_nilai` decimal(15,2) NOT NULL,
+    `keterangan` text DEFAULT NULL,
+    `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+    PRIMARY KEY (`id`),
+    KEY `item_id` (`item_id`),
+    KEY `user_id` (`user_id`),
+    KEY `journal_id` (`journal_id`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 ALTER TABLE general_ledger
 ADD UNIQUE INDEX `idx_user_account_date` (`user_id`, `account_id`, `tanggal`);
@@ -618,8 +618,8 @@ CREATE TABLE `kartu_stok` (
   `user_id` int(11) NOT NULL,
   `item_id` int(11) NOT NULL,
   `tanggal` datetime NOT NULL,
-  `jenis` enum('Masuk','Keluar') NOT NULL,
-  `jumlah` int(11) NOT NULL,
+  `debit` int(11) NOT NULL DEFAULT 0,
+  `kredit` int(11) NOT NULL DEFAULT 0,
   `keterangan` text DEFAULT NULL,
   `ref_id` int(11) DEFAULT NULL COMMENT 'ID referensi transaksi (misal: id penjualan)',
   `source` varchar(50) DEFAULT NULL COMMENT 'Sumber transaksi (misal: penjualan, pembelian)',
@@ -631,3 +631,104 @@ CREATE TABLE `kartu_stok` (
   CONSTRAINT `fk_kartu_stok_items` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_kartu_stok_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- Sistem Role dan Permission
+CREATE TABLE `roles` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL,        -- Contoh: 'Admin', 'Kasir', 'Manager'
+  `description` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `permissions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `slug` varchar(50) NOT NULL,        -- Contoh: 'transaksi.create', 'laporan.view'
+  `name` varchar(100) NOT NULL,       -- Contoh: 'Membuat Transaksi Baru'
+  `description` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `role_permissions` (
+  `role_id` int(11) NOT NULL,
+  `permission_id` int(11) NOT NULL,
+  PRIMARY KEY (`role_id`,`permission_id`),
+  CONSTRAINT `fk_rp_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_rp_permission` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tambah kolom role_id
+ALTER TABLE `users` ADD COLUMN `role_id` int(11) DEFAULT NULL AFTER `password`;
+
+-- Tambah Foreign Key
+ALTER TABLE `users` ADD CONSTRAINT `fk_users_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE SET NULL;
+
+-- 1. Buat Role
+INSERT INTO `roles` (`id`, `name`, `description`) VALUES
+(1, 'Admin', 'Administrator dengan akses penuh'),
+(2, 'Kasir', 'Staff yang menangani transaksi harian'),
+(3, 'Manager', 'Melihat laporan dan analisis');
+
+-- 2. Buat Permissions
+INSERT INTO `permissions` (`id`, `slug`, `name`) VALUES
+(1, 'transaksi.create', 'Membuat Transaksi'),
+(2, 'transaksi.view', 'Melihat Riwayat Transaksi'),
+(3, 'laporan.view', 'Melihat Laporan Keuangan'),
+(4, 'settings.manage', 'Mengelola Pengaturan Aplikasi'),
+(5, 'users.manage', 'Mengelola Pengguna');
+
+-- 3. Hubungkan Role dengan Permission
+-- Admin (ID 1) punya semua akses
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES 
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5);
+
+-- Kasir (ID 2) hanya bisa transaksi
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES 
+(2, 1), (2, 2);
+
+-- Manager (ID 3) hanya bisa lihat laporan & transaksi
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES 
+(3, 2), (3, 3);
+
+-- Set role_id for default users to match the new system
+UPDATE `users` SET `role_id` = 1 WHERE `username` = 'admin';
+
+-- Menambahkan permission untuk setiap menu/grup menu
+INSERT INTO `permissions` (`slug`, `name`, `description`) VALUES
+('menu.view.transaksi', 'Lihat Menu: Transaksi', 'Memberi akses untuk melihat grup menu Transaksi'),
+('menu.view.akuntansi', 'Lihat Menu: Akuntansi', 'Memberi akses untuk melihat grup menu Akuntansi'),
+('menu.view.stok', 'Lihat Menu: Stok & Inventaris', 'Memberi akses untuk melihat grup menu Stok & Inventaris'),
+('menu.view.laporan', 'Lihat Menu: Laporan', 'Memberi akses untuk melihat grup menu Laporan'),
+('menu.view.tools', 'Lihat Menu: Alat & Proses', 'Memberi akses untuk melihat grup menu Alat & Proses'),
+('menu.view.administrasi', 'Lihat Menu: Administrasi', 'Memberi akses untuk melihat grup menu Administrasi'),
+('menu.view.users', 'Lihat Sub-Menu: Users', 'Memberi akses untuk melihat sub-menu Users'),
+('menu.view.roles', 'Lihat Sub-Menu: Roles', 'Memberi akses untuk melihat sub-menu Manajemen Role'),
+('menu.view.activity-log', 'Lihat Sub-Menu: Log Aktivitas', 'Memberi akses untuk melihat sub-menu Log Aktivitas'),
+('menu.view.tutup-buku', 'Lihat Sub-Menu: Tutup Buku', 'Memberi akses untuk melihat sub-menu Tutup Buku'),
+('menu.view.settings', 'Lihat Sub-Menu: Pengaturan', 'Memberi akses untuk melihat sub-menu Pengaturan');
+
+-- Query ini mengasumsikan ID role 'Admin' adalah 1 dan ID permission baru dimulai dari 6.
+-- Sesuaikan jika ID-nya berbeda.
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
+(1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16);
+
+-- Beri role Kasir (ID 2) hak akses untuk melihat menu Transaksi agar menu muncul di sidebar
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) 
+SELECT 2, id FROM permissions WHERE slug = 'menu.view.transaksi' AND NOT EXISTS (SELECT 1 FROM role_permissions WHERE role_id = 2 AND permission_id = (SELECT id FROM permissions WHERE slug = 'menu.view.transaksi'));
+
+-- Hapus tabel role_menus lama
+DROP TABLE IF EXISTS `role_menus`;
+
+-- Buat tabel role_menus baru dengan menu_key (varchar)
+CREATE TABLE `role_menus` (
+  `role_id` int(11) NOT NULL,
+  `menu_key` varchar(100) NOT NULL,
+  PRIMARY KEY (`role_id`, `menu_key`),
+  CONSTRAINT `fk_role_menus_role_v2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- (Opsional) Anda bisa menghapus tabel 'menus' jika sudah tidak dipakai
+-- DROP TABLE IF EXISTS `menus`;
+

@@ -1,119 +1,182 @@
+/**
+ * Inisialisasi halaman Manajemen Pengguna
+ */
 function initUsersPage() {
-    const tableBody = document.getElementById('users-table-body');
-    const form = document.getElementById('user-form');
-    const saveBtn = document.getElementById('save-user-btn');
+    const usersTableBody = document.getElementById('users-table-body');
+    const userModal = document.getElementById('userModal');
+    const userForm = document.getElementById('user-form');
+    const modalLabel = document.getElementById('userModalLabel');
+    const userIdInput = document.getElementById('user-id');
+    const passwordHelp = document.getElementById('password-help');
     const addUserBtn = document.getElementById('add-user-btn');
+    const saveUserBtn = document.getElementById('save-user-btn');
 
-    if (!tableBody) return;
+    // Pastikan elemen ada sebelum melanjutkan (penting untuk SPA)
+    if (!usersTableBody || !userForm) return;
 
-    async function loadUsers() {
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>';
-        try {
-            const response = await fetch(`${basePath}/api/users`);
-            const result = await response.json();
-            if (result.status !== 'success') throw new Error(result.message);
-
-            tableBody.innerHTML = '';
-            if (result.data.length > 0) {
-                result.data.forEach(user => {
-                    const roleBadge = user.role === 'admin' 
-                        ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-200">Admin</span>`
-                        : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-800/20 dark:text-blue-200">User</span>`;
-
-                    const row = `
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${user.username}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${user.nama_lengkap || '-'}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">${roleBadge}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${new Date(user.created_at).toLocaleDateString('id-ID', { dateStyle: 'long' })}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div class="flex items-center justify-end space-x-4">
-                                    <button class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 edit-btn" data-id="${user.id}" title="Edit"><i class="bi bi-pencil-fill"></i></button>
-                                    <button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-btn" data-id="${user.id}" data-username="${user.username}" title="Hapus"><i class="bi bi-trash-fill"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                    tableBody.insertAdjacentHTML('beforeend', row);
-                });
-            } else {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500">Tidak ada pengguna ditemukan.</td></tr>';
-            }
-        } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-red-500">Gagal memuat data: ${error.message}</td></tr>`;
+    function loadUsers() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const roleIdFilter = urlParams.get('role_id');
+        let apiUrl = `${basePath}/api/users`;
+        if (roleIdFilter) {
+            apiUrl += `?role_id=${roleIdFilter}`;
         }
+
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    usersTableBody.innerHTML = '';
+                    if (data.success && data.data.length > 0) {
+                        data.data.forEach(user => {
+                            const roleHtml = user.role_id
+                                ? `<a href="${basePath}/users?role_id=${user.role_id}" class="text-primary hover:underline" title="Filter berdasarkan role ini">${user.role_name || 'N/A'}</a>`
+                                : '<span class="text-gray-400">N/A</span>';
+
+                            // Menggunakan class 'edit-user-btn' dan 'delete-user-btn' untuk event delegation
+                            const row = `
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${user.username}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${user.nama_lengkap || ''}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${roleHtml}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${new Date(user.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3 edit-user-btn" data-id="${user.id}">Edit</button>
+                                        ${user.id != 1 ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-user-btn" data-id="${user.id}">Hapus</button>` : ''}
+                                    </td>
+                                </tr>
+                            `;
+                            usersTableBody.insertAdjacentHTML('beforeend', row);
+                        });
+                    } else {
+                        usersTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-5 text-gray-500">${data.message || 'Tidak ada data pengguna.'}</td></tr>`;
+                    }
+                } catch (e) {
+                    console.error("Gagal mem-parsing JSON:", e);
+                    console.error("Respons mentah dari server:", text);
+                    usersTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-5 text-red-500">Error parsing data.</td></tr>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching users:', error);
+                usersTableBody.innerHTML = '<tr><td colspan="5" class="text-center p-5 text-red-500">Gagal memuat data. Periksa konsol browser (F12) untuk detail.</td></tr>';
+            });
     }
 
-    saveBtn.addEventListener('click', async () => {
-        const formData = new FormData(form);
-        const originalBtnHtml = saveBtn.innerHTML;
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menyimpan...`;
-
-        try {
-            const response = await fetch(`${basePath}/api/users`, { method: 'POST', body: formData });
-            const result = await response.json();
-            showToast(result.message, result.status === 'success' ? 'success' : 'error');
-            if (result.status === 'success') {
-                closeModal('userModal');
-                loadUsers();
-            }
-        } catch (error) {
-            showToast('Terjadi kesalahan jaringan.', 'error');
-        } finally {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalBtnHtml;
+    // Event Delegation untuk tombol Edit dan Hapus di dalam tabel
+    usersTableBody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('edit-user-btn')) {
+            const id = e.target.dataset.id;
+            editUser(id);
+        } else if (e.target.classList.contains('delete-user-btn')) {
+            const id = e.target.dataset.id;
+            deleteUser(id);
         }
     });
 
-    addUserBtn.addEventListener('click', () => {
-        document.getElementById('userModalLabel').textContent = 'Tambah Pengguna Baru';
-        form.reset();
-        document.getElementById('user-id').value = '';
+    function openAddUserModal() {
+        userForm.reset();
+        userIdInput.value = '';
         document.getElementById('user-action').value = 'add';
-        document.getElementById('password').setAttribute('placeholder', 'Wajib diisi untuk pengguna baru');
-        document.getElementById('password-help').textContent = '';
+        modalLabel.textContent = 'Tambah Pengguna Baru';
+        document.getElementById('password').setAttribute('required', 'required');
+        passwordHelp.classList.add('hidden');
         openModal('userModal');
-    });
+    }
 
-    tableBody.addEventListener('click', async (e) => {
-        const editBtn = e.target.closest('.edit-btn');
-        if (editBtn) {
-            const id = editBtn.dataset.id;
-            const formData = new FormData();
-            formData.append('action', 'get_single');
-            formData.append('id', id);
-            const response = await fetch(`${basePath}/api/users`, { method: 'POST', body: formData });
-            const result = await response.json();
-            if (result.status === 'success') {
-                document.getElementById('userModalLabel').textContent = 'Edit Pengguna';
-                form.reset();
-                const user = result.data;
-                document.getElementById('user-id').value = user.id;
-                document.getElementById('user-action').value = 'update';
-                document.getElementById('username').value = user.username;
-                document.getElementById('nama_lengkap').value = user.nama_lengkap;
-                document.getElementById('role').value = user.role;
-                document.getElementById('password').setAttribute('placeholder', 'Kosongkan jika tidak diubah');
-                document.getElementById('password-help').textContent = 'Kosongkan jika tidak ingin mengubah password.';
-                openModal('userModal');
-            }
-        }
+    function editUser(id) {
+        fetch(`${basePath}/api/users?id=${id}`)
+            .then(r => r.json()).then(res => {
+                if (res.success) {
+                    const user = res.data;
+                    userForm.reset();
+                    userIdInput.value = user.id;
+                    document.getElementById('user-action').value = 'edit';
+                    document.getElementById('username').value = user.username;
+                    document.getElementById('nama_lengkap').value = user.nama_lengkap || '';
+                    document.getElementById('role_id').value = user.role_id || ''; 
+                    document.getElementById('password').removeAttribute('required');
+                    passwordHelp.classList.remove('hidden');
+                    modalLabel.textContent = 'Edit Pengguna';
+                    openModal('userModal');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching single user:', error);
+                showToast('Gagal mengambil data pengguna untuk diedit.', 'error');
+            });
+    }
 
-        const deleteBtn = e.target.closest('.delete-btn');
-        if (deleteBtn) {
-            const { id, username } = deleteBtn.dataset;
-            if (confirm(`Yakin ingin menghapus pengguna "${username}"?`)) {
+    function saveUser() {
+        const formData = new FormData(userForm);
+        
+        // Disable button loading state
+        const originalBtnHtml = saveUserBtn.innerHTML;
+        saveUserBtn.disabled = true;
+        saveUserBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Menyimpan...`;
+
+        fetch(`${basePath}/api/users`, { method: 'POST', body: formData })
+            .then(r => r.json()).then(res => {
+                if (res.success) {
+                    closeModal('userModal');
+                    loadUsers();
+                    showToast('Pengguna berhasil disimpan.');
+                } else {
+                    showToast(res.message || 'Gagal menyimpan pengguna.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving user:', error);
+                showToast('Terjadi kesalahan saat menyimpan. Periksa konsol.', 'error');
+            })
+            .finally(() => {
+                saveUserBtn.disabled = false;
+                saveUserBtn.innerHTML = originalBtnHtml;
+            });
+    }
+
+    function deleteUser(id) {
+        Swal.fire({
+            title: 'Yakin ingin menghapus?',
+            text: "Aksi ini tidak dapat dibatalkan!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
                 const formData = new FormData();
                 formData.append('action', 'delete');
                 formData.append('id', id);
-                const response = await fetch(`${basePath}/api/users`, { method: 'POST', body: formData });
-                const result = await response.json();
-                showToast(result.message, result.status === 'success' ? 'success' : 'error');
-                if (result.status === 'success') loadUsers();
+                fetch(`${basePath}/api/users`, { method: 'POST', body: formData })
+                    .then(r => r.json()).then(res => {
+                        if (res.success) {
+                            loadUsers();
+                            showToast('Pengguna berhasil dihapus.');
+                        } else {
+                            showToast(res.message || 'Gagal menghapus pengguna.', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting user:', error);
+                        showToast('Terjadi kesalahan saat menghapus. Periksa konsol.', 'error');
+                    });
             }
-        }
-    });
+        });
+    }
 
+    // Attach Event Listeners
+    if (addUserBtn) addUserBtn.addEventListener('click', openAddUserModal);
+    if (saveUserBtn) saveUserBtn.addEventListener('click', saveUser);
+
+    // Load data awal
     loadUsers();
 }

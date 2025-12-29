@@ -17,7 +17,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 $conn = Database::getInstance()->getConnection();
 // Ambil user_id dari session yang sudah login.
 // Pastikan Anda menyimpan 'user_id' di dalam $_SESSION saat proses login.
-$user_id = $_SESSION['user_id'] ?? null;
+$user_id = 1; // ID Pemilik Data (Toko)
 
 $per_tanggal = $_GET['tanggal'] ?? date('Y-m-d');
 $include_closing = isset($_GET['include_closing']) && $_GET['include_closing'] === 'true';

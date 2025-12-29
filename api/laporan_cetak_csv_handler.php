@@ -22,7 +22,7 @@ require_once PROJECT_ROOT . '/includes/Repositories/LaporanRepository.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/PertumbuhanLabaReportBuilder.php';
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id'];
+$user_id = 1; // ID Pemilik Data (Toko)
 
 $report_type = $_GET['report'] ?? '';
 $format = $_GET['format'] ?? 'csv';

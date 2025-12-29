@@ -18,7 +18,12 @@ if (empty($username) || empty($password)) {
 
 try {
     $conn = Database::getInstance()->getConnection();
-    $stmt = $conn->prepare("SELECT id, username, password, role, nama_lengkap FROM users WHERE username = ?");
+    // MODIFIED: Join dengan tabel roles untuk mendapatkan nama role yang sebenarnya
+    $stmt = $conn->prepare("
+        SELECT u.id, u.username, u.password, u.nama_lengkap, u.role_id, r.name as role_name 
+        FROM users u 
+        LEFT JOIN roles r ON u.role_id = r.id 
+        WHERE u.username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -32,7 +37,9 @@ try {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'] ?? 'user';
         $_SESSION['nama_lengkap'] = $user['nama_lengkap'] ?? 'Pengguna';
-        $_SESSION['role'] = $user['role'] ?? 'user';
+        // MODIFIED: Gunakan role_name dari tabel roles, bukan kolom 'role' yang lama
+        // Pastikan lowercase agar sesuai dengan pengecekan di menu (misal: 'kasir')
+        $_SESSION['role'] = strtolower($user['role_name'] ?? 'user');
 
         // Handle "Remember Me"
         if (!empty($_POST['remember_me'])) {
@@ -58,6 +65,34 @@ try {
                 true // HttpOnly
             );
         }
+
+        // Ambil role_id user
+        $role_id = $user['role_id']; 
+
+        // Query untuk mengambil semua slug permission dari role tersebut
+        $stmt_perms = $conn->prepare("
+            SELECT p.slug 
+            FROM permissions p
+            JOIN role_permissions rp ON p.id = rp.permission_id
+            WHERE rp.role_id = ?
+        ");
+        $stmt_perms->bind_param('i', $role_id);
+        $stmt_perms->execute();
+        $result = $stmt_perms->get_result();
+
+        $permissions = [];
+        while ($row = $result->fetch_assoc()) {
+            $permissions[] = $row['slug'];
+        }
+        $stmt_perms->close();
+        
+        // Simpan daftar slug permission ke dalam session
+        $_SESSION['permissions'] = $permissions;
+
+        // Debugging: Catat role dan permissions yang dimuat ke log error
+        error_log("Login Success - User: " . $user['username']);
+        error_log("Role (Session): " . $_SESSION['role']);
+        error_log("Permissions loaded: " . implode(', ', $permissions));
 
         log_activity($user['username'], 'Login', 'Login berhasil.');
 

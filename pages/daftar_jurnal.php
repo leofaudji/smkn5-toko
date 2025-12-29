@@ -3,6 +3,9 @@ $is_spa_request = isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_
 if (!$is_spa_request) {
     require_once PROJECT_ROOT . '/views/header.php';
 }
+
+// Security check
+check_permission('daftar_jurnal', 'menu');
 ?>
 
 <div class="flex justify-between flex-wrap items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">

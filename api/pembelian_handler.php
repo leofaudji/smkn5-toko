@@ -9,12 +9,8 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id'] ?? null;
-if (!$user_id) {
-    http_response_code(403);
-    echo json_encode(['status' => 'error', 'message' => 'User ID tidak ditemukan di sesi.']);
-    exit;
-}
+$user_id = 1; // ID Pemilik Data (Toko)
+$logged_in_user_id = $_SESSION['user_id'];
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -192,7 +188,7 @@ try {
                         $inventory_account_id = $item_account['inventory_account_id'];
                     } else {
                         // Jika akun persediaan di item kosong, ambil dari pengaturan default
-                        $inventory_account_id = (int)get_setting('default_inventory_account', 0, $conn);
+                        $inventory_account_id = (int)get_setting('default_inventory_account_id', 0, $conn);
                     }
 
                     if (empty($inventory_account_id)) {
@@ -252,7 +248,7 @@ try {
                     );
                     $stmt_pembelian->bind_param(
                         'iissdsssii',
-                        $user_id, $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $status, $payment_method, $credit_account_id, $user_id
+                        $user_id, $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $status, $payment_method, $credit_account_id, $logged_in_user_id
                     );
                 }
                 
@@ -285,7 +281,7 @@ try {
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pembelian', ?)"
                 );
                 // Tambahkan statement untuk kartu stok
-                $stmt_kartu_stok = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (?, ?, 'Masuk', ?, ?, ?, 'pembelian', ?)");
+                $stmt_kartu_stok = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, 0, ?, ?, 'pembelian', ?)");
 
                 // Jurnal Sisi Debit (untuk setiap baris item)
                 $stmt_update_stock = $conn->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
@@ -313,13 +309,13 @@ try {
                     // Insert ke GL (Debit)
                     $zero = 0.00;
                     // Perbaiki bind_param untuk menyertakan nomor_referensi
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal_pembelian, $keterangan, $nomor_referensi, $inventory_account_id, $subtotal, $zero, $pembelian_id, $user_id);
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal_pembelian, $keterangan, $nomor_referensi, $inventory_account_id, $subtotal, $zero, $pembelian_id, $logged_in_user_id);
                     $stmt_gl->execute();
                 }
 
                 // Jurnal Sisi Kredit (satu kali untuk total)
                 // Perbaiki bind_param untuk menyertakan nomor_referensi
-                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal_pembelian, $keterangan, $nomor_referensi, $credit_account_id, $zero, $total_pembelian, $pembelian_id, $user_id);
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal_pembelian, $keterangan, $nomor_referensi, $credit_account_id, $zero, $total_pembelian, $pembelian_id, $logged_in_user_id);
                 $stmt_gl->execute();
 
                 $stmt_details->close();
@@ -364,7 +360,7 @@ try {
 
                 // Kembalikan stok
                 $stmt_revert_stock = $conn->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
-                $stmt_ks_void = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, jenis, jumlah, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, 'Keluar', ?, ?, ?, 'void_pembelian', ?)");
+                $stmt_ks_void = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, 0, ?, ?, ?, 'void_pembelian', ?)");
                 foreach ($items_to_revert as $item) {
                     $stmt_revert_stock->bind_param('iii', $item['quantity'], $item['item_id'], $user_id);
                     $stmt_revert_stock->execute();

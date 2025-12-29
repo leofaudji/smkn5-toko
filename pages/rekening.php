@@ -3,6 +3,9 @@ $is_spa_request = isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_
 if (!$is_spa_request) {
     require_once PROJECT_ROOT . '/views/header.php';
 }
+
+// Security check
+check_permission('admin');
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
