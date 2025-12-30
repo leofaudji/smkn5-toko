@@ -81,24 +81,6 @@ if (!$is_spa_request) {
                     </div>
                 </div>
 
-                <!-- Charts Section -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    <!-- Grafik Tren Arus Kas (Lebar 2 kolom) -->
-                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                        <h5 class="font-bold text-gray-800 mb-4">Tren Arus Kas (Tahun Ini)</h5>
-                        <div class="relative h-72 w-full">
-                            <canvas id="dashboard-trend-chart"></canvas>
-                        </div>
-                    </div>
-                    <!-- Grafik Kategori Pengeluaran (Lebar 1 kolom) -->
-                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                        <h5 class="font-bold text-gray-800 mb-4">Kategori Pengeluaran</h5>
-                        <div class="relative h-72 w-full flex justify-center">
-                            <canvas id="dashboard-expense-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Tombol Aksi Cepat (Grid Cards) -->
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
                     <a href="<?= base_url('/transaksi') ?>" class="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow text-center group">
@@ -139,6 +121,67 @@ if (!$is_spa_request) {
                         <h6 class="font-semibold text-gray-700">Bagan Akun (COA)</h6>
                     </a>
                     <?php endif; ?>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Grafik Tren Arus Kas (Lebar 2 kolom) --> 
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100" id="widget-profit_loss_trend">
+                        <h5 class="font-bold text-gray-800 mb-4">Tren Arus Kas (Tahun Ini)</h5>
+                        <div class="relative h-72 w-full">
+                            <canvas id="dashboard-trend-chart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Grafik Kategori Pengeluaran (Lebar 1 kolom) --> 
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100" id="widget-expense_category">
+                        <h5 class="font-bold text-gray-800 mb-4">Kategori Pengeluaran</h5>
+                        <div class="relative h-72 w-full flex justify-center">
+                            <canvas id="dashboard-expense-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Profit Growth & Balance Status -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Grafik Pertumbuhan Laba (Lebar 2 kolom) -->
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100" id="widget-profit_growth">
+                        <h5 class="font-bold text-gray-800 mb-4">Pertumbuhan Laba (Tahun Ini)</h5>
+                        <div class="relative h-72 w-full">
+                            <canvas id="dashboard-profit-growth-chart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Status Keseimbangan Neraca -->
+                    <div class="lg:col-span-1 bg-white rounded-xl shadow-sm p-6 border border-gray-100" id="widget-balance_status">
+                        <h5 class="font-bold text-gray-800 mb-4">Status Keseimbangan Neraca</h5>
+                        <div id="balance-status-content" class="flex items-center justify-center text-center h-full min-h-[150px]">
+                            <!-- Content will be populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Inventory Growth -->
+                <div class="grid grid-cols-1 gap-6 mb-8" id="widget-inventory_growth">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                        <h5 class="font-bold text-gray-800 mb-4">Pertumbuhan Nilai Persediaan</h5>
+                        <div class="relative h-72 w-full">
+                            <canvas id="dashboard-inventory-growth-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions (Full Width) -->
+                <div class="grid grid-cols-1 gap-6 mb-8">
+                    <!-- Tabel Transaksi Terbaru (lebar 2 kolom) -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100" id="widget-recent_transactions">
+                        <h5 class="font-bold text-gray-800 mb-4">Transaksi Terbaru</h5>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <tbody id="dashboard-recent-transactions">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
             

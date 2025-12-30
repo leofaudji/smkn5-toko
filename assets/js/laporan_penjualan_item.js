@@ -8,19 +8,23 @@ function initLaporanPenjualanItemPage() {
     const paginationInfo = document.getElementById('penjualan-item-pagination-info');
     const exportPdfBtn = document.getElementById('export-penjualan-item-pdf');
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const startDatePicker = flatpickr(startDateInput, commonOptions);
+    const endDatePicker = flatpickr(endDateInput, commonOptions);
+
     // Set default dates
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
-    endDateInput.value = today.toISOString().split('T')[0];
+    startDatePicker.setDate(firstDayOfMonth, true);
+    endDatePicker.setDate(today, true);
 
     const formatRupiah = (angka) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
     };
 
     async function loadReport(page = 1) {
-        const startDate = startDateInput.value;
-        const endDate = endDateInput.value;
+        const startDate = startDateInput.value.split('-').reverse().join('-');
+        const endDate = endDateInput.value.split('-').reverse().join('-');
         const sortBy = sortSelect.value;
 
         if (!startDate || !endDate) {
@@ -156,8 +160,8 @@ function initLaporanPenjualanItemPage() {
         e.preventDefault();
         const params = new URLSearchParams({
             report: 'laporan-penjualan-item',
-            start_date: startDateInput.value,
-            end_date: endDateInput.value,
+            start_date: startDateInput.value.split('-').reverse().join('-'),
+            end_date: endDateInput.value.split('-').reverse().join('-'),
             sort_by: sortSelect.value
         });
         const url = `${basePath}/api/pdf?${params.toString()}`;

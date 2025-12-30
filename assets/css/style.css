@@ -500,3 +500,13 @@ body.dark-mode .text-muted {
         margin: 0 1cm 1cm 1cm; /* Beri margin agar tidak terlalu mepet ke tepi kertas */
     }
 }
+
+.drill-down-link {
+    text-decoration: none;
+    color: inherit;
+}
+.drill-down-link:hover {
+    text-decoration: underline;
+    color: var(--theme-color, #007aff);
+}
+

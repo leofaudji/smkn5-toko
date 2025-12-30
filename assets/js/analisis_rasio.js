@@ -8,11 +8,15 @@ function initAnalisisRasioPage() {
 
     if (!analyzeBtn) return;
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const datePicker = flatpickr(dateInput, commonOptions);
+    const compareDatePicker = flatpickr(compareDateInput, commonOptions);
+
     // Set default dates
     const today = new Date();
-    dateInput.value = today.toISOString().split('T')[0];
-    const lastMonth = new Date(today.setMonth(today.getMonth() - 1));
-    compareDateInput.value = lastMonth.toISOString().split('T')[0];
+    datePicker.setDate(today, true);
+    const lastMonth = new Date(new Date().setMonth(today.getMonth() - 1));
+    compareDatePicker.setDate(lastMonth, true);
 
     const ratioDefinitions = {
         profit_margin: {
@@ -66,8 +70,8 @@ function initAnalisisRasioPage() {
     };
 
     async function runAnalysis() {
-        const date = dateInput.value;
-        const compareDate = compareDateInput.value;
+        const date = dateInput.value.split('-').reverse().join('-');
+        const compareDate = compareDateInput.value ? compareDateInput.value.split('-').reverse().join('-') : '';
 
         if (!date) {
             showToast('Tanggal analisis wajib diisi.', 'error');
@@ -137,8 +141,8 @@ function initAnalisisRasioPage() {
         form.target = '_blank';
         const params = {
             report: 'analisis-rasio',
-            date: dateInput.value,
-            compare_date: compareDateInput.value
+            date: dateInput.value.split('-').reverse().join('-'),
+            compare_date: compareDateInput.value.split('-').reverse().join('-')
         };
         for (const key in params) {
             const hiddenField = document.createElement('input');

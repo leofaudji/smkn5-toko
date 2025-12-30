@@ -527,8 +527,8 @@ ADD CONSTRAINT `pembelian_details_fk_item` FOREIGN KEY (`item_id`) REFERENCES `i
     KEY `journal_id` (`journal_id`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-ALTER TABLE general_ledger
-ADD UNIQUE INDEX `idx_user_account_date` (`user_id`, `account_id`, `tanggal`);
+-- ALTER TABLE general_ledger
+-- ADD UNIQUE INDEX `idx_user_account_date` (`user_id`, `account_id`, `tanggal`);
 
 -- Memperbaiki tabel entri jurnal (jika belum)
 ALTER TABLE `jurnal_entries` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
@@ -543,13 +543,13 @@ ALTER TABLE `items` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 ALTER TABLE `stock_adjustments` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 -- Memperbaiki tabel buku besar (general ledger)
-ALTER TABLE `general_ledger` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+-- ALTER TABLE `general_ledger` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 -- Pastikan kolom 'id' di tabel 'pembelian' adalah PRIMARY KEY dan AUTO_INCREMENT
-ALTER TABLE `pembelian` MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;
+-- ALTER TABLE `pembelian` MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;
 
 -- Pastikan kolom 'id' di tabel 'pembelian_details' adalah PRIMARY KEY dan AUTO_INCREMENT
-ALTER TABLE `pembelian_details` MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;
+-- ALTER TABLE `pembelian_details` MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;
 
 -- =================================================================
 -- Tabel 1: penjualan (Header Transaksi Penjualan)

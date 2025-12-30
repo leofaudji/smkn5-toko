@@ -7,13 +7,15 @@ function initNeracaSaldoPage() {
 
     if (!reportForm) return;
 
+    flatpickr("#tanggal", { dateFormat: "d-m-Y", allowInput: true, defaultDate: "today" });
+
     reportForm.addEventListener('submit', function(e) {
         e.preventDefault();
         loadPreview();
     });
 
     async function loadPreview() {
-        const tanggal = document.getElementById('tanggal').value;
+        const tanggal = document.getElementById('tanggal').value.split('-').reverse().join('-');
         if (!tanggal) {
             showToast('Harap pilih tanggal terlebih dahulu.', 'error');
             return;
@@ -94,7 +96,7 @@ function initNeracaSaldoPage() {
     }
 
     printPdfBtn.addEventListener('click', function() {
-        const tanggal = document.getElementById('tanggal').value;
+        const tanggal = document.getElementById('tanggal').value.split('-').reverse().join('-');
         const reportUrl = `${basePath}/api/pdf?report=trial-balance&tanggal=${tanggal}`;
         window.open(reportUrl, '_blank');
     });

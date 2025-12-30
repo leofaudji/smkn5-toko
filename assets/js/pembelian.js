@@ -4,6 +4,10 @@
 
 // Fungsi utama yang dipanggil saat halaman pembelian dimuat
 function initPembelianPage() {
+    // Inisialisasi Flatpickr
+    const tglPembelianPicker = flatpickr("#tanggal_pembelian", { dateFormat: "d-m-Y", allowInput: true, defaultDate: "today" });
+    const jatuhTempoPicker = flatpickr("#jatuh_tempo", { dateFormat: "d-m-Y", allowInput: true, placeholder: "DD-MM-YYYY" });
+
     // Muat data awal untuk form (pemasok, akun, dll)
     loadPembelianFormData();
 
@@ -81,7 +85,8 @@ function resetPembelianForm() {
     // Tambahkan satu baris kosong secara default
     addPembelianLine();
     // Set tanggal hari ini
-    document.getElementById('tanggal_pembelian').valueAsDate = new Date();
+    const tglPicker = document.getElementById('tanggal_pembelian')._flatpickr;
+    if (tglPicker) tglPicker.setDate(new Date(), true);
     // Reset payment method display
     document.getElementById('kas-account-container').classList.add('hidden');
     document.getElementById('kas_account_id').required = false;
@@ -230,14 +235,23 @@ async function savePembelian() {
     saveBtn.disabled = true;
     saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menyimpan...`;
 
+    const formatDateForDB = (date) => {
+        if (!date) return null;
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     // Kumpulkan data dari form
     const formData = {
         action: document.getElementById('pembelian-action').value,
         id: document.getElementById('pembelian-id').value,
         supplier_id: document.getElementById('supplier_id').value,
-        tanggal_pembelian: document.getElementById('tanggal_pembelian').value,
+        tanggal_pembelian: formatDateForDB(document.getElementById('tanggal_pembelian')._flatpickr.selectedDates[0]),
         keterangan: document.getElementById('keterangan').value,
-        jatuh_tempo: document.getElementById('jatuh_tempo').value,
+        jatuh_tempo: document.getElementById('jatuh_tempo').value ? formatDateForDB(document.getElementById('jatuh_tempo')._flatpickr.selectedDates[0]) : null,
         payment_method: document.getElementById('payment_method').value,
         kas_account_id: document.getElementById('kas_account_id').value, // Tambahkan ini
         lines: []
@@ -371,9 +385,15 @@ async function handleEditPembelian(id) {
         document.getElementById('pembelian-action').value = 'update';
 
         document.getElementById('supplier_id').value = header.supplier_id;
-        document.getElementById('tanggal_pembelian').value = header.tanggal_pembelian;
+        // Set tanggal menggunakan flatpickr API
+        const tglPembelianPicker = document.getElementById('tanggal_pembelian')._flatpickr;
+        if (tglPembelianPicker) tglPembelianPicker.setDate(header.tanggal_pembelian, true, "Y-m-d");
+
         document.getElementById('keterangan').value = header.keterangan;
-        document.getElementById('jatuh_tempo').value = header.jatuh_tempo;
+        
+        const jatuhTempoPicker = document.getElementById('jatuh_tempo')._flatpickr;
+        if (jatuhTempoPicker && header.jatuh_tempo) jatuhTempoPicker.setDate(header.jatuh_tempo, true, "Y-m-d");
+
         document.getElementById('payment_method').value = header.payment_method;
 
         // Tampilkan/sembunyikan field akun kas berdasarkan metode pembayaran

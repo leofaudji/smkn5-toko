@@ -7,6 +7,9 @@ function initAsetTetapPage() {
 
     if (!tableBody) return;
 
+    const akuisisiPicker = flatpickr("#tanggal_akuisisi", { dateFormat: "d-m-Y", allowInput: true });
+    const pelepasanPicker = flatpickr("#tanggal_pelepasan", { dateFormat: "d-m-Y", allowInput: true });
+
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
     function setupDepreciationFilters() {
@@ -90,6 +93,11 @@ function initAsetTetapPage() {
 
     saveBtn.addEventListener('click', async () => {
         const formData = new FormData(form);
+        const tglAkuisisi = akuisisiPicker.selectedDates[0];
+        if (tglAkuisisi) {
+            formData.set('tanggal_akuisisi', tglAkuisisi.toISOString().split('T')[0]);
+        }
+
         const response = await fetch(`${basePath}/api/aset_tetap`, { method: 'POST', body: formData });
         const result = await response.json();
         showToast(result.message, result.status);
@@ -139,6 +147,11 @@ function initAsetTetapPage() {
         }
         if (confirm('Anda yakin ingin memproses pelepasan aset ini? Aksi ini akan membuat jurnal permanen dan tidak dapat dibatalkan.')) {
             const formData = new FormData(form);
+            const tglPelepasan = pelepasanPicker.selectedDates[0];
+            if (tglPelepasan) {
+                formData.set('tanggal_pelepasan', tglPelepasan.toISOString().split('T')[0]);
+            }
+
             const response = await fetch(`${basePath}/api/aset_tetap`, { method: 'POST', body: formData });
             const result = await response.json();
             showToast(result.message, result.status);
@@ -179,8 +192,12 @@ function initAsetTetapPage() {
                 form.reset();
                 document.getElementById('assetModalLabel').textContent = 'Edit Aset Tetap';
                 Object.keys(asset).forEach(key => {
-                    const el = document.getElementById(key);
-                    if (el) el.value = asset[key];
+                    if (key === 'tanggal_akuisisi') {
+                        akuisisiPicker.setDate(asset[key], true, "Y-m-d");
+                    } else {
+                        const el = document.getElementById(key);
+                        if (el) el.value = asset[key];
+                    }
                 });
                 document.getElementById('asset-id').value = asset.id;
                 openModal('assetModal');
@@ -193,7 +210,7 @@ function initAsetTetapPage() {
             form.reset();
             document.getElementById('disposal-asset-id').value = disposeBtn.dataset.id;
             document.getElementById('disposal-asset-name').textContent = disposeBtn.dataset.nama;
-            document.getElementById('tanggal_pelepasan').valueAsDate = new Date();
+            pelepasanPicker.setDate(new Date(), true);
             // Sembunyikan field kas/bank secara default
             document.getElementById('disposal-kas-account-container').style.display = 'none';
             document.getElementById('kas_account_id').required = false;

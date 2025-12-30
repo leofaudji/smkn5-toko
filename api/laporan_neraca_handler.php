@@ -3,11 +3,6 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once PROJECT_ROOT . '/includes/Repositories/LaporanRepository.php';
 
-// ================== KODE DEBUGGING SEMENTARA ==================
-// Tulis isi dari session ke file log untuk diperiksa.
-error_log("Isi Session di laporan_neraca_handler: " . print_r($_SESSION, true));
-// =============================================================
-
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
@@ -27,28 +22,34 @@ try {
     $repo = new LaporanRepository($conn);
     $neraca_accounts = $repo->getNeracaData($user_id, $per_tanggal, $include_closing);
 
-    // Logika untuk menampilkan Laba (Rugi) Periode Berjalan.
-    // Ini hanya ditampilkan untuk periode yang belum ditutup.
+    // Logika untuk menampilkan Laba (Rugi) Periode Berjalan
     $period_lock_date = get_setting('period_lock_date', null, $conn);
 
-    // Tentukan awal tahun fiskal. Jika ada tanggal tutup buku, tahun fiskal dimulai sehari setelahnya.
-    // Jika tidak, dimulai dari 1 Januari tahun laporan.
-    $fiscal_year_start = $period_lock_date 
-        ? date('Y-m-d', strtotime($period_lock_date . ' +1 day'))
+    // Cari tanggal tutup buku terakhir SEBELUM tanggal laporan untuk menentukan awal periode fiskal.
+    $stmt_last_lock = $conn->prepare("SELECT MAX(tanggal) as last_lock FROM jurnal_entries WHERE user_id = ? AND keterangan LIKE 'Jurnal Penutup Periode%' AND tanggal < ?");
+    $stmt_last_lock->bind_param('is', $user_id, $per_tanggal);
+    $stmt_last_lock->execute();
+    $last_lock_before_date = $stmt_last_lock->get_result()->fetch_assoc()['last_lock'];
+    $stmt_last_lock->close();
+
+    $fiscal_year_start = $last_lock_before_date
+        ? date('Y-m-d', strtotime($last_lock_before_date . ' + 1 day'))
         : date('Y-01-01', strtotime($per_tanggal));
 
-    // Hanya hitung laba berjalan jika tanggal laporan berada dalam tahun fiskal yang sedang berjalan.
-    // Ini akan menampilkan laba/rugi untuk tahun baru yang belum ditutup.
-    if ($per_tanggal >= $fiscal_year_start) {
-        // Periode laba rugi dihitung dari awal tahun fiskal hingga tanggal neraca.
-        $start_of_year = $fiscal_year_start;
-        $laba_rugi_data = $repo->getLabaRugiData($user_id, $start_of_year, $per_tanggal, $include_closing);
+    // Jangan tampilkan "Laba Berjalan" jika kita melihat laporan PADA tanggal tutup buku DAN menyertakan jurnal penutup,
+    // karena laba sudah digulung ke Laba Ditahan.
+    $is_on_lock_date_with_closing = ($period_lock_date && $per_tanggal == $period_lock_date && $include_closing);
+
+    if (!$is_on_lock_date_with_closing) {
+        // Hitung laba rugi dari awal periode fiskal hingga tanggal laporan.
+        // Untuk perhitungan ini, JANGAN sertakan jurnal penutup dari periode sebelumnya, karena itu tidak relevan untuk laba periode berjalan.
+        $laba_rugi_data = $repo->getLabaRugiData($user_id, $fiscal_year_start, $per_tanggal, false);
         $laba_rugi_berjalan = $laba_rugi_data['summary']['laba_bersih'];
 
-        // Tambahkan akun virtual untuk laba rugi berjalan ke dalam data neraca
-        $neraca_accounts[] = [
-            'id' => 'laba_rugi_virtual', 'parent_id' => null, 'kode_akun' => '3-9999', 'nama_akun' => 'Laba (Rugi) Periode Berjalan', 'tipe_akun' => 'Ekuitas', 'saldo_akhir' => $laba_rugi_berjalan
-        ];
+        // Hanya tampilkan jika ada laba/rugi.
+        if (abs($laba_rugi_berjalan) > 0.001) {
+            $neraca_accounts[] = ['id' => 'laba_rugi_virtual', 'parent_id' => null, 'kode_akun' => '3-9999', 'nama_akun' => 'Laba (Rugi) Periode Berjalan', 'tipe_akun' => 'Ekuitas', 'saldo_akhir' => $laba_rugi_berjalan];
+        }
     }
 
     echo json_encode(['status' => 'success', 'data' => array_values($neraca_accounts)]);

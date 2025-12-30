@@ -62,7 +62,7 @@ class NeracaReportBuilder implements ReportBuilderInterface
 
         $this->pdf->SetTitle('Laporan Neraca');
         $this->pdf->report_title = 'Laporan Posisi Keuangan (Neraca)';
-        $this->pdf->report_period = 'Per Tanggal: ' . date('d F Y', strtotime($tanggal));
+        $this->pdf->report_period = 'Per Tanggal: ' . date('d-m-Y', strtotime($tanggal));
         $this->pdf->AddPage();
 
         // Gunakan Repository untuk konsistensi data

@@ -12,6 +12,10 @@ function initDaftarJurnalPage() {
     if (!tableBody) return;
     let periodLockDate = null;
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const startDatePicker = flatpickr(startDateFilter, commonOptions);
+    const endDatePicker = flatpickr(endDateFilter, commonOptions);
+
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
     async function loadJurnal(page = 1) {
@@ -19,8 +23,8 @@ function initDaftarJurnalPage() {
             page,
             limit: limitSelect.value,
             search: searchInput.value,
-            start_date: startDateFilter.value,
-            end_date: endDateFilter.value,
+            start_date: startDateFilter.value.split('-').reverse().join('-'),
+            end_date: endDateFilter.value.split('-').reverse().join('-'),
         });
 
         tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>`;
@@ -143,10 +147,15 @@ function initDaftarJurnalPage() {
     exportPdfBtn?.addEventListener('click', (e) => {
         e.preventDefault();
         const form = document.createElement('form');
-        form.method = 'POST';
+        form.method = 'POST'; 
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
-        const params = { report: 'daftar-jurnal', search: searchInput.value, start_date: startDateFilter.value, end_date: endDateFilter.value };
+        const params = { 
+            report: 'daftar-jurnal', 
+            search: searchInput.value, 
+            start_date: startDateFilter.value.split('-').reverse().join('-'), 
+            end_date: endDateFilter.value.split('-').reverse().join('-') 
+        };
         for (const key in params) {
             const hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
@@ -161,7 +170,12 @@ function initDaftarJurnalPage() {
 
     exportCsvBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        const params = new URLSearchParams({ report: 'daftar-jurnal', format: 'csv', search: searchInput.value, start_date: startDateFilter.value, end_date: endDateFilter.value });
+        const params = new URLSearchParams({ 
+            report: 'daftar-jurnal', 
+            format: 'csv', 
+            search: searchInput.value, 
+            start_date: startDateFilter.value.split('-').reverse().join('-'), 
+            end_date: endDateFilter.value.split('-').reverse().join('-') });
         const url = `${basePath}/api/csv?${params.toString()}`;
         window.open(url, '_blank');
     });
@@ -188,13 +202,13 @@ function initDaftarJurnalPage() {
     const savedEndDate = localStorage.getItem('daftar_jurnal_end_date');
 
     if (savedStartDate && savedEndDate) {
-        startDateFilter.value = savedStartDate;
-        endDateFilter.value = savedEndDate;
+        startDatePicker.setDate(savedStartDate, true);
+        endDatePicker.setDate(savedEndDate, true);
     } else {
         // Atur tanggal default ke bulan ini jika tidak ada yang tersimpan
         const now = new Date();
-        startDateFilter.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        endDateFilter.value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        startDatePicker.setDate(new Date(now.getFullYear(), now.getMonth(), 1), true);
+        endDatePicker.setDate(new Date(now.getFullYear(), now.getMonth() + 1, 0), true);
     }
 
     // Initial load

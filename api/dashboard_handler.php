@@ -60,6 +60,50 @@ try {
     $response_data['pengeluaran_bulan_ini'] = $pengeluaran_bulan_ini;
     $response_data['laba_rugi_bulan_ini'] = $response_data['pemasukan_bulan_ini'] - $response_data['pengeluaran_bulan_ini'];
 
+    // Data untuk Grafik Tren Arus Kas (Bulanan dalam setahun)
+    $pemasukan_per_bulan = array_fill(1, 12, 0);
+    $pengeluaran_per_bulan = array_fill(1, 12, 0);
+
+    $stmt_yearly_trend = $conn->prepare("
+        SELECT 
+            MONTH(gl.tanggal) as bulan,
+            SUM(CASE WHEN a.tipe_akun = 'Pendapatan' THEN gl.kredit - gl.debit ELSE 0 END) as total_pemasukan,
+            SUM(CASE WHEN a.tipe_akun = 'Beban' THEN gl.debit - gl.kredit ELSE 0 END) as total_pengeluaran
+        FROM general_ledger gl
+        JOIN accounts a ON gl.account_id = a.id
+        WHERE gl.user_id = ? 
+          AND YEAR(gl.tanggal) = ?
+          AND a.tipe_akun IN ('Pendapatan', 'Beban')
+        GROUP BY MONTH(gl.tanggal)
+    ");
+    $stmt_yearly_trend->bind_param('ii', $user_id, $tahun);
+    $stmt_yearly_trend->execute();
+    $yearly_trend_result = $stmt_yearly_trend->get_result();
+
+    while ($row = $yearly_trend_result->fetch_assoc()) {
+        $bulan_index = (int)$row['bulan'];
+        $pemasukan_per_bulan[$bulan_index] = (float)$row['total_pemasukan'];
+        $pengeluaran_per_bulan[$bulan_index] = (float)$row['total_pengeluaran'];
+    }
+    $stmt_yearly_trend->close();
+
+    $response_data['tren_arus_kas'] = [
+        'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
+        'pemasukan' => array_values($pemasukan_per_bulan),
+        'pengeluaran' => array_values($pengeluaran_per_bulan)
+    ];
+
+    // Data untuk Grafik Pertumbuhan Laba (Bulanan dalam setahun)
+    $laba_per_bulan = [];
+    for ($i = 1; $i <= 12; $i++) {
+        $laba_per_bulan[$i] = $pemasukan_per_bulan[$i] - $pengeluaran_per_bulan[$i];
+    }
+
+    $response_data['pertumbuhan_laba_bulanan'] = [
+        'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
+        'data' => array_values($laba_per_bulan)
+    ];
+
     // 3. Transaksi Terbaru (5 terakhir)
     $stmt_recent = $conn->prepare("
         SELECT tanggal, keterangan, ref_type, ref_id, SUM(debit) as jumlah

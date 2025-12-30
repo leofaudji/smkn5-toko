@@ -8,10 +8,14 @@ function initLaporanStokPage() {
 
     if (!form) return;
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const startDatePicker = flatpickr(startDateInput, commonOptions);
+    const endDatePicker = flatpickr(endDateInput, commonOptions);
+
     // Set tanggal default ke bulan ini
     const now = new Date();
-    startDateInput.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    endDateInput.value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    startDatePicker.setDate(new Date(now.getFullYear(), now.getMonth(), 1), true);
+    endDatePicker.setDate(new Date(now.getFullYear(), now.getMonth() + 1, 0), true);
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -19,8 +23,8 @@ function initLaporanStokPage() {
     });
 
     async function loadReport() {
-        const startDate = startDateInput.value;
-        const endDate = endDateInput.value;
+        const startDate = startDateInput.value.split('-').reverse().join('-');
+        const endDate = endDateInput.value.split('-').reverse().join('-');
 
         if (!startDate || !endDate) {
             showToast('Harap pilih rentang tanggal.', 'error');
@@ -29,7 +33,7 @@ function initLaporanStokPage() {
 
         reportContent.innerHTML = `<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>`;
         reportSummary.innerHTML = '';
-        reportHeader.textContent = `Laporan Stok Periode ${formatDate(startDate)} s/d ${formatDate(endDate)}`;
+        reportHeader.textContent = `Laporan Stok Periode ${startDateInput.value} s/d ${endDateInput.value}`;
 
         try {
             const params = new URLSearchParams({ start_date: startDate, end_date: endDate });

@@ -46,7 +46,7 @@ try {
             $data = $repo->getNeracaData($user_id, $tanggal);
 
             fputcsv($output, ['Laporan Posisi Keuangan (Neraca)']);
-            fputcsv($output, ['Per Tanggal:', date('d F Y', strtotime($tanggal))]);
+            fputcsv($output, ['Per Tanggal:', date('d-m-Y', strtotime($tanggal))]);
             fputcsv($output, []); // Baris kosong
 
             fputcsv($output, ['Tipe Akun', 'Nama Akun', 'Saldo Akhir']);
@@ -88,7 +88,7 @@ try {
             $repo = new LaporanRepository($conn);
             $data = $repo->getLabaRugiData($user_id, $start, $end);
             fputcsv($output, ['Laporan Laba Rugi']);
-            fputcsv($output, ['Periode:', date('d M Y', strtotime($start)) . ' - ' . date('d M Y', strtotime($end))]);
+            fputcsv($output, ['Periode:', date('d-m-Y', strtotime($start)) . ' - ' . date('d-m-Y', strtotime($end))]);
             fputcsv($output, []);
 
             fputcsv($output, ['Kategori', 'Nama Akun', 'Total']);
@@ -122,7 +122,7 @@ try {
             $data = $method->invoke($builder, $raw_data);
 
             fputcsv($output, ['Laporan Arus Kas']);
-            fputcsv($output, ['Periode:', date('d M Y', strtotime($start)) . ' - ' . date('d M Y', strtotime($end))]);
+            fputcsv($output, ['Periode:', date('d-m-Y', strtotime($start)) . ' - ' . date('d-m-Y', strtotime($end))]);
             fputcsv($output, []);
 
             fputcsv($output, ['Kategori', 'Keterangan', 'Jumlah']);
@@ -164,7 +164,7 @@ try {
             $data = $repo->getLaporanHarianData($user_id, $tanggal);
 
             fputcsv($output, ['Laporan Transaksi Harian']);
-            fputcsv($output, ['Tanggal:', date('d F Y', strtotime($tanggal))]);
+            fputcsv($output, ['Tanggal:', date('d-m-Y', strtotime($tanggal))]);
             fputcsv($output, []);
 
             fputcsv($output, ['Saldo Awal Hari Ini', $data['saldo_awal']]);
@@ -197,7 +197,7 @@ try {
 
             fputcsv($output, ['Laporan Buku Besar']);
             fputcsv($output, ['Akun:', $data['account_info']['kode_akun'] . ' - ' . $data['account_info']['nama_akun']]);
-            fputcsv($output, ['Periode:', date('d M Y', strtotime($start_date)) . ' s/d ' . date('d M Y', strtotime($end_date))]);
+            fputcsv($output, ['Periode:', date('d-m-Y', strtotime($start_date)) . ' s/d ' . date('d-m-Y', strtotime($end_date))]);
             fputcsv($output, []);
 
             fputcsv($output, ['Tanggal', 'Keterangan', 'Debit', 'Kredit', 'Saldo']);
@@ -234,7 +234,7 @@ try {
             $data = $repo->getDaftarJurnalData($user_id, $search, $start_date, $end_date);
             fputcsv($output, ['Daftar Entri Jurnal']);
             if (!empty($start_date) && !empty($end_date)) {
-                fputcsv($output, ['Periode:', date('d M Y', strtotime($start_date)) . ' s/d ' . date('d M Y', strtotime($end_date))]);
+                fputcsv($output, ['Periode:', date('d-m-Y', strtotime($start_date)) . ' s/d ' . date('d-m-Y', strtotime($end_date))]);
             }
             fputcsv($output, []);
             fputcsv($output, ['No. Referensi', 'Tanggal', 'Keterangan', 'Akun', 'Debit', 'Kredit']);
@@ -252,11 +252,11 @@ try {
             $repo = new LaporanRepository($conn);
             $data = $repo->getLabaDitahanData($user_id, $start_date, $end_date);
             fputcsv($output, ['Laporan Perubahan Laba Ditahan']);
-            fputcsv($output, ['Periode:', date('d M Y', strtotime($start_date)) . ' - ' . date('d M Y', strtotime($end_date))]);
+            fputcsv($output, ['Periode:', date('d-m-Y', strtotime($start_date)) . ' - ' . date('d-m-Y', strtotime($end_date))]);
             fputcsv($output, []);
 
             fputcsv($output, ['Tanggal', 'Keterangan', 'Debit', 'Kredit', 'Saldo']);
-            fputcsv($output, ['Saldo Awal per ' . date('d M Y', strtotime($start_date)), '', '', '', $data['saldo_awal']]);
+            fputcsv($output, ['Saldo Awal per ' . date('d-m-Y', strtotime($start_date)), '', '', '', $data['saldo_awal']]);
 
             $saldoBerjalan = (float)$data['saldo_awal'];
             foreach ($data['transactions'] as $tx) {
@@ -272,7 +272,7 @@ try {
                     $saldoBerjalan
                 ]);
             }
-            fputcsv($output, ['Saldo Akhir per ' . date('d M Y', strtotime($end_date)), '', '', '', $saldoBerjalan]);
+            fputcsv($output, ['Saldo Akhir per ' . date('d-m-Y', strtotime($end_date)), '', '', '', $saldoBerjalan]);
             break;
         }
 

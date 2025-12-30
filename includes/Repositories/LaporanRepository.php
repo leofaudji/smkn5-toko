@@ -65,44 +65,32 @@ class LaporanRepository
      */
     public function getLabaRugiData(int $user_id, string $tanggal_mulai, string $tanggal_akhir, bool $include_closing = false): array
     {
-        // Modifikasi: Menghitung saldo awal periode dan mutasi periode secara terpisah
-        // untuk mengakomodasi permintaan agar `saldo_awal` dari tabel `accounts` ikut terhitung.
-        $date_before_start = date('Y-m-d', strtotime($tanggal_mulai . ' -1 day'));
-
-        $closing_filter_awal = !$include_closing ? "AND gl.keterangan NOT LIKE 'Jurnal Penutup Periode%'" : "";
-        $closing_filter_mutasi = !$include_closing ? "AND gl_mutasi.keterangan NOT LIKE 'Jurnal Penutup Periode%'" : "";
-
+        // Laporan Laba Rugi hanya menghitung mutasi dalam periode yang ditentukan.
+        // Saldo awal akun pendapatan dan beban selalu dianggap nol di awal periode.
+        $closing_filter = !$include_closing ? "AND gl.keterangan NOT LIKE 'Jurnal Penutup Periode%'" : "";
 
         $stmt = $this->conn->prepare("
             SELECT
                 a.id, a.nama_akun, a.tipe_akun,
-                -- Hitung saldo awal periode (saldo_awal dari tabel + mutasi sebelum tanggal mulai)
-                (a.saldo_awal + COALESCE((SELECT SUM(
+                -- Hitung mutasi dalam periode
+                COALESCE((SELECT SUM(
                     CASE
                         WHEN a.tipe_akun = 'Pendapatan' THEN gl.kredit - gl.debit
                         WHEN a.tipe_akun = 'Beban' THEN gl.debit - gl.kredit
                         ELSE 0
                     END
-                ) FROM general_ledger gl WHERE gl.account_id = a.id AND gl.tanggal <= ? {$closing_filter_awal}), 0)) as saldo_awal_periode,
-                -- Hitung mutasi dalam periode
-                COALESCE((SELECT SUM(
-                    CASE
-                        WHEN a.tipe_akun = 'Pendapatan' THEN gl_mutasi.kredit - gl_mutasi.debit
-                        WHEN a.tipe_akun = 'Beban' THEN gl_mutasi.debit - gl_mutasi.kredit
-                        ELSE 0
-                    END
-                ) FROM general_ledger gl_mutasi WHERE gl_mutasi.account_id = a.id AND gl_mutasi.tanggal BETWEEN ? AND ? {$closing_filter_mutasi}), 0) as mutasi_periode
+                ) FROM general_ledger gl WHERE gl.account_id = a.id AND gl.tanggal BETWEEN ? AND ? {$closing_filter}), 0) as total
             FROM accounts a
             WHERE a.user_id = ? AND a.tipe_akun IN ('Pendapatan', 'Beban')
-            GROUP BY a.id, a.nama_akun, a.tipe_akun, a.saldo_awal
+            GROUP BY a.id, a.nama_akun, a.tipe_akun
             ORDER BY a.kode_akun ASC
         ");
-        $stmt->bind_param('sssi', $date_before_start, $tanggal_mulai, $tanggal_akhir, $user_id);
+        $stmt->bind_param('ssi', $tanggal_mulai, $tanggal_akhir, $user_id);
         $stmt->execute();
         $result = $stmt->get_result();
         $accounts = [];
         while ($row = $result->fetch_assoc()) {
-            $row['total'] = (float)$row['saldo_awal_periode'] + (float)$row['mutasi_periode'];
+            $row['total'] = (float)$row['total'];
             $accounts[] = $row;
         }
         $stmt->close();
@@ -136,46 +124,46 @@ class LaporanRepository
         $closing_filter_ob = !$include_closing ? "AND gl_ob.keterangan NOT LIKE 'Jurnal Penutup Periode%'" : "";
         $closing_filter_mutasi = !$include_closing ? "AND gl.keterangan NOT LIKE 'Jurnal Penutup Periode%'" : "";
 
-        $period_lock_date = get_setting('period_lock_date', null, $this->conn);
+        // Cari tanggal tutup buku terakhir yang relevan (sebelum atau sama dengan tanggal laporan)
+        // untuk menentukan awal periode fiskal.
+        $stmt_last_lock = $this->conn->prepare("SELECT MAX(tanggal) as last_lock FROM general_ledger WHERE user_id = ? AND keterangan LIKE 'Jurnal Penutup Periode%' AND tanggal < ?");
+        $stmt_last_lock->bind_param('is', $user_id, $tanggal);
+        $stmt_last_lock->execute();
+        $last_lock_before_date = $stmt_last_lock->get_result()->fetch_assoc()['last_lock'];
+        $stmt_last_lock->close();
 
-        $saldo_awal_calc_until_date = '1970-01-01'; // Default: calculate from absolute beginning
-        $mutasi_calc_from_date = '1970-01-01'; // Default: mutations from absolute beginning
+        // Tentukan awal periode mutasi (dan perhitungan laba/rugi).
+        // Jika ada tanggal tutup buku sebelumnya, periode dimulai sehari setelahnya. Jika tidak, dimulai dari awal tahun.
+        $mutasi_calc_from_date = $last_lock_before_date
+            ? date('Y-m-d', strtotime($last_lock_before_date . ' +1 day'))
+            : date('Y-01-01', strtotime($tanggal));
 
-        if ($period_lock_date && $tanggal > $period_lock_date) {
-            // Jika tanggal laporan setelah tanggal tutup buku terakhir,
-            // maka "saldo awal" untuk laporan ini adalah saldo pada tanggal tutup buku tersebut.
-            $saldo_awal_calc_until_date = $period_lock_date;
-            // Mutasi untuk laporan ini dimulai setelah tanggal tutup buku.
-            $mutasi_calc_from_date = date('Y-m-d', strtotime($period_lock_date . ' +1 day'));
-        }
-        // Jika tidak ada tanggal tutup buku, atau tanggal laporan sebelum/sama dengan tanggal tutup buku,
-        // maka saldo_awal_calc_until_date tetap '1970-01-01' dan mutasi_calc_from_date tetap '1970-01-01'.
-        // Ini berarti seluruh periode dari '1970-01-01' hingga $tanggal dianggap sebagai mutasi,
-        // dan basisnya adalah a.saldo_awal.
+        // Saldo awal periode adalah saldo pada H-1 dari awal periode mutasi.
+        $saldo_awal_calc_until_date = date('Y-m-d', strtotime($mutasi_calc_from_date . ' -1 day'));
 
         $stmt = $this->conn->prepare("
             SELECT
                 a.id, a.parent_id, a.nama_akun, a.tipe_akun, a.saldo_normal,
                 -- Hitung saldo awal efektif untuk periode pelaporan.
-                -- Ini adalah a.saldo_awal ditambah semua entri GL hingga saldo_awal_calc_until_date.
-                (
-                    a.saldo_awal + COALESCE((SELECT SUM(
+                -- Ini adalah semua entri GL hingga saldo_awal_calc_until_date.
+                COALESCE((
+                    SELECT SUM(
                         CASE
-                            WHEN a.saldo_normal = 'Debit' THEN gl_ob.debit - gl_ob.kredit
-                            ELSE gl_ob.kredit - gl_ob.debit
+                            WHEN a.tipe_akun = 'Aset' THEN gl_ob.debit - gl_ob.kredit
+                            ELSE gl_ob.kredit - gl_ob.debit -- Untuk Liabilitas & Ekuitas
                         END
-                    ) FROM general_ledger gl_ob WHERE gl_ob.account_id = a.id AND gl_ob.tanggal <= ? {$closing_filter_ob}), 0)
-                ) as saldo_awal_periode,
+                    ) FROM general_ledger gl_ob WHERE gl_ob.account_id = a.id AND gl_ob.tanggal <= ? {$closing_filter_ob}
+                ), 0) as saldo_awal_periode,
                 -- Hitung mutasi dalam periode pelaporan (dari mutasi_calc_from_date hingga $tanggal).
                 COALESCE((SELECT SUM(
                     CASE
-                        WHEN a.saldo_normal = 'Debit' THEN gl.debit - gl.kredit
-                        ELSE gl.kredit - gl.debit
+                        WHEN a.tipe_akun = 'Aset' THEN gl.debit - gl.kredit
+                        ELSE gl.kredit - gl.debit -- Untuk Liabilitas & Ekuitas
                     END
                 ) FROM general_ledger gl WHERE gl.account_id = a.id AND gl.tanggal BETWEEN ? AND ? {$closing_filter_mutasi}), 0) as mutasi_periode
             FROM accounts a
             WHERE a.user_id = ? AND a.tipe_akun IN ('Aset', 'Liabilitas', 'Ekuitas') -- Optional: AND (a.saldo_awal != 0 OR saldo_awal_periode != 0 OR mutasi_periode != 0)
-            GROUP BY a.id, a.parent_id, a.nama_akun, a.tipe_akun, a.saldo_normal, a.saldo_awal
+            GROUP BY a.id, a.parent_id, a.nama_akun, a.tipe_akun, a.saldo_normal
             ORDER BY a.kode_akun ASC
         ");
         // Bind parameters: saldo_awal_calc_until_date, mutasi_calc_from_date, $tanggal, user_id
@@ -189,6 +177,7 @@ class LaporanRepository
             $data[] = $row;
         }
         $stmt->close();
+        
         return $data;
     }
 

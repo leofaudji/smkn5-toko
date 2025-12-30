@@ -62,8 +62,7 @@ $router->get('/histori-rekonsiliasi', 'pages/histori_rekonsiliasi.php', ['auth']
 $router->get('/aset-tetap', 'pages/aset_tetap.php', ['auth']);
 $router->get('/entri-jurnal', 'pages/entri_jurnal.php', ['auth']);
 $router->get('/coa', 'pages/coa.php', ['auth']);
-$router->get('/saldo-awal-neraca', 'pages/saldo_awal_neraca.php', ['auth']);
-$router->get('/saldo-awal-lr', 'pages/saldo_awal_lr.php', ['auth']);
+$router->get('/saldo-awal', 'pages/saldo_awal.php', ['auth']);
 $router->get('/laporan', 'pages/laporan.php', ['auth']); 
 $router->get('/laporan-stok', 'pages/laporan_stok.php', ['auth']);
 $router->get('/laporan-penjualan', 'pages/laporan_penjualan.php', ['auth']);
@@ -118,10 +117,8 @@ $router->get('/api/laporan_stok', 'api/laporan_stok_handler.php', ['auth']);
 $router->get('/api/csv', 'api/laporan_cetak_csv_handler.php', ['auth']); // Rute baru untuk cetak CSV
 $router->get('/api/pdf', 'api/laporan_cetak_handler.php', ['auth']); // Rute baru untuk cetak PDF (GET)
 $router->post('/api/pdf', 'api/laporan_cetak_handler.php', ['auth']); // Rute baru untuk cetak PDF (POST)
-$router->get('/api/saldo-awal-neraca', 'api/saldo_awal_neraca_handler.php', ['auth']);
-$router->post('/api/saldo-awal-neraca', 'api/saldo_awal_neraca_handler.php', ['auth']);
-$router->get('/api/saldo-awal-lr', 'api/saldo_awal_lr_handler.php', ['auth']);
-$router->post('/api/saldo-awal-lr', 'api/saldo_awal_lr_handler.php', ['auth']);
+$router->get('/api/saldo-awal', 'api/saldo_awal_handler.php', ['auth']);
+$router->post('/api/saldo-awal', 'api/saldo_awal_handler.php', ['auth']);
 $router->get('/api/buku-besar-data', 'api/buku_besar_data_handler.php', ['auth']);
 $router->get('/api/entri-jurnal', 'api/entri_jurnal_handler.php', ['auth']);
 $router->get('/api/laporan/arus-kas', 'api/laporan_arus_kas_handler.php', ['auth']);
@@ -156,6 +153,7 @@ $router->post('/api/aset_tetap', 'api/aset_tetap_handler.php', ['auth']);
 $router->get('/api/global-search', 'api/global_search_handler.php', ['auth']); // API untuk pencarian global
 $router->get('/api/users', 'api/users_handler.php', ['auth', 'admin']); // API untuk manajemen pengguna
 $router->post('/api/users', 'api/users_handler.php', ['auth', 'admin']);
+$router->post('/api/my-profile/change-password', 'api/my_profile_handler.php', ['auth']);
 
 
 // Jalankan router

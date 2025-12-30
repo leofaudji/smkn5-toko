@@ -15,19 +15,19 @@ $tanggal = $_GET['tanggal'] ?? date('Y-m-d');
 try {
     // Query ini diadaptasi dari TrialBalanceReportBuilder
     $stmt = $conn->prepare("
-        SELECT 
-            a.kode_akun, 
+        SELECT
+            a.kode_akun,
             a.nama_akun,
             a.saldo_normal,
-            a.saldo_awal + COALESCE(SUM(CASE WHEN gl.tanggal <= ? THEN gl.debit ELSE 0 END), 0) as total_debit,
-            a.saldo_awal + COALESCE(SUM(CASE WHEN gl.tanggal <= ? THEN gl.kredit ELSE 0 END), 0) as total_kredit
+            COALESCE(SUM(gl.debit), 0) as total_debit,
+            COALESCE(SUM(gl.kredit), 0) as total_kredit
         FROM accounts a
         LEFT JOIN general_ledger gl ON a.id = gl.account_id AND gl.tanggal <= ?
         WHERE a.user_id = ?
-        GROUP BY a.id, a.kode_akun, a.nama_akun, a.saldo_normal, a.saldo_awal
+        GROUP BY a.id, a.kode_akun, a.nama_akun, a.saldo_normal
         ORDER BY a.kode_akun ASC
     ");
-    $stmt->bind_param('sssi', $tanggal, $tanggal, $tanggal, $user_id);
+    $stmt->bind_param('si', $tanggal, $user_id);
     $stmt->execute();
     $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
@@ -37,20 +37,31 @@ try {
     $totalKredit = 0;
 
     foreach ($result as $row) {
-        $saldo_akhir = ($row['saldo_normal'] === 'Debit') 
-            ? (float)$row['total_debit'] - (float)$row['total_kredit'] 
+        // Karena saldo awal sudah menjadi bagian dari general_ledger, kita hanya perlu menghitung selisih total debit dan kredit.
+        $saldo_akhir = ($row['saldo_normal'] === 'Debit')
+            ? (float)$row['total_debit'] - (float)$row['total_kredit']
             : (float)$row['total_kredit'] - (float)$row['total_debit'];
 
         if (abs($saldo_akhir) > 0.001) { // Tampilkan akun dengan saldo tidak nol
             $debit = 0;
             $kredit = 0;
-            if ($row['saldo_normal'] === 'Debit') {
-                $debit = $saldo_akhir;
-                $totalDebit += $saldo_akhir;
+            // Jika saldo akhir positif, letakkan di sisi saldo normalnya.
+            // Jika negatif (saldo kontra), letakkan di sisi berlawanan.
+            if ($saldo_akhir > 0) {
+                if ($row['saldo_normal'] === 'Debit') {
+                    $debit = $saldo_akhir;
+                } else {
+                    $kredit = $saldo_akhir;
+                }
             } else {
-                $kredit = $saldo_akhir;
-                $totalKredit += $saldo_akhir;
+                if ($row['saldo_normal'] === 'Debit') {
+                    $kredit = abs($saldo_akhir);
+                } else {
+                    $debit = abs($saldo_akhir);
+                }
             }
+            $totalDebit += $debit;
+            $totalKredit += $kredit;
             $data[] = ['kode_akun' => $row['kode_akun'], 'nama_akun' => $row['nama_akun'], 'debit' => $debit, 'kredit' => $kredit];
         }
     }

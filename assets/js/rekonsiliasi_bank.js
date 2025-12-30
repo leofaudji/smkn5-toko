@@ -10,6 +10,8 @@ function initRekonsiliasiBankPage() {
 
     if (!akunFilter) return;
 
+    const tanggalAkhirPicker = flatpickr(tanggalAkhirInput, { dateFormat: "d-m-Y", allowInput: true });
+
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2 });
     let saldoBukuAwal = 0;
 
@@ -61,7 +63,7 @@ function initRekonsiliasiBankPage() {
 
     async function startReconciliation() {
         const accountId = akunFilter.value;
-        const endDate = tanggalAkhirInput.value;
+        const endDate = tanggalAkhirInput.value.split('-').reverse().join('-');
 
         if (!accountId || !endDate || !saldoRekeningInput.value) {
             showToast('Harap pilih akun, tanggal akhir, dan isi saldo rekening koran.', 'error');
@@ -139,7 +141,7 @@ function initRekonsiliasiBankPage() {
         const formData = new FormData();
         formData.append('action', 'save');
         formData.append('account_id', akunFilter.value);
-        formData.append('reconciliation_date', tanggalAkhirInput.value);
+        formData.append('reconciliation_date', tanggalAkhirInput.value.split('-').reverse().join('-'));
         clearedIds.forEach(id => formData.append('cleared_ids[]', id));
 
         const response = await fetch(`${basePath}/api/rekonsiliasi-bank`, { method: 'POST', body: formData });
@@ -152,6 +154,6 @@ function initRekonsiliasiBankPage() {
     });
 
     // Initial Load
-    tanggalAkhirInput.valueAsDate = new Date();
+    tanggalAkhirPicker.setDate(new Date(), true);
     loadCashAccounts();
 }

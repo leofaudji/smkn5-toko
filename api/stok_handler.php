@@ -609,13 +609,13 @@ try {
                     $zero_val = 0.0;
 
                     if ($selisih_nilai > 0) { // Penambahan stok
-                        add_journal_line($journalId, $inventoryAccountId, $selisih_nilai, $zero_val);
-                        add_journal_line($journalId, $adjAccountId, $zero_val, $selisih_nilai);
+                        //add_journal_line($journalId, $inventoryAccountId, $selisih_nilai, $zero_val);
+                        //add_journal_line($journalId, $adjAccountId, $zero_val, $selisih_nilai);
                         $ledgerTotals[$inventoryAccountId]['debit'] = ($ledgerTotals[$inventoryAccountId]['debit'] ?? 0) + $selisih_nilai;
                         $ledgerTotals[$adjAccountId]['credit'] = ($ledgerTotals[$adjAccountId]['credit'] ?? 0) + $selisih_nilai;
                     } else { // Pengurangan stok
-                        add_journal_line($journalId, $adjAccountId, abs($selisih_nilai), $zero_val);
-                        add_journal_line($journalId, $inventoryAccountId, $zero_val, abs($selisih_nilai));
+                        //add_journal_line($journalId, $adjAccountId, abs($selisih_nilai), $zero_val);
+                        //add_journal_line($journalId, $inventoryAccountId, $zero_val, abs($selisih_nilai));
                         $ledgerTotals[$adjAccountId]['debit'] = ($ledgerTotals[$adjAccountId]['debit'] ?? 0) + abs($selisih_nilai);
                         $ledgerTotals[$inventoryAccountId]['credit'] = ($ledgerTotals[$inventoryAccountId]['credit'] ?? 0) + abs($selisih_nilai);
                     }
@@ -646,7 +646,7 @@ try {
                 $debit = $totals['debit'] ?? 0;
                 $credit = $totals['credit'] ?? 0;
                 if ($debit > 0 || $credit > 0) {
-                    update_general_ledger($conn, $user_id, $accountId, $tanggal_import, $debit, $credit, $keterangan_impor, $nomorReferensi, $journalId);
+                    //update_general_ledger($conn, $user_id, $accountId, $tanggal_import, $debit, $credit, $keterangan_impor, $nomorReferensi, $journalId);
                 }
             }
             echo json_encode(['status' => 'success', 'message' => $final_message]);

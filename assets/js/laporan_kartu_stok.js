@@ -11,11 +11,15 @@ function initLaporanKartuStokPage() {
 
     if (!form) return;
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const startDatePicker = flatpickr(startDateInput, commonOptions);
+    const endDatePicker = flatpickr(endDateInput, commonOptions);
+
     // Set default date range to current month
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    startDateInput.value = firstDay.toISOString().split('T')[0];
-    endDateInput.value = today.toISOString().split('T')[0];
+    startDatePicker.setDate(firstDay, true);
+    endDatePicker.setDate(today, true);
  
     // Load items into select dropdown
     async function loadItems() {
@@ -44,8 +48,8 @@ function initLaporanKartuStokPage() {
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
         const itemId = itemSelect.value;
-        const startDate = startDateInput.value;
-        const endDate = endDateInput.value;
+        const startDate = startDateInput.value.split('-').reverse().join('-');
+        const endDate = endDateInput.value.split('-').reverse().join('-');
 
         if (!itemId) {
             showToast('Silakan pilih barang terlebih dahulu.', 'warning');
@@ -87,7 +91,7 @@ function initLaporanKartuStokPage() {
 
     function renderReport(data) {
         document.getElementById('ks-item-name').textContent = data.item_info.nama_barang;
-        document.getElementById('ks-period').textContent = `${formatDate(startDateInput.value)} - ${formatDate(endDateInput.value)}`;
+        document.getElementById('ks-period').textContent = `${startDateInput.value} - ${endDateInput.value}`;
         headerDiv.style.display = 'block';
 
         document.getElementById('ks-summary-awal').textContent = formatNumber(data.summary.saldo_awal || 0);

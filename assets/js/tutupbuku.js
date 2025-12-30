@@ -5,9 +5,11 @@ function initTutupBukuPage() {
 
     if (!processBtn) return;
 
+    const closingDatePicker = flatpickr(closingDateInput, { dateFormat: "d-m-Y", allowInput: true });
+
     // Set default date to end of last year
     const lastYear = new Date().getFullYear() - 1;
-    closingDateInput.value = `${lastYear}-12-31`;
+    closingDatePicker.setDate(`${lastYear}-12-31`, true, "Y-m-d");
 
     async function loadHistory() {
         historyContainer.innerHTML = '<div class="text-center p-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div></div>';
@@ -39,7 +41,7 @@ function initTutupBukuPage() {
     }
 
     processBtn.addEventListener('click', async () => {
-        const closingDate = closingDateInput.value;
+        const closingDate = closingDateInput.value.split('-').reverse().join('-');
         if (!closingDate) {
             showToast('Harap pilih tanggal tutup buku.', 'error');
             return;

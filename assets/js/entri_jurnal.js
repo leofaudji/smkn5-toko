@@ -8,6 +8,9 @@ function initEntriJurnalPage() {
     if (!form) return;
 
     let allAccounts = [];
+    // Inisialisasi Flatpickr
+    const tanggalPicker = flatpickr("#jurnal-tanggal", { dateFormat: "d-m-Y", allowInput: true });
+
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
     async function fetchAccounts() {
@@ -91,6 +94,16 @@ function initEntriJurnalPage() {
         const action = document.getElementById('jurnal-action').value || 'add';
         const saveBtn = document.getElementById('save-jurnal-entry-btn');
         const formData = new FormData(form); // The action is now correctly set from the hidden input
+
+        // Ambil tanggal dari flatpickr dan format untuk DB
+        const selectedDate = tanggalPicker.selectedDates[0];
+        if (selectedDate) {
+            const year = selectedDate.getFullYear();
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(selectedDate.getDate()).padStart(2, '0');
+            formData.set('tanggal', `${year}-${month}-${day}`);
+        }
+
         const originalBtnHtml = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menyimpan...`;
@@ -153,7 +166,7 @@ function initEntriJurnalPage() {
             document.getElementById('page-title').innerHTML = `<i class="bi bi-pencil-square"></i> Edit Entri Jurnal (ID: JRN-${String(id).padStart(5, '0')})`;
             document.getElementById('jurnal-id').value = header.id;
             document.getElementById('jurnal-action').value = 'update';
-            document.getElementById('jurnal-tanggal').value = header.tanggal;
+            tanggalPicker.setDate(header.tanggal, true, "Y-m-d");
             document.getElementById('jurnal-keterangan').value = header.keterangan;
 
             linesBody.innerHTML = '';
@@ -186,9 +199,9 @@ function initEntriJurnalPage() {
         // Pastikan elemen ada sebelum diakses
         if (document.getElementById('jurnal-tanggal')) {
             if (editId) {
-                loadJournalForEdit(editId);
+                loadJournalForEdit(editId);            
             } else {
-                document.getElementById('jurnal-tanggal').valueAsDate = new Date();
+                tanggalPicker.setDate(new Date(), true);
                 addJurnalLine(); addJurnalLine();
             }
         }

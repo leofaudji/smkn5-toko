@@ -74,11 +74,11 @@ if (!isset($app_name)) {
                         </div>
                         <div>
                             <label for="recurring-start-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Mulai Tanggal</label>
-                            <input type="date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 sm:text-sm" id="recurring-start-date" name="start_date" required>
+                            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 sm:text-sm" id="recurring-start-date" name="start_date" required placeholder="DD-MM-YYYY">
                         </div>
                         <div>
                             <label for="recurring-end-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Berakhir Tanggal (Opsional)</label>
-                            <input type="date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 sm:text-sm" id="recurring-end-date" name="end_date">
+                            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 sm:text-sm" id="recurring-end-date" name="end_date" placeholder="DD-MM-YYYY">
                         </div>
                     </form>
                 </div>
@@ -95,6 +95,7 @@ if (!isset($app_name)) {
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <?php $v=date("Ymd"); ?>
@@ -134,6 +135,18 @@ if (!isset($app_name)) {
                 dropdown.querySelector('.dropdown-menu').classList.add('hidden');
             }
         });
+
+        // Inisialisasi Flatpickr untuk modal global yang ada di footer
+        if (typeof flatpickr !== 'undefined') {
+            flatpickr("#recurring-start-date", {
+                dateFormat: "d-m-Y",
+                allowInput: true
+            });
+            flatpickr("#recurring-end-date", {
+                dateFormat: "d-m-Y",
+                allowInput: true
+            });
+        }
     });
 </script>
 </body>

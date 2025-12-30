@@ -9,11 +9,12 @@ function initLaporanHarianPage() {
     const chartCanvas = document.getElementById('lh-chart');
 
     if (!tanggalInput) return;
-    tanggalInput.valueAsDate = new Date(); // Set default to today
+
+    const tanggalPicker = flatpickr(tanggalInput, { dateFormat: "d-m-Y", allowInput: true, defaultDate: "today" });
 
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
     async function loadReport() {
-        const tanggal = tanggalInput.value;
+        const tanggal = tanggalInput.value.split('-').reverse().join('-');
         if (!tanggal) {
             showToast('Harap pilih tanggal terlebih dahulu.', 'error');
             return;
@@ -25,7 +26,7 @@ function initLaporanHarianPage() {
         reportContent.innerHTML = `<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>`;
         summaryContent.innerHTML = `<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>`;
         reportHeader.textContent = `Detail Transaksi Harian untuk ${new Date(tanggal).toLocaleDateString('id-ID', { dateStyle: 'full' })}`;
-
+        
         try {
             const response = await fetch(`${basePath}/api/laporan-harian?tanggal=${tanggal}`);
             const result = await response.json();
@@ -141,7 +142,7 @@ function initLaporanHarianPage() {
         form.method = 'POST';
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
-        const params = { report: 'laporan-harian', tanggal: tanggalInput.value };
+        const params = { report: 'laporan-harian', tanggal: tanggalInput.value.split('-').reverse().join('-') };
         for (const key in params) {
             const hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
@@ -156,7 +157,7 @@ function initLaporanHarianPage() {
 
     exportCsvBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        window.open(`${basePath}/api/csv?report=laporan-harian&format=csv&tanggal=${tanggalInput.value}`, '_blank');
+        window.open(`${basePath}/api/csv?report=laporan-harian&format=csv&tanggal=${tanggalInput.value.split('-').reverse().join('-')}`, '_blank');
     });
 
     reportContent.addEventListener('click', async (e) => {

@@ -9,16 +9,20 @@ function initLaporanLabaDitahanPage() {
 
     if (!tampilkanBtn) return;
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const mulaiPicker = flatpickr(tglMulai, commonOptions);
+    const akhirPicker = flatpickr(tglAkhir, commonOptions);
+
     // Set default dates to current year
     const now = new Date();
-    tglMulai.value = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-    tglAkhir.value = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
+    mulaiPicker.setDate(new Date(now.getFullYear(), 0, 1), true);
+    akhirPicker.setDate(new Date(now.getFullYear(), 11, 31), true);
 
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2 });
 
     async function loadReport() {
-        const startDate = tglMulai.value;
-        const endDate = tglAkhir.value;
+        const startDate = tglMulai.value.split('-').reverse().join('-');
+        const endDate = tglAkhir.value.split('-').reverse().join('-');
 
         if (!startDate || !endDate) {
             showToast('Harap pilih rentang tanggal.', 'error');
@@ -87,7 +91,11 @@ function initLaporanLabaDitahanPage() {
         form.method = 'POST';
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
-        const params = { report: 'laporan-laba-ditahan', start_date: tglMulai.value, end_date: tglAkhir.value };
+        const params = { 
+            report: 'laporan-laba-ditahan', 
+            start_date: tglMulai.value.split('-').reverse().join('-'), 
+            end_date: tglAkhir.value.split('-').reverse().join('-') 
+        };
         for (const key in params) {
             const hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
@@ -102,7 +110,7 @@ function initLaporanLabaDitahanPage() {
 
     exportCsvBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        const url = `${basePath}/api/csv?report=laporan-laba-ditahan&format=csv&start_date=${tglMulai.value}&end_date=${tglAkhir.value}`;
+        const url = `${basePath}/api/csv?report=laporan-laba-ditahan&format=csv&start_date=${tglMulai.value.split('-').reverse().join('-')}&end_date=${tglAkhir.value.split('-').reverse().join('-')}`;
         window.open(url, '_blank');
     });
 

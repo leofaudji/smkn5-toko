@@ -8,19 +8,23 @@ function initActivityLogPage() {
 
     if (!tableBody) return;
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const startDatePicker = flatpickr(startDateFilter, commonOptions);
+    const endDatePicker = flatpickr(endDateFilter, commonOptions);
+
     // Set default dates
-    endDateFilter.valueAsDate = new Date();
+    endDatePicker.setDate(new Date(), true);
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    startDateFilter.valueAsDate = sevenDaysAgo;
+    startDatePicker.setDate(sevenDaysAgo, true);
 
     async function loadLogs(page = 1) {
         const params = new URLSearchParams({
             page,
             limit: limitSelect.value,
             search: searchInput.value,
-            start_date: startDateFilter.value,
-            end_date: endDateFilter.value,
+            start_date: startDateFilter.value.split('-').reverse().join('-'),
+            end_date: endDateFilter.value.split('-').reverse().join('-'),
         });
 
         tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>`;

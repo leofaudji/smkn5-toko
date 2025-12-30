@@ -12,6 +12,15 @@ function initKonsinyasiPage() {
 
     if (!supplierTableBody || !itemTableBody) return;
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    flatpickr("#report-start-date", commonOptions);
+    flatpickr("#report-end-date", commonOptions);
+    flatpickr("#sisa-utang-start-date", commonOptions);
+    flatpickr("#sisa-utang-end-date", commonOptions);
+    const csTanggalPicker = flatpickr("#cs-tanggal", { ...commonOptions, defaultDate: "today" });
+    const cpTanggalPicker = flatpickr("#cp-tanggal", { ...commonOptions, defaultDate: "today" });
+    const terimaTanggalPicker = flatpickr("#tanggal_terima", { ...commonOptions, defaultDate: "today" });
+
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
     // --- Report Modal Logic ---
@@ -21,8 +30,8 @@ function initKonsinyasiPage() {
     const printReportBtn = document.getElementById('print-report-btn');
 
     async function loadConsignmentReport() {
-        const startDate = reportStartDateEl.value;
-        const endDate = reportEndDateEl.value;
+        const startDate = reportStartDateEl.value.split('-').reverse().join('-');
+        const endDate = reportEndDateEl.value.split('-').reverse().join('-');
         if (!startDate || !endDate) {
             showToast('Harap pilih tanggal mulai dan akhir.', 'error');
             return;
@@ -145,7 +154,7 @@ function initKonsinyasiPage() {
         e.preventDefault();
         const formData = new FormData();
         formData.append('action', 'pay_debt');
-        formData.append('tanggal', document.getElementById('cp-tanggal').value);
+        formData.append('tanggal', document.getElementById('cp-tanggal').value.split('-').reverse().join('-'));
         formData.append('supplier_id', document.getElementById('cp-supplier-id').value);
         formData.append('jumlah', document.getElementById('cp-jumlah').value);
         formData.append('kas_account_id', document.getElementById('cp-kas-account-id').value);
@@ -153,7 +162,7 @@ function initKonsinyasiPage() {
         const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
         const result = await response.json();
         showToast(result.message, result.status);
-        if (result.status === 'success') { e.target.reset(); document.getElementById('cp-tanggal').valueAsDate = new Date(); loadPaymentHistory(); }
+        if (result.status === 'success') { e.target.reset(); cpTanggalPicker.setDate(new Date()); loadPaymentHistory(); }
     });
 
     // --- Event Listeners ---
@@ -195,14 +204,14 @@ function initKonsinyasiPage() {
         formData.append('action', 'sell_item');
         formData.append('item_id', document.getElementById('cs-item-id').value);
         formData.append('qty', document.getElementById('cs-qty').value);
-        formData.append('tanggal', document.getElementById('cs-tanggal').value);
+        formData.append('tanggal', document.getElementById('cs-tanggal').value.split('-').reverse().join('-'));
         
         const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
         const result = await response.json();
         showToast(result.message, result.status === 'success' ? 'success' : 'error');
         if (result.status === 'success') {
             saleForm.reset();
-            document.getElementById('cs-tanggal').valueAsDate = new Date();
+            csTanggalPicker.setDate(new Date());
             loadItemsForSale();
         }
     });
@@ -212,8 +221,8 @@ function initKonsinyasiPage() {
         document.getElementById('consignment-report-body').innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center">Silakan atur filter tanggal dan klik "Tampilkan" untuk melihat laporan.</p>';
         openModal('consignmentReportModal');
         const now = new Date();
-        reportStartDateEl.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        reportEndDateEl.value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        reportStartDateEl._flatpickr.setDate(new Date(now.getFullYear(), now.getMonth(), 1), true);
+        reportEndDateEl._flatpickr.setDate(new Date(now.getFullYear(), now.getMonth() + 1, 0), true);
     });
 
     filterReportBtn.addEventListener('click', loadConsignmentReport);
@@ -224,7 +233,11 @@ function initKonsinyasiPage() {
         form.method = 'POST';
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
-        const params = { report: 'konsinyasi', start_date: reportStartDateEl.value, end_date: reportEndDateEl.value };
+        const params = { 
+            report: 'konsinyasi', 
+            start_date: reportStartDateEl.value.split('-').reverse().join('-'), 
+            end_date: reportEndDateEl.value.split('-').reverse().join('-') 
+        };
         for (const key in params) {
             const hiddenField = document.createElement('input'); hiddenField.type = 'hidden'; hiddenField.name = key; hiddenField.value = params[key]; form.appendChild(hiddenField);
         }
@@ -234,8 +247,8 @@ function initKonsinyasiPage() {
     });
 
     async function loadDebtSummaryReport() {
-        const startDate = document.getElementById('sisa-utang-start-date').value;
-        const endDate = document.getElementById('sisa-utang-end-date').value;
+        const startDate = document.getElementById('sisa-utang-start-date').value.split('-').reverse().join('-');
+        const endDate = document.getElementById('sisa-utang-end-date').value.split('-').reverse().join('-');
         const reportBody = document.getElementById('debt-summary-report-body');
 
         if (!startDate || !endDate) {
@@ -270,8 +283,8 @@ function initKonsinyasiPage() {
         const startDateEl = document.getElementById('sisa-utang-start-date');
         const endDateEl = document.getElementById('sisa-utang-end-date');
         const now = new Date();
-        startDateEl.value = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]; // Awal tahun
-        endDateEl.value = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0]; // Akhir tahun
+        startDateEl._flatpickr.setDate(new Date(now.getFullYear(), 0, 1), true); // Awal tahun
+        endDateEl._flatpickr.setDate(new Date(now.getFullYear(), 11, 31), true); // Akhir tahun
     });
 
     filterSisaUtangBtn.addEventListener('click', loadDebtSummaryReport);
@@ -284,8 +297,8 @@ function initKonsinyasiPage() {
         form.target = '_blank';
         const params = { 
             report: 'konsinyasi-sisa-utang',
-            start_date: document.getElementById('sisa-utang-start-date').value,
-            end_date: document.getElementById('sisa-utang-end-date').value
+            start_date: document.getElementById('sisa-utang-start-date').value.split('-').reverse().join('-'),
+            end_date: document.getElementById('sisa-utang-end-date').value.split('-').reverse().join('-')
         };
         for (const key in params) {
             const hiddenField = document.createElement('input'); hiddenField.type = 'hidden'; hiddenField.name = key; hiddenField.value = params[key]; form.appendChild(hiddenField);
@@ -315,7 +328,7 @@ function initKonsinyasiPage() {
         form.reset();
         document.getElementById('itemModalLabel').textContent = 'Tambah Barang Konsinyasi';
         document.getElementById('item-action').value = 'save_item';
-        document.getElementById('tanggal_terima').valueAsDate = new Date();
+        terimaTanggalPicker.setDate(new Date());
         openModal('itemModal');
     });
 
@@ -373,7 +386,7 @@ function initKonsinyasiPage() {
                 document.getElementById('harga_jual').value = item.harga_jual;
                 document.getElementById('harga_beli').value = item.harga_beli;
                 document.getElementById('stok_awal').value = item.stok_awal;
-                document.getElementById('tanggal_terima').value = item.tanggal_terima;
+                terimaTanggalPicker.setDate(item.tanggal_terima, true, "Y-m-d");
                 openModal('itemModal');
             } catch (error) { showToast(`Gagal memuat data barang: ${error.message}`, 'error'); }
         }
@@ -396,7 +409,7 @@ function initKonsinyasiPage() {
             });
             // Load content for the new active tab
             if (targetId === 'barang-pane') loadItems();
-            else if (targetId === 'pembayaran-pane') { loadSuppliersForPayment(); loadCashAccountsForPayment(); loadPaymentHistory(); document.getElementById('cp-tanggal').valueAsDate = new Date(); }
+            else if (targetId === 'pembayaran-pane') { loadSuppliersForPayment(); loadCashAccountsForPayment(); loadPaymentHistory(); cpTanggalPicker.setDate(new Date()); }
         }
         tabButtons.forEach(button => button.addEventListener('click', () => switchTab(button.dataset.target.substring(1))));
         switchTab('pemasok-pane'); // Initial active tab
@@ -406,6 +419,6 @@ function initKonsinyasiPage() {
     loadSuppliers();
     loadItems();
     loadItemsForSale();
-    document.getElementById('cs-tanggal').valueAsDate = new Date();
+    csTanggalPicker.setDate(new Date());
     setupTabs();
 }

@@ -10,10 +10,16 @@ function initBukuBesarPage() {
 
     if (!akunFilter) return;
 
-    // Set default dates to today
-    const today = new Date().toISOString().split('T')[0];
-    tglMulai.value = today;
-    tglAkhir.value = today;
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const mulaiPicker = flatpickr(tglMulai, commonOptions);
+    const akhirPicker = flatpickr(tglAkhir, commonOptions);
+
+    // Set default dates to current month
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    mulaiPicker.setDate(firstDay, true);
+    akhirPicker.setDate(lastDay, true);
 
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2 });
 
@@ -35,8 +41,8 @@ function initBukuBesarPage() {
 
     async function loadReport() {
         const accountId = akunFilter.value;
-        const startDate = tglMulai.value;
-        const endDate = tglAkhir.value;
+        const startDate = tglMulai.value.split('-').reverse().join('-');
+        const endDate = tglAkhir.value.split('-').reverse().join('-');
 
         if (!accountId || !startDate || !endDate) {
             showToast('Harap pilih akun dan rentang tanggal.', 'error');
@@ -82,7 +88,7 @@ function initBukuBesarPage() {
                 }
                 tableHtml += `
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${new Date(tx.tanggal).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'})}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${formatDate(tx.tanggal)}</td>
                         <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${tx.keterangan}</td>
                         <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${debit > 0 ? currencyFormatter.format(debit) : '-'}</td>
                         <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">${kredit > 0 ? currencyFormatter.format(kredit) : '-'}</td>
@@ -111,7 +117,12 @@ function initBukuBesarPage() {
         form.method = 'POST';
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
-        const params = { report: 'buku-besar', account_id: akunFilter.value, start_date: tglMulai.value, end_date: tglAkhir.value };
+        const params = { 
+            report: 'buku-besar', 
+            account_id: akunFilter.value, 
+            start_date: tglMulai.value.split('-').reverse().join('-'), 
+            end_date: tglAkhir.value.split('-').reverse().join('-') 
+        };
         for (const key in params) {
             const hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
@@ -127,9 +138,30 @@ function initBukuBesarPage() {
     exportCsvBtn?.addEventListener('click', (e) => {
         e.preventDefault();
         if (!akunFilter.value) { showToast('Pilih akun terlebih dahulu.', 'error'); return; }
-        const url = `${basePath}/api/csv?report=buku-besar&account_id=${akunFilter.value}&start_date=${tglMulai.value}&end_date=${tglAkhir.value}`;
+        const url = `${basePath}/api/csv?report=buku-besar&account_id=${akunFilter.value}&start_date=${tglMulai.value.split('-').reverse().join('-')}&end_date=${tglAkhir.value.split('-').reverse().join('-')}`;
         window.open(url, '_blank');
     });
 
-    loadAccounts();
+    loadAccounts().then(() => {
+        // Check for URL parameters after accounts are loaded, e.g., from a drill-down link.
+        const urlParams = new URLSearchParams(window.location.search);
+        const accountIdFromUrl = urlParams.get('account_id');
+        const startDateFromUrl = urlParams.get('start_date');
+        const endDateFromUrl = urlParams.get('end_date');
+
+        let shouldLoadReport = false;
+
+        if (accountIdFromUrl) {
+            akunFilter.value = accountIdFromUrl;
+            shouldLoadReport = true;
+        }
+        if (startDateFromUrl) {
+            mulaiPicker.setDate(startDateFromUrl, true, "Y-m-d");
+        }
+        if (endDateFromUrl) {
+            akhirPicker.setDate(endDateFromUrl, true, "Y-m-d");
+        }
+
+        if (shouldLoadReport) loadReport();
+    });
 }

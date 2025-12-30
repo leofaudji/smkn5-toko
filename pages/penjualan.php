@@ -66,7 +66,7 @@ check_permission('penjualan', 'menu');
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label for="tanggal" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
-                            <input type="date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50" id="tanggal" name="tanggal" required>
+                            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50" id="tanggal" name="tanggal" required placeholder="DD-MM-YYYY">
                         </div>
                         <div>
                             <label for="customer_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Customer</label>

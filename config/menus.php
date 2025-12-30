@@ -17,8 +17,7 @@ return [
     
     ['type' => 'collapse', 'key' => 'akuntansi', 'label' => 'Akuntansi', 'icon' => 'bi bi-calculator', 'children' => [
         ['key' => 'coa', 'label' => 'Bagan Akun (COA)', 'url' => '/coa'],
-        ['key' => 'saldo_awal_neraca', 'label' => 'Saldo Awal Neraca', 'url' => '/saldo-awal-neraca'],
-        ['key' => 'saldo_awal_lr', 'label' => 'Saldo Awal L/R', 'url' => '/saldo-awal-lr'],
+        ['key' => 'saldo_awal', 'label' => 'Saldo Awal', 'url' => '/saldo-awal'],
         ['key' => 'anggaran', 'label' => 'Anggaran', 'url' => '/anggaran'],
         ['key' => 'daftar_jurnal', 'label' => 'Daftar Jurnal', 'url' => '/daftar-jurnal'],
         ['key' => 'buku_besar', 'label' => 'Buku Besar', 'url' => '/buku-besar'],

@@ -264,13 +264,9 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/coa.js`)
             .then(() => initCoaPage())
             .catch(err => console.error(err));
-    } else if (cleanPath === '/saldo-awal-neraca') {
-        loadScript(`${basePath}/assets/js/saldoawal_neraca.js`)
-            .then(() => initSaldoAwalNeracaPage())
-            .catch(err => console.error(err));
-    } else if (cleanPath === '/saldo-awal-lr') {
-        loadScript(`${basePath}/assets/js/saldoawal_lr.js`)
-            .then(() => initSaldoAwalLRPage())
+    } else if (cleanPath === '/saldo-awal') {
+        loadScript(`${basePath}/assets/js/saldoawal.js`)
+            .then(() => initSaldoAwalPage())
             .catch(err => console.error(err));
     } else if (cleanPath === '/laporan') {
         loadScript(`${basePath}/assets/js/laporan.js`)
@@ -432,8 +428,25 @@ function initKategoriPage() {
  * @param {Date} date The date to compare against.
  * @returns {string} A human-readable string like "5 menit lalu".
  */
+function formatDate(dateString) {
+    if (!dateString || dateString.startsWith('0000')) return '';
+    try {
+        const date = new Date(dateString);
+        // Check if the date is valid
+        if (isNaN(date.getTime())) {
+            return dateString; // Return original string if invalid
+        }
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    } catch (e) {
+        return dateString; // Return original string on error
+    }
+}
+
 function timeSince(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
     let interval = seconds / 31536000;
     if (interval > 1) return Math.floor(interval) + " tahun lalu";
     interval = seconds / 2592000;
@@ -640,11 +653,18 @@ function initRecurringModal() {
 
 function openRecurringModal(type, data, existingTemplate = null) {
     const recurringForm = document.getElementById('recurring-form');
-    if (!recurringForm) return;
+    const startDateEl = document.getElementById('recurring-start-date');
+    const endDateEl = document.getElementById('recurring-end-date');
+
+    if (!recurringForm || !startDateEl || !endDateEl) return;
 
     recurringForm.reset();
     document.getElementById('recurring-template-type').value = type;
     document.getElementById('recurring-template-data').value = JSON.stringify(data);
+
+    // Ambil instance flatpickr yang sudah diinisialisasi di footer.php
+    const startDatePicker = startDateEl._flatpickr;
+    const endDatePicker = endDateEl._flatpickr;
 
     if (existingTemplate) {
         document.getElementById('recurringModalLabel').textContent = 'Edit Jadwal Berulang';
@@ -652,12 +672,12 @@ function openRecurringModal(type, data, existingTemplate = null) {
         document.getElementById('recurring-name').value = existingTemplate.name;
         document.getElementById('recurring-frequency-interval').value = existingTemplate.frequency_interval;
         document.getElementById('recurring-frequency-unit').value = existingTemplate.frequency_unit;
-        document.getElementById('recurring-start-date').value = existingTemplate.start_date;
-        document.getElementById('recurring-end-date').value = existingTemplate.end_date || '';
+        if (startDatePicker) startDatePicker.setDate(existingTemplate.start_date, true, "Y-m-d");
+        if (endDatePicker && existingTemplate.end_date) endDatePicker.setDate(existingTemplate.end_date, true, "Y-m-d");
     } else {
         document.getElementById('recurringModalLabel').textContent = 'Atur Jadwal Berulang';
         document.getElementById('recurring-id').value = '';
-        document.getElementById('recurring-start-date').valueAsDate = new Date();
+        if (startDatePicker) startDatePicker.setDate(new Date(), true);
     }
 
     openModal('recurringModal');
@@ -833,15 +853,6 @@ function renderPagination(container, pagination, onPageClick) {
     });
 }
 
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-
-/**
- * Formats a number with thousand separators.
- * @param {number} value The number to format.
- * @returns {string} The formatted number string.
- */
 function formatNumber(value) {
     if (typeof value !== 'number') return value;
     return new Intl.NumberFormat('id-ID').format(value);

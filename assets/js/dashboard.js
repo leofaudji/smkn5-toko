@@ -9,6 +9,8 @@ function initDashboardPage() {
     // Variabel untuk menyimpan instance chart agar bisa di-destroy sebelum render ulang
     let trendChartInstance = null;
     let expenseChartInstance = null;
+    let profitGrowthChartInstance = null;
+    let inventoryGrowthChartInstance = null;
 
     // Fungsi untuk membuka/menutup modal kustomisasi (non-bootstrap)
     const openCustomizeModal = () => { populateCustomizeModal(); customizeModalEl.classList.remove('hidden'); };
@@ -18,7 +20,9 @@ function initDashboardPage() {
     const allWidgets = {
         summary_cards: { name: 'Kartu Ringkasan (Saldo, Pemasukan, dll.)', default: true },
         balance_status: { name: 'Status Keseimbangan Neraca', default: true },
-        profit_loss_trend: { name: 'Grafik Tren Laba/Rugi', default: true },
+        profit_loss_trend: { name: 'Grafik Tren Arus Kas', default: true },
+        profit_growth: { name: 'Grafik Pertumbuhan Laba', default: true },
+        inventory_growth: { name: 'Grafik Pertumbuhan Nilai Persediaan', default: true },
         expense_category: { name: 'Grafik Kategori Pengeluaran', default: true },
         recent_transactions: { name: 'Tabel Transaksi Terbaru', default: true },
     };
@@ -91,6 +95,16 @@ function initDashboardPage() {
         // Note: Logika injeksi widget Bootstrap dihapus karena tidak kompatibel dengan view Tailwind saat ini.
         // Kita akan memperbarui elemen statis yang sudah ada di dashboard.php.
 
+        // Tampilkan/sembunyikan widget berdasarkan preferensi pengguna
+        for (const key in allWidgets) {
+            const widgetEl = document.getElementById(`widget-${key}`);
+            if (widgetEl) {
+                // Sembunyikan widget jika preferensinya adalah false.
+                // Jika preferensi tidak terdefinisi (undefined), anggap sebagai true (terlihat).
+                widgetEl.classList.toggle('hidden', preferences[key] === false);
+            }
+        }
+
         // Ambil data dari API
         try {
             const response = await fetch(`${basePath}/api/dashboard?bulan=${bulan}&tahun=${tahun}`);
@@ -111,15 +125,65 @@ function initDashboardPage() {
             if (statExpense) statExpense.textContent = currencyFormatter.format(data.pengeluaran_bulan_ini || 0);
             if (statProfit) statProfit.textContent = currencyFormatter.format(data.laba_rugi_bulan_ini || 0);
 
+            // --- Render Status Keseimbangan Neraca ---
+            const balanceStatusContent = document.getElementById('balance-status-content');
+            if (balanceStatusContent) {
+                const isBalanced = data.balance_status?.is_balanced;
+                let contentHtml = '';
+                if (isBalanced === true) {
+                    contentHtml = `
+                        <div class="text-center">
+                            <div class="text-6xl text-green-500 mb-2"><i class="bi bi-check-circle-fill"></i></div>
+                            <h6 class="font-bold text-lg text-green-700">Seimbang</h6>
+                            <p class="text-sm text-gray-500 mt-1">Total Aset sama dengan Total Liabilitas + Ekuitas.</p>
+                            <a href="${basePath}/laporan" class="text-sm text-primary hover:underline mt-3 inline-block">Lihat Laporan Neraca</a>
+                        </div>
+                    `;
+                } else {
+                    contentHtml = `
+                        <div class="text-center">
+                            <div class="text-6xl text-red-500 mb-2"><i class="bi bi-x-octagon-fill"></i></div>
+                            <h6 class="font-bold text-lg text-red-700">Tidak Seimbang</h6>
+                            <p class="text-sm text-gray-500 mt-1">Periksa kembali entri jurnal Anda.</p>
+                            <a href="${basePath}/laporan" class="text-sm text-primary hover:underline mt-3 inline-block">Lihat Laporan Neraca</a>
+                        </div>
+                    `;
+                }
+                balanceStatusContent.innerHTML = contentHtml;
+            }
+
+            // --- Render Transaksi Terbaru ---
+            const recentTransactionsBody = document.getElementById('dashboard-recent-transactions');
+            if (recentTransactionsBody) {
+                recentTransactionsBody.innerHTML = '';
+                if (data.transaksi_terbaru && data.transaksi_terbaru.length > 0) {
+                    data.transaksi_terbaru.forEach(tx => {
+                        const row = `
+                            <tr class="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+                                <td class="py-3 pr-4"><div class="font-medium text-gray-800 dark:text-gray-200">${tx.keterangan}</div><div class="text-xs text-gray-500 dark:text-gray-400">${new Date(tx.tanggal).toLocaleDateString('id-ID')}</div></td>
+                                <td class="py-3 px-4 text-right"><div class="font-semibold text-gray-800 dark:text-gray-200">${currencyFormatter.format(tx.jumlah)}</div></td>
+                                <td class="py-3 pl-4 text-right"><a href="${basePath}/daftar-jurnal#JRN-${tx.ref_id}" class="text-primary hover:underline text-sm">Detail</a></td>
+                            </tr>
+                        `;
+                        recentTransactionsBody.innerHTML += row;
+                    });
+                } else {
+                    recentTransactionsBody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-500">Tidak ada transaksi terbaru.</td></tr>';
+                }
+            }
+
             // --- Render Grafik Tren Arus Kas ---
             const trendCtx = document.getElementById('dashboard-trend-chart');
             if (trendCtx) {
                 if (trendChartInstance) trendChartInstance.destroy();
                 
                 // Gunakan data dari API atau dummy jika belum tersedia
-                const trendLabels = data.trend?.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-                const incomeData = data.trend?.income || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                const expenseData = data.trend?.expense || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                // Definisikan sumber data, fallback ke objek kosong jika tidak ada
+                // Cek nama properti baru (tren_arus_kas) dulu, lalu fallback ke yang lama (profit_loss_trend)
+                const trendDataSource = data.tren_arus_kas || data.profit_loss_trend || {};
+                const trendLabels = trendDataSource.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                const incomeData = trendDataSource.pemasukan || trendDataSource.income || Array(12).fill(0);
+                const expenseData = trendDataSource.pengeluaran || trendDataSource.expense || Array(12).fill(0);
 
                 trendChartInstance = new Chart(trendCtx, {
                     type: 'line',
@@ -159,8 +223,10 @@ function initDashboardPage() {
             if (expenseCtx) {
                 if (expenseChartInstance) expenseChartInstance.destroy();
                 
-                const catLabels = data.expense_categories?.labels || ['Belum ada data'];
-                const catData = data.expense_categories?.data || [1];
+                // Sesuaikan dengan nama properti dari API: 'pengeluaran_per_kategori'
+                const expenseCatSource = data.pengeluaran_per_kategori || data.expense_categories || {};
+                const catLabels = expenseCatSource.labels || ['Belum ada data'];
+                const catData = expenseCatSource.data || [1];
                 const catColors = ['#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#6B7280']; // Tailwind colors
 
                 expenseChartInstance = new Chart(expenseCtx, {
@@ -175,6 +241,80 @@ function initDashboardPage() {
                         plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
                     }
                 });
+            }
+
+            // --- Render Grafik Pertumbuhan Laba ---
+            const profitGrowthCtx = document.getElementById('dashboard-profit-growth-chart');
+            if (profitGrowthCtx) {
+                if (profitGrowthChartInstance) profitGrowthChartInstance.destroy();
+
+                const profitGrowthDataSource = data.pertumbuhan_laba_bulanan || {};
+                const profitLabels = profitGrowthDataSource.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                const profitData = profitGrowthDataSource.data || Array(12).fill(0);
+
+                profitGrowthChartInstance = new Chart(profitGrowthCtx, {
+                    type: 'line',
+                    data: {
+                        labels: profitLabels,
+                        datasets: [
+                            {
+                                label: 'Laba Bersih',
+                                data: profitData,
+                                backgroundColor: 'rgba(0, 122, 255, 0.1)', // Warna area di bawah garis
+                                borderColor: 'rgba(0, 122, 255, 1)', // Warna garis
+                                borderWidth: 2,
+                                fill: true, // Mengaktifkan warna area di bawah garis
+                                tension: 0.4 // Membuat garis lebih halus
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false } // Hide legend for single dataset
+                        },
+                        scales: { 
+                            y: { beginAtZero: false, ticks: { callback: (val) => currencyFormatter.format(val) } } 
+                        }
+                    }
+                });
+            }
+
+            // --- Render Grafik Pertumbuhan Nilai Persediaan ---
+            const inventoryGrowthCtx = document.getElementById('dashboard-inventory-growth-chart');
+            if (inventoryGrowthCtx) {
+                // Fetch data khusus untuk persediaan
+                const invResponse = await fetch(`${basePath}/api/pertumbuhan_persediaan.php?tahun=${tahun}`);
+                const invResult = await invResponse.json();
+
+                if (invResult.status === 'success') {
+                    if (inventoryGrowthChartInstance) inventoryGrowthChartInstance.destroy();
+
+                    const invLabels = invResult.data.map(d => d.nama_bulan);
+                    const invData = invResult.data.map(d => d.nilai_persediaan);
+
+                    inventoryGrowthChartInstance = new Chart(inventoryGrowthCtx, {
+                        type: 'line',
+                        data: {
+                            labels: invLabels,
+                            datasets: [{
+                                label: 'Nilai Persediaan',
+                                data: invData,
+                                borderColor: '#8B5CF6', // Tailwind Violet-500
+                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true, ticks: { callback: (val) => currencyFormatter.format(val) } } }
+                        }
+                    });
+                }
             }
 
         } catch (error) {

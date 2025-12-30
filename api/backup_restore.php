@@ -117,10 +117,15 @@ function handle_backup() {
     fwrite($handle, "COMMIT;\n");
 
     fclose($handle);
+
+    if (isset($_SESSION['username'])) {
+        log_activity($_SESSION['username'], 'Backup Database', 'Melakukan unduhan backup database.');
+    }
     exit;
 }
 
 function handle_restore() {
+    set_time_limit(0); // Mencegah timeout saat restore file besar
     if (!isset($_FILES['backup_file']) || $_FILES['backup_file']['error'] !== UPLOAD_ERR_OK) {
         throw new Exception('Gagal mengunggah file backup. Error code: ' . ($_FILES['backup_file']['error'] ?? 'N/A'));
     }
@@ -138,35 +143,44 @@ function handle_restore() {
     // Use the existing database connection from bootstrap
     $conn = Database::getInstance()->getConnection();
 
-    // Read the SQL file content
-    $sql_script = file_get_contents($file_path);
-    if ($sql_script === false) {
-        throw new Exception('Gagal membaca file backup.');
-    }
-
     // Disable foreign key checks to avoid issues with table order
     $conn->query('SET foreign_key_checks = 0');
 
-    // Execute the multi-query
-    if ($conn->multi_query($sql_script)) {
-        // Loop through all query results to clear them from the buffer
-        do {
-            if ($result = $conn->store_result()) {
-                $result->free();
+    // Baca dan eksekusi file SQL baris per baris untuk menghindari error max_allowed_packet
+    $handle = fopen($file_path, "r");
+    if ($handle) {
+        $query = '';
+        while (($line = fgets($handle)) !== false) {
+            $trim_line = trim($line);
+            // Lewati komentar dan baris kosong
+            if ($trim_line === '' || strpos($trim_line, '--') === 0 || strpos($trim_line, '/*') === 0) {
+                continue;
             }
-        } while ($conn->more_results() && $conn->next_result());
-    }
-
-    // Check for any errors during the multi-query execution
-    if ($conn->errno) {
-        $error_message = "Gagal memulihkan database. Error: " . $conn->error;
-        // Re-enable foreign key checks even if it fails
+            
+            $query .= $line;
+            // Jika baris diakhiri dengan titik koma, eksekusi query
+            if (substr(rtrim($line), -1) === ';') {
+                if (!$conn->query($query)) {
+                    $error_message = "Gagal memulihkan database. Error: " . $conn->error;
+                    fclose($handle);
+                    $conn->query('SET foreign_key_checks = 1');
+                    throw new Exception($error_message);
+                }
+                $query = '';
+            }
+        }
+        fclose($handle);
+    } else {
         $conn->query('SET foreign_key_checks = 1');
-        throw new Exception($error_message);
+        throw new Exception('Gagal membaca file backup.');
     }
 
     // Re-enable foreign key checks
     $conn->query('SET foreign_key_checks = 1');
+
+    if (isset($_SESSION['username'])) {
+        log_activity($_SESSION['username'], 'Restore Database', "Melakukan restore database dari file: {$file_name}");
+    }
 
     echo json_encode(['status' => 'success', 'message' => 'Database berhasil dipulihkan.']);
 }

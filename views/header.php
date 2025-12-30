@@ -22,6 +22,8 @@ $log_cleanup_days = (int)($app_settings['log_cleanup_interval_days'] ?? 180);
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <?php $v=date("Ymd"); ?>
     <link rel="stylesheet" href="<?= base_url('assets/css/style.css?v='.$v) ?>">
     <!-- Favicon  -->
@@ -125,7 +127,7 @@ $log_cleanup_days = (int)($app_settings['log_cleanup_interval_days'] ?? 180);
                             <i class="bi bi-key-fill me-2"></i>Ganti Password
                         </a>
                         <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                        <a href="<?= base_url('/logout') ?>" data-spa-ignore class="flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50">
+                        <a href="<?= base_url('/logout') ?>" data-spa-ignore id="logout-link" class="flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50">
                             <i class="bi bi-box-arrow-right me-2"></i>Logout
                         </a>
                     </div>

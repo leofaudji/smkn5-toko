@@ -32,6 +32,15 @@ function initLaporanPage() {
 
     if (!neracaTanggalInput || !neracaContent) return;
 
+    const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
+    const neracaPicker = flatpickr(neracaTanggalInput, commonOptions);
+    const lrMulaiPicker = flatpickr(labaRugiTglMulai, commonOptions);
+    const lrAkhirPicker = flatpickr(labaRugiTglAkhir, commonOptions);
+    const lrMulai2Picker = flatpickr(labaRugiTglMulai2, commonOptions);
+    const lrAkhir2Picker = flatpickr(labaRugiTglAkhir2, commonOptions);
+    const akMulaiPicker = flatpickr(arusKasTglMulai, commonOptions);
+    const akAkhirPicker = flatpickr(arusKasTglAkhir, commonOptions);
+
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
     function saveFilters() {
@@ -39,6 +48,8 @@ function initLaporanPage() {
             neraca_tanggal: neracaTanggalInput.value,
             lr_start: labaRugiTglMulai.value,
             lr_end: labaRugiTglAkhir.value,
+            lr_start2: labaRugiTglMulai2.value,
+            lr_end2: labaRugiTglAkhir2.value,
             ak_start: arusKasTglMulai.value,
             ak_end: arusKasTglAkhir.value,
         };
@@ -48,24 +59,24 @@ function initLaporanPage() {
     function loadAndSetFilters() {
         const savedFilters = JSON.parse(localStorage.getItem(storageKey)) || {};
         const now = new Date();
-        const today = now.toISOString().split('T')[0];
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        const today = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        neracaTanggalInput.value = savedFilters.neraca_tanggal || today;
+        neracaPicker.setDate(savedFilters.neraca_tanggal || today, true);
 
-        labaRugiTglMulai.value = savedFilters.lr_start || firstDay;
-        labaRugiTglAkhir.value = savedFilters.lr_end || lastDay;
+        lrMulaiPicker.setDate(savedFilters.lr_start || firstDay, true);
+        lrAkhirPicker.setDate(savedFilters.lr_end || lastDay, true);
         
         // Set default comparison period to previous month
         const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const firstDayPrevMonth = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth(), 1).toISOString().split('T')[0];
-        const lastDayPrevMonth = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1, 0).toISOString().split('T')[0];
-        labaRugiTglMulai2.value = savedFilters.lr_start2 || firstDayPrevMonth;
-        labaRugiTglAkhir2.value = savedFilters.lr_end2 || lastDayPrevMonth;
+        const firstDayPrevMonth = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth(), 1);
+        const lastDayPrevMonth = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1, 0);
+        lrMulai2Picker.setDate(savedFilters.lr_start2 || firstDayPrevMonth, true);
+        lrAkhir2Picker.setDate(savedFilters.lr_end2 || lastDayPrevMonth, true);
 
-        arusKasTglMulai.value = savedFilters.ak_start || firstDay;
-        arusKasTglAkhir.value = savedFilters.ak_end || lastDay;
+        akMulaiPicker.setDate(savedFilters.ak_start || firstDay, true);
+        akAkhirPicker.setDate(savedFilters.ak_end || lastDay, true);
     }
 
     function renderNeraca(data) {
@@ -166,7 +177,7 @@ function initLaporanPage() {
     }
 
     async function loadNeraca() {
-        const tanggal = neracaTanggalInput.value;
+        const tanggal = neracaTanggalInput.value.split('-').reverse().join('-');
         neracaContent.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
         
         const params = new URLSearchParams({
@@ -220,7 +231,12 @@ function initLaporanPage() {
 
             accountsOfType.forEach(acc => {
                 const currentData = findAccountTotal(current, acc.id);
-                html += `<tr class="text-sm"><td class="px-4 py-2">${acc.nama_akun}</td><td class="text-right px-4 py-2">${formatCurrencyAccounting(currentData.total)}</td>`;
+                // Tambahkan URL Drill Down ke Buku Besar.
+                // Gunakan tanggal dari filter Laba Rugi, konversi DD-MM-YYYY ke YYYY-MM-DD
+                const startDate = labaRugiTglMulai.value.split('-').reverse().join('-');
+                const endDate = labaRugiTglAkhir.value.split('-').reverse().join('-');
+                const drillDownUrl = `${basePath}/buku-besar?account_id=${acc.id}&start_date=${startDate}&end_date=${endDate}`;
+                html += `<tr class="text-sm"><td class="px-4 py-2">${acc.nama_akun}</td><td class="text-right px-4 py-2"><a href="${drillDownUrl}" class="drill-down-link" title="Lihat Detail Transaksi">${formatCurrencyAccounting(currentData.total)}</a></td>`;
                 if (isCommonSize) {
                     html += `<td class="text-right px-4 py-2 text-gray-500 dark:text-gray-400 text-xs">${currentData.percentage.toFixed(2)}%</td>`;
                 }
@@ -289,8 +305,8 @@ function initLaporanPage() {
 
     async function loadLabaRugi() {
         const params = new URLSearchParams({
-            start: labaRugiTglMulai.value,
-            end: labaRugiTglAkhir.value
+            start: labaRugiTglMulai.value.split('-').reverse().join('-'),
+            end: labaRugiTglAkhir.value.split('-').reverse().join('-')
         });
 
         if (lrIncludeClosing.checked) {
@@ -308,14 +324,19 @@ function initLaporanPage() {
             let start2, end2;
 
             if (compareMode === 'custom') {
-                start2 = labaRugiTglMulai2.value;
-                end2 = labaRugiTglAkhir2.value;
+                start2 = labaRugiTglMulai2.value.split('-').reverse().join('-');
+                end2 = labaRugiTglAkhir2.value.split('-').reverse().join('-');
             } else {
-                const mainStartDate = new Date(labaRugiTglMulai.value);
-                const mainEndDate = new Date(labaRugiTglAkhir.value);
+                const parseDate = (dateStr) => {
+                    if (!dateStr) return new Date();
+                    const [day, month, year] = dateStr.split('-');
+                    return new Date(`${year}-${month}-${day}`);
+                };
+                const mainStartDate = parseDate(labaRugiTglMulai.value);
+                const mainEndDate = parseDate(labaRugiTglAkhir.value);
 
                 if (compareMode === 'previous_period') {
-                    const duration = mainEndDate.getTime() - mainStartDate.getTime();
+                    const duration = mainEndDate.getTime() - mainStartDate.getTime(); // Duration in ms
                     const prevEndDate = new Date(mainStartDate.getTime() - (24 * 60 * 60 * 1000)); // One day before main start
                     const prevStartDate = new Date(prevEndDate.getTime() - duration);
                     start2 = prevStartDate.toISOString().split('T')[0];
@@ -405,8 +426,8 @@ function initLaporanPage() {
     }
 
     async function loadArusKas() {
-        const startDate = arusKasTglMulai.value;
-        const endDate = arusKasTglAkhir.value;
+        const startDate = arusKasTglMulai.value.split('-').reverse().join('-');
+        const endDate = arusKasTglAkhir.value.split('-').reverse().join('-');
         arusKasContent.innerHTML = '<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>';
 
         const params = new URLSearchParams({
@@ -533,7 +554,7 @@ function initLaporanPage() {
         form.method = 'POST';
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
-        const params = { report: 'neraca', tanggal: neracaTanggalInput.value };
+        const params = { report: 'neraca', tanggal: neracaTanggalInput.value.split('-').reverse().join('-') };
         for (const key in params) {
             const hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
@@ -552,11 +573,23 @@ function initLaporanPage() {
         form.method = 'POST';
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
-        const params = { report: 'laba-rugi', start: labaRugiTglMulai.value, end: labaRugiTglAkhir.value, compare_mode: lrCompareModeSelect.value };
-        if (lrCompareModeSelect.value !== 'none') {
+        const params = { 
+            report: 'laba-rugi', 
+            start: labaRugiTglMulai.value.split('-').reverse().join('-'), 
+            end: labaRugiTglAkhir.value.split('-').reverse().join('-'), 
+            compare_mode: lrCompareModeSelect.value 
+        };
+        const compareMode = lrCompareModeSelect.value;
+        if (compareMode !== 'none') {
             params.compare = 'true';
-            params.start2 = labaRugiTglMulai2.value;
-            params.end2 = labaRugiTglAkhir2.value;
+            if (compareMode === 'custom') {
+                params.start2 = labaRugiTglMulai2.value.split('-').reverse().join('-'),
+                params.end2 = labaRugiTglAkhir2.value.split('-').reverse().join('-')
+            }
+            // Note: For other comparison modes, the backend will calculate the dates.
+            // We just need to pass the main dates correctly.
+            // To be safe, we can pass the calculated dates if we want frontend to be the source of truth,
+            // but for now, let's assume backend handles 'previous_period' etc. based on main dates.
         }
         for (const key in params) {
             const hiddenField = document.createElement('input');
@@ -576,7 +609,11 @@ function initLaporanPage() {
         form.method = 'POST';
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
-        const params = { report: 'arus-kas', start: arusKasTglMulai.value, end: arusKasTglAkhir.value };
+        const params = { 
+            report: 'arus-kas', 
+            start: arusKasTglMulai.value.split('-').reverse().join('-'), 
+            end: arusKasTglAkhir.value.split('-').reverse().join('-') 
+        };
         for (const key in params) {
             const hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
@@ -592,21 +629,21 @@ function initLaporanPage() {
     // Event listener untuk tombol CSV (tetap sama)
     exportNeracaCsvBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            window.open(`${basePath}/api/csv?report=neraca&format=csv&tanggal=${neracaTanggalInput.value}`, '_blank');
+            window.open(`${basePath}/api/csv?report=neraca&format=csv&tanggal=${neracaTanggalInput.value.split('-').reverse().join('-')}`, '_blank');
     });
     exportLrCsvBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-            const params = new URLSearchParams({ report: 'laba-rugi', format: 'csv', start: labaRugiTglMulai.value, end: labaRugiTglAkhir.value });
+            const params = new URLSearchParams({ report: 'laba-rugi', format: 'csv', start: labaRugiTglMulai.value.split('-').reverse().join('-'), end: labaRugiTglAkhir.value.split('-').reverse().join('-') });
             if (lrCompareModeSelect.value !== 'none') {
                 params.append('compare', 'true');
-                params.append('start2', labaRugiTglMulai2.value);
-                params.append('end2', labaRugiTglAkhir2.value);
+                params.append('start2', labaRugiTglMulai2.value.split('-').reverse().join('-'));
+                params.append('end2', labaRugiTglAkhir2.value.split('-').reverse().join('-'));
             }
             window.open(`${basePath}/api/csv?${params.toString()}`, '_blank');
     });
     exportAkCsvBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-            window.open(`${basePath}/api/csv?report=arus-kas&format=csv&start=${arusKasTglMulai.value}&end=${arusKasTglAkhir.value}`, '_blank');
+            window.open(`${basePath}/api/csv?report=arus-kas&format=csv&start=${arusKasTglMulai.value.split('-').reverse().join('-')}&end=${arusKasTglAkhir.value.split('-').reverse().join('-')}`, '_blank');
     });
 
     // Initial Load

@@ -8,11 +8,12 @@ function initStokOpnamePage() {
 
     if (!form) return; // Hentikan jika elemen utama tidak ditemukan
 
+    const tanggalPicker = flatpickr("#tanggal", { dateFormat: "d-m-Y", allowInput: true });
     let physicalStockValues = {}; // Untuk menyimpan input stok fisik sementara
     let searchDebounceTimer;
 
     // Set tanggal hari ini
-    document.getElementById('tanggal').valueAsDate = new Date();
+    tanggalPicker.setDate(new Date(), true);
 
     // 1. Muat Akun Penyesuaian
     async function loadAdjustmentAccounts() {
@@ -164,7 +165,7 @@ function initStokOpnamePage() {
 
         const payload = {
             action: 'batch_adjust_stock',
-            tanggal: document.getElementById('tanggal').value,
+            tanggal: document.getElementById('tanggal').value.split('-').reverse().join('-'),
             adj_account_id: document.getElementById('adj_account_id').value,
             keterangan: document.getElementById('keterangan').value,
             items: itemsToAdjust

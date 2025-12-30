@@ -67,7 +67,7 @@ try {
         $stmt_balances = $conn->prepare("
             SELECT
                 a.id, a.nama_akun, a.tipe_akun,
-                a.saldo_awal + COALESCE(SUM(
+                COALESCE(SUM(
                     CASE
                         WHEN a.tipe_akun = 'Pendapatan' THEN gl.kredit - gl.debit
                         ELSE gl.debit - gl.kredit
@@ -75,7 +75,7 @@ try {
                 ), 0) as saldo_akhir
             FROM accounts a LEFT JOIN general_ledger gl ON a.id = gl.account_id AND gl.tanggal <= ?
             WHERE a.user_id = ? AND a.tipe_akun IN ('Pendapatan', 'Beban')
-            GROUP BY a.id, a.nama_akun, a.tipe_akun, a.saldo_awal
+            GROUP BY a.id, a.nama_akun, a.tipe_akun
             HAVING saldo_akhir != 0
         ");
         $stmt_balances->bind_param('si', $closing_date, $user_id);

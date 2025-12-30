@@ -215,26 +215,18 @@ function get_user_id_from_username(string $nama_panggilan): ?int {
  * @return float Total saldo kas.
  */
 function get_cash_balance_on_date($conn, $user_id, $date) {
-    // 1. Ambil total saldo awal dari semua akun kas
-    $stmt_saldo_awal = $conn->prepare("SELECT COALESCE(SUM(a.saldo_awal), 0) as total_saldo_awal FROM accounts a WHERE a.user_id = ? AND a.is_kas = 1");
-    $stmt_saldo_awal->bind_param('i', $user_id);
-    $stmt_saldo_awal->execute();
-    $total_saldo_awal = (float)$stmt_saldo_awal->get_result()->fetch_assoc()['total_saldo_awal'];
-    $stmt_saldo_awal->close();
-
-    // 2. Ambil total mutasi dari semua akun kas dari general_ledger
-    $stmt_mutasi_jurnal = $conn->prepare("
+    // Dengan saldo awal yang sudah ada di general_ledger, kita hanya perlu menjumlahkan semua transaksi hingga tanggal tertentu.
+    $stmt = $conn->prepare("
         SELECT COALESCE(SUM(gl.debit - gl.kredit), 0) as total_mutasi
         FROM general_ledger gl
         JOIN accounts a ON gl.account_id = a.id
         WHERE gl.user_id = ? AND gl.tanggal <= ? AND a.is_kas = 1
     ");
-    $stmt_mutasi_jurnal->bind_param('is', $user_id, $date);
-    $stmt_mutasi_jurnal->execute();
-    $mutasi_jurnal = (float)$stmt_mutasi_jurnal->get_result()->fetch_assoc()['total_mutasi'];
-    $stmt_mutasi_jurnal->close();
-
-    return $total_saldo_awal + $mutasi_jurnal;
+    $stmt->bind_param('is', $user_id, $date);
+    $stmt->execute();
+    $balance = (float)$stmt->get_result()->fetch_assoc()['total_mutasi'];
+    $stmt->close();
+    return $balance;
 }
 
 /**
@@ -247,36 +239,33 @@ function get_cash_balance_on_date($conn, $user_id, $date) {
  * @return float Total saldo akun.
  */
 function get_account_balance_on_date($conn, $user_id, $account_id, $date) {
-    // 1. Ambil info akun (saldo awal dan saldo normal)
-    $stmt_acc = $conn->prepare("SELECT saldo_awal, saldo_normal FROM accounts WHERE id = ? AND user_id = ?");
+    // 1. Ambil info akun (saldo normal)
+    $stmt_acc = $conn->prepare("SELECT saldo_normal FROM accounts WHERE id = ? AND user_id = ?");
     $stmt_acc->bind_param('ii', $account_id, $user_id);
     $stmt_acc->execute();
     $account_info = $stmt_acc->get_result()->fetch_assoc();
     $stmt_acc->close();
 
-    if (!$account_info) {
-        return 0; // Atau throw exception
-    }
+    if (!$account_info) return 0;
 
-    $saldo = (float)$account_info['saldo_awal'];
     $saldo_normal = $account_info['saldo_normal'];
 
-    // 2. Hitung mutasi dari jurnal (termasuk yang dibuat dari transaksi sederhana)
+    // 2. Hitung total mutasi dari general_ledger hingga tanggal tertentu
     $stmt_mutasi = $conn->prepare(" 
         SELECT 
-            COALESCE(SUM(jd.debit), 0) as total_debit,
-            COALESCE(SUM(jd.kredit), 0) as total_kredit
-        FROM general_ledger jd
-        WHERE jd.user_id = ? AND jd.account_id = ? AND jd.tanggal <= ?
+            COALESCE(SUM(gl.debit), 0) as total_debit,
+            COALESCE(SUM(gl.kredit), 0) as total_kredit
+        FROM general_ledger gl
+        WHERE gl.user_id = ? AND gl.account_id = ? AND gl.tanggal <= ?
     ");
     $stmt_mutasi->bind_param('iis', $user_id, $account_id, $date);
     $stmt_mutasi->execute();
     $mutasi = $stmt_mutasi->get_result()->fetch_assoc();
     $stmt_mutasi->close();
 
-    $saldo += ($saldo_normal === 'Debit') ? ((float)$mutasi['total_debit'] - (float)$mutasi['total_kredit']) : ((float)$mutasi['total_kredit'] - (float)$mutasi['total_debit']);
+    $balance = ($saldo_normal === 'Debit') ? ((float)$mutasi['total_debit'] - (float)$mutasi['total_kredit']) : ((float)$mutasi['total_kredit'] - (float)$mutasi['total_debit']);
 
-    return $saldo;
+    return $balance;
 }
 
 /**
@@ -323,13 +312,16 @@ function get_balance_sheet_status($conn, $user_id, $per_tanggal) {
         // 1. Ambil semua akun beserta total mutasinya dari general_ledger
         $stmt = $conn->prepare("
             SELECT
-                a.id, a.tipe_akun, a.saldo_normal, a.saldo_awal,
+                a.id, a.tipe_akun,
                 COALESCE(SUM(
                     CASE
-                        WHEN a.saldo_normal = 'Debit' THEN gl.debit - gl.kredit
-                        ELSE gl.kredit - gl.debit
+                        WHEN a.tipe_akun = 'Aset' THEN gl.debit - gl.kredit
+                        WHEN a.tipe_akun IN ('Liabilitas', 'Ekuitas') THEN gl.kredit - gl.debit
+                        WHEN a.tipe_akun = 'Pendapatan' THEN gl.kredit - gl.debit
+                        WHEN a.tipe_akun = 'Beban' THEN gl.debit - gl.kredit
+                        ELSE 0
                     END
-                ), 0) as mutasi
+                ), 0) as saldo_akhir
             FROM accounts a
             LEFT JOIN general_ledger gl ON a.id = gl.account_id AND gl.user_id = a.user_id AND gl.tanggal <= ?
             WHERE a.user_id = ?
@@ -340,7 +332,6 @@ function get_balance_sheet_status($conn, $user_id, $per_tanggal) {
         $accounts_result = $stmt->get_result();
         $accounts = [];
         while ($row = $accounts_result->fetch_assoc()) {
-            $row['saldo_akhir'] = (float)$row['saldo_awal'] + (float)$row['mutasi'];
             $accounts[] = $row;
         }
         $stmt->close();

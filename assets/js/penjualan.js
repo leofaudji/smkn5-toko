@@ -1,11 +1,37 @@
 function initPenjualanPage() {
-    // Modal instances are no longer needed, using global openModal/closeModal
+    // Fix: Pastikan daftar saran produk muncul di atas elemen lain.
+    const suggestionsContainer = document.getElementById('product-suggestions');
+    if (suggestionsContainer) {
+        const parent = suggestionsContainer.parentElement;
+        // Parent dari suggestions harus memiliki posisi 'relative'
+        // agar 'absolute' child diposisikan relatif terhadapnya.
+        if (parent) {
+            parent.classList.add('relative');
+        }
+        // Tambahkan kelas untuk positioning, z-index, dan styling.
+        suggestionsContainer.classList.add(
+            'absolute',      // Atur posisi absolut
+            'w-full',        // Lebar penuh sesuai parent
+            'top-full',      // Posisikan dropdown tepat di bawah elemen input.
+            'mt-1',          // Beri sedikit jarak dari input field (sesuai saran Anda).
+            'z-50',          // Gunakan z-index tertinggi untuk memastikan saran muncul di atas semua elemen lain.
+            'bg-white',      // Beri warna latar
+            'dark:bg-gray-800',
+            'border',        // Tambahkan border
+            'border-gray-200',
+            'dark:border-gray-600',
+            'rounded-b-md',  // Sudut bawah yang membulat
+            'shadow-lg'      // Beri bayangan agar terlihat melayang
+        );
+    }
+
     const searchProdukInput = document.getElementById('search-produk');
     const cartItemsContainer = document.getElementById('cart-items');
     const searchInput = document.getElementById('search-input');
     const tableBody = document.getElementById('penjualanTable').querySelector('tbody');
     const paginationContainer = document.getElementById('pagination');
     const paginationInfo = document.getElementById('pagination-info');
+    const tanggalInput = document.getElementById('tanggal');
 
     let cart = [];
     let currentPage = 1;
@@ -16,6 +42,13 @@ function initPenjualanPage() {
     const formatRupiah = (angka) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
     };
+
+    // Inisialisasi Flatpickr untuk input tanggal
+    const tanggalPicker = flatpickr(tanggalInput, {
+        dateFormat: "d-m-Y", // Format DD-MM-YYYY
+        defaultDate: "today",
+        allowInput: true // Memungkinkan input manual dari keyboard
+    });
 
     // Fungsi untuk mencetak struk via window.print()
     const printStrukWindow = async (id) => {
@@ -76,7 +109,7 @@ function initPenjualanPage() {
                     </div>
                     <div class="border-bottom mb-1" style="padding-bottom: 5px;">
                         <div>No: ${detail.nomor_referensi}</div>
-                        <div>Tgl: ${detail.tanggal_penjualan}</div>
+                        <div>Tgl: ${formatDate(detail.tanggal_penjualan)}</div>
                         <div>Kasir: ${detail.created_by_username}</div>
                         <div>Pelanggan: ${detail.customer_name}</div>
                     </div>
@@ -153,7 +186,7 @@ function initPenjualanPage() {
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-calendar-event mr-1 text-gray-400"></i> <span class="${textDecoration}">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-calendar-event mr-1 text-gray-400"></i> <span class="${textDecoration}">${formatDate(item.tanggal_penjualan)}</span></td>
                     <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-person mr-1 text-gray-400"></i> <span class="${textDecoration}">${item.customer_name}</span></td>
                     <td class="px-6 py-4 whitespace-nowrap text-right">
                         <span class="font-bold ${isVoid ? 'text-gray-500' : 'text-green-600'} ${textDecoration}">${formatRupiah(item.total)}</span>
@@ -259,7 +292,7 @@ function initPenjualanPage() {
     // Event Listeners
     document.getElementById('btn-tambah-penjualan').addEventListener('click', () => {
         document.getElementById('form-penjualan').reset();
-        document.getElementById('tanggal').valueAsDate = new Date();
+        tanggalPicker.setDate(new Date()); // Reset tanggal ke hari ini menggunakan API Flatpickr
         cart = [];
         renderCart();
         openModal('penjualanModal');
@@ -317,6 +350,11 @@ function initPenjualanPage() {
     });
 
     searchProdukInput.addEventListener('keyup', async (e) => {
+        // Jangan jalankan pencarian jika tombol navigasi ditekan
+        if (['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)) {
+            return;
+        }
+
         const term = e.target.value;
         const suggestionsContainer = document.getElementById('product-suggestions');
         if (term.length < 2) {
@@ -352,6 +390,41 @@ function initPenjualanPage() {
                 </a>`
             ).join('');
             suggestionsContainer.innerHTML = list;
+        }
+    });
+
+    // Tambahkan event listener untuk tombol Enter pada pencarian produk
+    // dan navigasi atas/bawah
+    searchProdukInput.addEventListener('keydown', (e) => {
+        const suggestionsContainer = document.getElementById('product-suggestions');
+        const suggestions = Array.from(suggestionsContainer.querySelectorAll('a'));
+        const activeSuggestion = suggestionsContainer.querySelector('.active-suggestion');
+        let currentIndex = activeSuggestion ? suggestions.indexOf(activeSuggestion) : -1;
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                if (suggestions.length === 0) return;
+                if (activeSuggestion) activeSuggestion.classList.remove('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
+                currentIndex = (currentIndex + 1) % suggestions.length;
+                suggestions[currentIndex].classList.add('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
+                suggestions[currentIndex].scrollIntoView({ block: 'nearest', inline: 'start' });
+                break;
+
+            case 'ArrowUp':
+                e.preventDefault();
+                if (suggestions.length === 0) return;
+                if (activeSuggestion) activeSuggestion.classList.remove('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
+                currentIndex = (currentIndex - 1 + suggestions.length) % suggestions.length;
+                suggestions[currentIndex].classList.add('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
+                suggestions[currentIndex].scrollIntoView({ block: 'nearest', inline: 'start' });
+                break;
+
+            case 'Enter':
+                e.preventDefault();
+                const targetSuggestion = activeSuggestion || suggestions[0];
+                if (targetSuggestion) targetSuggestion.click();
+                break;
         }
     });
 
@@ -492,8 +565,18 @@ function initPenjualanPage() {
             return;
         }
 
+        // Helper function untuk mengubah format tanggal menjadi YYYY-MM-DD yang dibutuhkan oleh database
+        const formatDateForDB = (date) => {
+            // Jika tidak ada tanggal yang dipilih, gunakan tanggal hari ini sebagai fallback
+            if (!date) return new Date().toISOString().slice(0, 10);
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
         const formData = {
-            tanggal: document.getElementById('tanggal').value,
+            tanggal: formatDateForDB(tanggalPicker.selectedDates[0]),
             customer_name: document.getElementById('customer_name').value || 'Umum',
             subtotal: subtotal,
             discount: totalDiscount,
@@ -543,7 +626,7 @@ function initPenjualanPage() {
 
                     // Otomatis reset form dan buka kembali modal untuk transaksi berikutnya
                     document.getElementById('form-penjualan').reset();
-                    document.getElementById('tanggal').valueAsDate = new Date();
+                    tanggalPicker.setDate(new Date()); // Reset tanggal ke hari ini
                     cart = [];
                     renderCart(); // Bersihkan tampilan keranjang
                     
