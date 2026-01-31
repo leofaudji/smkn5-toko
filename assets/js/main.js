@@ -388,6 +388,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/roles.js`)
             .then(() => initRolesPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/anggota') {
+        loadScript(`${basePath}/assets/js/anggota.js`)
+            .then(() => initAnggotaPage())
+            .catch(err => console.error(err));
     }else if (cleanPath === '/buku-panduan') {        // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
         // Cukup daftarkan agar tidak error dan hentikan eksekusi.
         return; 

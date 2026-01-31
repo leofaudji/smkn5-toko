@@ -58,7 +58,13 @@ class NeracaReportBuilder implements ReportBuilderInterface
     public function build(): void
     {
         $tanggal = $this->params['tanggal'] ?? date('Y-m-d');
-        $user_id = $this->params['user_id'];
+        if (empty($tanggal)) $tanggal = date('Y-m-d');
+        
+        // Normalisasi format tanggal ke Y-m-d untuk memastikan query SQL (tanggal < ?) bekerja dengan benar
+        $tanggal = date('Y-m-d', strtotime($tanggal));
+        
+        $user_id = $this->params['user_id']; 
+        $include_closing = filter_var($this->params['include_closing'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         $this->pdf->SetTitle('Laporan Neraca');
         $this->pdf->report_title = 'Laporan Posisi Keuangan (Neraca)';
@@ -67,15 +73,10 @@ class NeracaReportBuilder implements ReportBuilderInterface
 
         // Gunakan Repository untuk konsistensi data
         $repo = new LaporanRepository($this->conn);
-        $neraca_accounts = $repo->getNeracaData($user_id, $tanggal);
-
-        // Hitung laba rugi berjalan dari data laba rugi
-        $laba_rugi_data = $repo->getLabaRugiData($user_id, date('Y-01-01', strtotime($tanggal)), $tanggal);
-        $laba_rugi_berjalan = $laba_rugi_data['summary']['laba_bersih'];
-
-        // Tambahkan akun virtual untuk laba rugi berjalan ke dalam data neraca
-        $neraca_accounts[] = ['id' => 'laba_rugi_virtual', 'parent_id' => null, 'nama_akun' => 'Laba (Rugi) Periode Berjalan', 'tipe_akun' => 'Ekuitas', 'saldo_akhir' => $laba_rugi_berjalan];
-
+        
+        // Panggil metode terpusat untuk mendapatkan data neraca lengkap
+        $neraca_accounts = $repo->getNeracaDataWithProfitLoss($user_id, $tanggal, $include_closing);
+        
         $data = $neraca_accounts;
 
         $this->render($data);

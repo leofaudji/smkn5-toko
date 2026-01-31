@@ -33,6 +33,10 @@ return [
         ['key' => 'aset_tetap', 'label' => 'Aset Tetap', 'url' => '/aset-tetap'],
     ]],
 
+    ['type' => 'collapse', 'key' => 'simpan_pinjam', 'label' => 'Simpan Pinjam', 'icon' => 'bi bi-piggy-bank', 'children' => [
+        ['key' => 'anggota', 'label' => 'Pendaftaran Anggota', 'url' => '/anggota'],
+    ]],
+
     ['type' => 'collapse', 'key' => 'laporan', 'label' => 'Laporan', 'icon' => 'bi bi-bar-chart-line-fill', 'children' => [
         ['key' => 'laporan_harian', 'label' => 'Laporan Harian', 'url' => '/laporan-harian'],
         ['key' => 'penjualan_item', 'label' => 'Penjualan per Item', 'url' => '/laporan-penjualan-item'],

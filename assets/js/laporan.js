@@ -555,6 +555,9 @@ function initLaporanPage() {
         form.action = `${basePath}/api/pdf`;
         form.target = '_blank';
         const params = { report: 'neraca', tanggal: neracaTanggalInput.value.split('-').reverse().join('-') };
+        if (neracaIncludeClosing.checked) {
+            params.include_closing = 'true';
+        }
         for (const key in params) {
             const hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
@@ -579,6 +582,9 @@ function initLaporanPage() {
             end: labaRugiTglAkhir.value.split('-').reverse().join('-'), 
             compare_mode: lrCompareModeSelect.value 
         };
+        if (lrIncludeClosing.checked) {
+            params.include_closing = 'true';
+        }
         const compareMode = lrCompareModeSelect.value;
         if (compareMode !== 'none') {
             params.compare = 'true';
@@ -614,6 +620,9 @@ function initLaporanPage() {
             start: arusKasTglMulai.value.split('-').reverse().join('-'), 
             end: arusKasTglAkhir.value.split('-').reverse().join('-') 
         };
+        if (akIncludeClosing.checked) {
+            params.include_closing = 'true';
+        }
         for (const key in params) {
             const hiddenField = document.createElement('input');
             hiddenField.type = 'hidden';
@@ -629,11 +638,22 @@ function initLaporanPage() {
     // Event listener untuk tombol CSV (tetap sama)
     exportNeracaCsvBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            window.open(`${basePath}/api/csv?report=neraca&format=csv&tanggal=${neracaTanggalInput.value.split('-').reverse().join('-')}`, '_blank');
+            const params = new URLSearchParams({
+                report: 'neraca',
+                format: 'csv',
+                tanggal: neracaTanggalInput.value.split('-').reverse().join('-')
+            });
+            if (neracaIncludeClosing.checked) {
+                params.append('include_closing', 'true');
+            }
+            window.open(`${basePath}/api/csv?${params.toString()}`, '_blank');
     });
     exportLrCsvBtn?.addEventListener('click', (e) => {
         e.preventDefault();
             const params = new URLSearchParams({ report: 'laba-rugi', format: 'csv', start: labaRugiTglMulai.value.split('-').reverse().join('-'), end: labaRugiTglAkhir.value.split('-').reverse().join('-') });
+            if (lrIncludeClosing.checked) {
+                params.append('include_closing', 'true');
+            }
             if (lrCompareModeSelect.value !== 'none') {
                 params.append('compare', 'true');
                 params.append('start2', labaRugiTglMulai2.value.split('-').reverse().join('-'));
@@ -643,7 +663,15 @@ function initLaporanPage() {
     });
     exportAkCsvBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-            window.open(`${basePath}/api/csv?report=arus-kas&format=csv&start=${arusKasTglMulai.value.split('-').reverse().join('-')}&end=${arusKasTglAkhir.value.split('-').reverse().join('-')}`, '_blank');
+            const params = new URLSearchParams({
+                report: 'arus-kas', format: 'csv', 
+                start: arusKasTglMulai.value.split('-').reverse().join('-'), 
+                end: arusKasTglAkhir.value.split('-').reverse().join('-') 
+            });
+            if (akIncludeClosing.checked) {
+                params.append('include_closing', 'true');
+            }
+            window.open(`${basePath}/api/csv?${params.toString()}`, '_blank');
     });
 
     // Initial Load

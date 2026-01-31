@@ -42,8 +42,12 @@ try {
     switch ($report_type) {
         case 'neraca':
             $tanggal = $_GET['tanggal'] ?? date('Y-m-d');
+            if (empty($tanggal)) $tanggal = date('Y-m-d');
+            $tanggal = date('Y-m-d', strtotime($tanggal)); // Normalisasi format tanggal
+            $include_closing = filter_var($_GET['include_closing'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
             $repo = new LaporanRepository($conn);
-            $data = $repo->getNeracaData($user_id, $tanggal);
+            $data = $repo->getNeracaDataWithProfitLoss($user_id, $tanggal, $include_closing);
 
             fputcsv($output, ['Laporan Posisi Keuangan (Neraca)']);
             fputcsv($output, ['Per Tanggal:', date('d-m-Y', strtotime($tanggal))]);

@@ -707,12 +707,14 @@ INSERT INTO `permissions` (`slug`, `name`, `description`) VALUES
 ('menu.view.roles', 'Lihat Sub-Menu: Roles', 'Memberi akses untuk melihat sub-menu Manajemen Role'),
 ('menu.view.activity-log', 'Lihat Sub-Menu: Log Aktivitas', 'Memberi akses untuk melihat sub-menu Log Aktivitas'),
 ('menu.view.tutup-buku', 'Lihat Sub-Menu: Tutup Buku', 'Memberi akses untuk melihat sub-menu Tutup Buku'),
-('menu.view.settings', 'Lihat Sub-Menu: Pengaturan', 'Memberi akses untuk melihat sub-menu Pengaturan');
+('menu.view.settings', 'Lihat Sub-Menu: Pengaturan', 'Memberi akses untuk melihat sub-menu Pengaturan'),
+('menu.view.simpan_pinjam', 'Lihat Menu: Simpan Pinjam', 'Memberi akses untuk melihat grup menu Simpan Pinjam'),
+('menu.view.anggota', 'Lihat Sub-Menu: Pendaftaran Anggota', 'Memberi akses untuk melihat sub-menu Pendaftaran Anggota');
 
 -- Query ini mengasumsikan ID role 'Admin' adalah 1 dan ID permission baru dimulai dari 6.
 -- Sesuaikan jika ID-nya berbeda.
 INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
-(1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16);
+(1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18);
 
 -- Beri role Kasir (ID 2) hak akses untuk melihat menu Transaksi agar menu muncul di sidebar
 INSERT INTO `role_permissions` (`role_id`, `permission_id`) 
@@ -732,3 +734,23 @@ CREATE TABLE `role_menus` (
 -- (Opsional) Anda bisa menghapus tabel 'menus' jika sudah tidak dipakai
 -- DROP TABLE IF EXISTS `menus`;
 
+-- Tabel Anggota Simpan Pinjam
+CREATE TABLE `anggota` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `nomor_anggota` varchar(50) NOT NULL,
+  `nama_lengkap` varchar(100) NOT NULL,
+  `alamat` text DEFAULT NULL,
+  `no_telepon` varchar(20) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `tanggal_daftar` date NOT NULL,
+  `status` enum('aktif','nonaktif') NOT NULL DEFAULT 'aktif',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `nomor_anggota_user` (`user_id`, `nomor_anggota`),
+  KEY `user_id` (`user_id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

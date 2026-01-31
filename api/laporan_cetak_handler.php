@@ -30,24 +30,42 @@ require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPenjualanReportBuil
 
 $conn = Database::getInstance()->getConnection();
 
-$report_type = $_REQUEST['report'] ?? '';
+// --- Parameter Handling (Robustly handle GET, POST, and JSON POST) ---
+$params = $_GET; // Start with GET params as a base
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $post_params = $_POST;
+    // If $_POST is empty, it might be a JSON request body
+    if (empty($post_params)) {
+        $json_body = json_decode(file_get_contents('php://input'), true);
+        if (is_array($json_body)) {
+            $post_params = $json_body;
+        }
+    }
+    // Merge POST params, which will overwrite any GET params with the same name
+    $params = array_merge($params, $post_params);
+}
+
+$report_type = $params['report'] ?? '';
+// --- End Parameter Handling ---
 
 // Ambil nama perumahan dari settings untuk header PDF
 global $housing_name;
 $housing_name = get_setting('app_name', 'Aplikasi Keuangan');
 
 function format_currency_pdf($number) {
-    if ($number < 0) {
-        return '(Rp ' . number_format(abs($number), 0, ',', '.') . ')';
+    // Handle non-numeric values gracefully to prevent errors
+    if (!is_numeric($number)) {
+        return 'Rp 0';
     }
-    return 'Rp ' . number_format($number, 0, ',', '.');
+    $is_negative = $number < 0;
+    $formatted_number = 'Rp ' . number_format(abs($number), 0, ',', '.');
+    return $is_negative ? '(' . $formatted_number . ')' : $formatted_number;
 }
 
 $pdf = new PDF();
 $pdf->AliasNbPages(); // Penting untuk mengetahui total halaman
 
-// Parameter yang akan diteruskan ke builder
-$params = $_REQUEST; // Gunakan $_REQUEST untuk menerima GET dan POST
 $params['user_id'] = 1; // ID Pemilik Data (Toko)
 
 // Peta dari tipe laporan ke kelas builder-nya

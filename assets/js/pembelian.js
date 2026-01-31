@@ -168,20 +168,11 @@ function addPembelianLine(data = {}) {
     const newRow = document.createElement('tr');
     newRow.className = 'border-b border-gray-200 dark:border-gray-700';
 
-    // Buat opsi untuk dropdown barang
-    let itemOptions = '<option value="">-- Pilih Barang --</option>';
-    if (window.purchaseableItems) {
-        window.purchaseableItems.forEach(item => {
-            const isSelected = data.item_id && data.item_id == item.id ? 'selected' : '';
-            itemOptions += `<option value="${item.id}" data-price="${item.harga_beli}" ${isSelected}>${item.nama_barang} (${item.sku || 'No-SKU'})</option>`;
-        });
-    }
-
     newRow.innerHTML = `
-        <td class="px-4 py-2">
-            <select class="w-full bg-transparent border-none focus:ring-0 line-item" required>
-                ${itemOptions}
-            </select>
+        <td class="px-4 py-2 relative">
+            <input type="text" class="w-full bg-transparent border-none focus:ring-0 line-item-search" placeholder="Ketik untuk mencari barang..." required value="${data.nama_barang || ''}">
+            <input type="hidden" class="line-item-id" value="${data.item_id || ''}">
+            <div class="absolute top-full left-0 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b-md shadow-lg z-50 hidden purchase-suggestions"></div>
         </td>
         <td class="px-4 py-2">
             <input type="number" class="w-24 text-right bg-transparent border-none focus:ring-0 line-qty" placeholder="0" required value="${data.quantity || 1}">
@@ -190,7 +181,7 @@ function addPembelianLine(data = {}) {
             <input type="number" class="w-full text-right bg-transparent border-none focus:ring-0 line-price" placeholder="0" required value="${data.price || 0}">
         </td>
         <td class="px-4 py-2">
-            <input type="number" class="w-full text-right bg-transparent border-none focus:ring-0 line-subtotal" readonly>
+            <input type="number" class="w-full text-right bg-transparent border-none focus:ring-0 line-subtotal" readonly value="${(data.quantity || 1) * (data.price || 0)}">
         </td>
         <td class="px-4 py-2 text-center">
             <button type="button" class="text-red-500 hover:text-red-700 remove-pembelian-line-btn"><i class="bi bi-trash-fill"></i></button>
@@ -199,26 +190,75 @@ function addPembelianLine(data = {}) {
 
     tbody.appendChild(newRow);
 
+    const searchInput = newRow.querySelector('.line-item-search');
+    const itemIdInput = newRow.querySelector('.line-item-id');
+    const suggestionsContainer = newRow.querySelector('.purchase-suggestions');
+    const priceInput = newRow.querySelector('.line-price');
+    const qtyInput = newRow.querySelector('.line-qty');
+    const subtotalInput = newRow.querySelector('.line-subtotal');
+
     // Fungsi untuk kalkulasi subtotal
-    const calculateSubtotal = (row) => {
-        const qty = parseFloat(row.querySelector('.line-qty').value) || 0;
-        const price = parseFloat(row.querySelector('.line-price').value) || 0;
-        row.querySelector('.line-subtotal').value = qty * price;
+    const calculateSubtotal = () => {
+        const qty = parseFloat(qtyInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        subtotalInput.value = qty * price;
     };
 
-    // Event listener untuk auto-fill harga dan kalkulasi
-    newRow.querySelector('.line-item').addEventListener('change', (e) => {
-        const selectedOption = e.target.options[e.target.selectedIndex];
-        const price = selectedOption.dataset.price || 0;
-        const priceInput = newRow.querySelector('.line-price');
-        priceInput.value = price;
-        calculateSubtotal(newRow);
-    });
-    newRow.querySelector('.line-qty').addEventListener('input', () => calculateSubtotal(newRow));
-    newRow.querySelector('.line-price').addEventListener('input', () => calculateSubtotal(newRow));
+    // Event listener untuk input pencarian
+    searchInput.addEventListener('keyup', (e) => {
+        const term = searchInput.value.toLowerCase();
+        suggestionsContainer.innerHTML = '';
+        if (term.length < 2) {
+            suggestionsContainer.classList.add('hidden');
+            return;
+        }
 
-    // Hitung subtotal awal jika ada data
-    calculateSubtotal(newRow);
+        const filteredItems = (window.purchaseableItems || []).filter(item =>
+            item.nama_barang.toLowerCase().includes(term) ||
+            (item.sku && item.sku.toLowerCase().includes(term))
+        ).slice(0, 10); // Batasi hasil untuk performa
+
+        if (filteredItems.length > 0) {
+            suggestionsContainer.classList.remove('hidden');
+            filteredItems.forEach(item => {
+                const suggestionDiv = document.createElement('div');
+                suggestionDiv.className = 'p-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0';
+                suggestionDiv.innerHTML = `
+                    <div class="font-semibold">${item.nama_barang}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">SKU: ${item.sku || '-'} | Stok: ${item.stok}</div>
+                `;
+                suggestionDiv.dataset.item = JSON.stringify(item);
+                suggestionsContainer.appendChild(suggestionDiv);
+            });
+        } else {
+            suggestionsContainer.innerHTML = '<div class="p-3 text-center text-sm text-gray-500">Barang tidak ditemukan.</div>';
+            suggestionsContainer.classList.remove('hidden');
+        }
+    });
+
+    // Event listener untuk memilih dari saran
+    suggestionsContainer.addEventListener('click', (e) => {
+        const suggestion = e.target.closest('[data-item]');
+        if (suggestion) {
+            const item = JSON.parse(suggestion.dataset.item);
+            searchInput.value = item.nama_barang;
+            itemIdInput.value = item.id;
+            priceInput.value = item.harga_beli || 0;
+            suggestionsContainer.classList.add('hidden');
+            calculateSubtotal();
+            qtyInput.focus(); // Pindah fokus ke qty
+        }
+    });
+
+    // Sembunyikan saran jika klik di luar
+    document.addEventListener('click', (e) => {
+        if (!newRow.contains(e.target)) {
+            suggestionsContainer.classList.add('hidden');
+        }
+    });
+
+    qtyInput.addEventListener('input', calculateSubtotal);
+    priceInput.addEventListener('input', calculateSubtotal);
 }
 
 // Fungsi untuk menyimpan data pembelian
@@ -259,12 +299,11 @@ async function savePembelian() {
 
     // Kumpulkan data dari setiap baris item
     document.querySelectorAll('#pembelian-lines-body tr').forEach(row => {
-        const item_id = row.querySelector('.line-item').value;
+        const item_id = row.querySelector('.line-item-id').value;
         const quantity = row.querySelector('.line-qty').value;
         const price = row.querySelector('.line-price').value;
-        const subtotal = row.querySelector('.line-subtotal').value;
 
-        // Pastikan baris tersebut valid sebelum ditambahkan
+        // Pastikan baris tersebut valid (memiliki ID barang) sebelum ditambahkan
         if (item_id && quantity > 0 && price >= 0) {
             formData.lines.push({ item_id, quantity, price });
         }
@@ -409,8 +448,16 @@ async function handleEditPembelian(id) {
         document.getElementById('pembelian-lines-body').innerHTML = '';
         if (details.length > 0) {
             details.forEach(line => {
-                // Asumsikan backend mengembalikan data yang sesuai
-                addPembelianLine({ item_id: line.item_id, quantity: line.quantity, price: line.price });
+                // Cari nama barang dari list global untuk ditampilkan di input
+                const item = (window.purchaseableItems || []).find(p => p.id == line.item_id);
+                const nama_barang = line.nama_barang || (item ? item.nama_barang : '');
+
+                addPembelianLine({ 
+                    item_id: line.item_id, 
+                    nama_barang: nama_barang, // Tambahkan nama barang
+                    quantity: line.quantity, 
+                    price: line.price 
+                });
             });
         } else {
             addPembelianLine(); // Tambah satu baris kosong jika tidak ada detail

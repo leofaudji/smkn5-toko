@@ -83,6 +83,7 @@ $router->get('/settings', 'pages/settings.php', ['auth']);
 $router->get('/users', 'pages/users.php', ['auth', 'admin']); // Halaman manajemen pengguna
 $router->get('/roles', 'pages/roles.php', ['auth', 'admin']);
 $router->post('/roles', 'pages/roles.php', ['auth', 'admin']);
+$router->get('/anggota', 'pages/anggota.php', ['auth']);
 
 // --- Rute API (Untuk proses data via AJAX) ---
 // Rute ini akan dipanggil oleh JavaScript untuk mendapatkan, menambah, mengubah, dan menghapus data tanpa reload halaman.
@@ -154,6 +155,8 @@ $router->get('/api/global-search', 'api/global_search_handler.php', ['auth']); /
 $router->get('/api/users', 'api/users_handler.php', ['auth', 'admin']); // API untuk manajemen pengguna
 $router->post('/api/users', 'api/users_handler.php', ['auth', 'admin']);
 $router->post('/api/my-profile/change-password', 'api/my_profile_handler.php', ['auth']);
+$router->get('/api/anggota_handler.php', 'api/anggota_handler.php', ['auth']);
+$router->post('/api/anggota_handler.php', 'api/anggota_handler.php', ['auth']);
 
 
 // Jalankan router

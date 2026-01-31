@@ -121,7 +121,6 @@ class LaporanRepository
      */
     public function getNeracaData(int $user_id, string $tanggal, bool $include_closing = false): array
     {
-        $closing_filter_ob = !$include_closing ? "AND gl_ob.keterangan NOT LIKE 'Jurnal Penutup Periode%'" : "";
         $closing_filter_mutasi = !$include_closing ? "AND gl.keterangan NOT LIKE 'Jurnal Penutup Periode%'" : "";
 
         // Cari tanggal tutup buku terakhir yang relevan (sebelum atau sama dengan tanggal laporan)
@@ -152,7 +151,7 @@ class LaporanRepository
                             WHEN a.tipe_akun = 'Aset' THEN gl_ob.debit - gl_ob.kredit
                             ELSE gl_ob.kredit - gl_ob.debit -- Untuk Liabilitas & Ekuitas
                         END
-                    ) FROM general_ledger gl_ob WHERE gl_ob.account_id = a.id AND gl_ob.tanggal <= ? {$closing_filter_ob}
+                ) FROM general_ledger gl_ob WHERE gl_ob.account_id = a.id AND gl_ob.tanggal <= ?
                 ), 0) as saldo_awal_periode,
                 -- Hitung mutasi dalam periode pelaporan (dari mutasi_calc_from_date hingga $tanggal).
                 COALESCE((SELECT SUM(
@@ -179,6 +178,42 @@ class LaporanRepository
         $stmt->close();
         
         return $data;
+    }
+
+    /**
+     * Mengambil data Neraca lengkap dengan Laba (Rugi) Periode Berjalan.
+     * Fungsi ini menggabungkan getNeracaData dengan logika perhitungan laba berjalan.
+     *
+     * @param int $user_id
+     * @param string $tanggal
+     * @param bool $include_closing
+     * @return array
+     */
+    public function getNeracaDataWithProfitLoss(int $user_id, string $tanggal, bool $include_closing = false): array
+    {
+        // 1. Get base neraca data
+        $neraca_accounts = $this->getNeracaData($user_id, $tanggal, $include_closing);
+
+        // 2. Calculate current profit/loss
+        $period_lock_date = get_setting('period_lock_date', null, $this->conn);
+
+        $stmt_last_lock = $this->conn->prepare("SELECT MAX(tanggal) as last_lock FROM general_ledger WHERE user_id = ? AND keterangan LIKE 'Jurnal Penutup Periode%' AND tanggal < ?");
+        $stmt_last_lock->bind_param('is', $user_id, $tanggal);
+        $stmt_last_lock->execute();
+        $last_lock_before_date = $stmt_last_lock->get_result()->fetch_assoc()['last_lock'];
+        $stmt_last_lock->close();
+
+        $fiscal_year_start = $last_lock_before_date ? date('Y-m-d', strtotime($last_lock_before_date . ' + 1 day')) : date('Y-01-01', strtotime($tanggal));
+        $is_on_lock_date_with_closing = ($period_lock_date && $tanggal == $period_lock_date && $include_closing);
+
+        if (!$is_on_lock_date_with_closing) {
+            $laba_rugi_data = $this->getLabaRugiData($user_id, $fiscal_year_start, $tanggal, false);
+            $laba_rugi_berjalan = $laba_rugi_data['summary']['laba_bersih'];
+            if (abs($laba_rugi_berjalan) > 0.001) {
+                $neraca_accounts[] = ['id' => 'laba_rugi_virtual', 'parent_id' => null, 'nama_akun' => 'Laba (Rugi) Periode Berjalan', 'tipe_akun' => 'Ekuitas', 'saldo_akhir' => $laba_rugi_berjalan];
+            }
+        }
+        return $neraca_accounts;
     }
 
     /**
