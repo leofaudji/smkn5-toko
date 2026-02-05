@@ -34,7 +34,15 @@ return [
     ]],
 
     ['type' => 'collapse', 'key' => 'simpan_pinjam', 'label' => 'Simpan Pinjam', 'icon' => 'bi bi-piggy-bank', 'children' => [
-        ['key' => 'anggota', 'label' => 'Pendaftaran Anggota', 'url' => '/anggota'],
+        ['key' => 'anggota', 'label' => 'Pendaftaran Anggota', 'url' => '/ksp/anggota'],
+        ['key' => 'simpanan', 'label' => 'Simpanan Anggota', 'url' => '/ksp/simpanan'],
+        ['key' => 'penarikan', 'label' => 'Persetujuan Penarikan', 'url' => '/ksp/penarikan'],
+        ['key' => 'laporan_simpanan', 'label' => 'Laporan Simpanan', 'url' => '/ksp/laporan-simpanan'],
+        ['key' => 'generate_qr', 'label' => 'Generate QR Bayar', 'url' => '/ksp/generate-qr'],
+        ['key' => 'pinjaman', 'label' => 'Pinjaman Anggota', 'url' => '/ksp/pinjaman'],
+        ['key' => 'laporan_nominatif', 'label' => 'Laporan Nominatif', 'url' => '/ksp/laporan-nominatif'],
+        ['key' => 'ksp_pengaturan', 'label' => 'Pengaturan KSP', 'url' => '/ksp/pengaturan'],
+        ['key' => 'portal_anggota', 'label' => 'Portal Anggota', 'url' => '/member/login'],
     ]],
 
     ['type' => 'collapse', 'key' => 'laporan', 'label' => 'Laporan', 'icon' => 'bi bi-bar-chart-line-fill', 'children' => [

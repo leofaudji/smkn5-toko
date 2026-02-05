@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../../includes/bootstrap.php';
 
 // Cek login
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {

@@ -87,6 +87,22 @@ function showToast(message, type = 'success', title = null) {
 }
 
 /**
+ * Formats a number into standard Rupiah string.
+ * @param {number|string} value The number to format.
+ * @returns {string} The formatted string (e.g. "Rp 1.000.000")
+ */
+function formatRupiah(value) {
+    const num = parseFloat(value);
+    if (isNaN(num)) return 'Rp 0';
+    return new Intl.NumberFormat('id-ID', { 
+        style: 'currency', 
+        currency: 'IDR', 
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(num);
+}
+
+/**
  * Formats a number into accounting-style currency string.
  * Negative numbers are shown in red and parentheses.
  * @param {number} value The number to format.
@@ -388,9 +404,37 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/roles.js`)
             .then(() => initRolesPage())
             .catch(err => console.error(err));
-    } else if (cleanPath === '/anggota') {
-        loadScript(`${basePath}/assets/js/anggota.js`)
+    } else if (cleanPath === '/ksp/anggota') {
+        loadScript(`${basePath}/assets/js/ksp/anggota.js`)
             .then(() => initAnggotaPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/simpanan') {
+        loadScript(`${basePath}/assets/js/ksp/simpanan.js`)
+            .then(() => initSimpananPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/laporan-simpanan') {
+        loadScript(`${basePath}/assets/js/ksp/laporan_simpanan.js`)
+            .then(() => initLaporanSimpananPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/pinjaman') {
+        loadScript(`${basePath}/assets/js/ksp/pinjaman.js`)
+            .then(() => initPinjamanPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/laporan-nominatif') {
+        loadScript(`${basePath}/assets/js/ksp/laporan_nominatif.js`)
+            .then(() => initLaporanNominatifPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/pengaturan') {
+        loadScript(`${basePath}/assets/js/ksp/pengaturan.js`)
+            .then(() => initPengaturanKspPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/penarikan') {
+        loadScript(`${basePath}/assets/js/ksp/penarikan.js`)
+            .then(() => initPenarikanPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/generate-qr') {
+        loadScript(`${basePath}/assets/js/ksp/generate_qr.js`)
+            .then(() => initGenerateQrPage())
             .catch(err => console.error(err));
     }else if (cleanPath === '/buku-panduan') {        // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
         // Cukup daftarkan agar tidak error dan hentikan eksekusi.
@@ -462,6 +506,72 @@ function timeSince(date) {
     interval = seconds / 60;
     if (interval > 1) return Math.floor(interval) + " menit lalu";
     return "Baru saja";
+}
+
+/**
+ * Fetches pending request counts and updates sidebar badges.
+ */
+async function checkAdminNotifications() {
+    // Jangan jalankan jika di halaman member atau login
+    if (window.location.pathname.includes('/member/') || window.location.pathname.includes('/login')) return;
+
+    try {
+        const response = await fetch(`${basePath}/api/ksp/notifications`);
+        const json = await response.json();
+        
+        if (json.success) {
+            updateSidebarBadge('/ksp/pinjaman', json.data.pinjaman);
+            updateSidebarBadge('/ksp/penarikan', json.data.penarikan);
+            
+            // Update Parent Badge (Simpan Pinjam)
+            const totalSimpanPinjam = (json.data.pinjaman || 0) + (json.data.penarikan || 0);
+            updateParentSidebarBadge('/ksp/pinjaman', totalSimpanPinjam);
+        }
+    } catch (e) {
+        console.error('Gagal memuat notifikasi sidebar', e);
+    }
+}
+
+function updateSidebarBadge(urlPart, count) {
+    const links = document.querySelectorAll(`#sidebar a[href*="${urlPart}"]`);
+    links.forEach(link => {
+        const existingBadge = link.querySelector('.sidebar-badge');
+        if (existingBadge) existingBadge.remove();
+
+        if (count > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'sidebar-badge ml-auto inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full animate-badge-blink';
+            badge.textContent = count;
+            link.appendChild(badge);
+        }
+    });
+}
+
+function updateParentSidebarBadge(childUrlPart, count) {
+    const childLinks = document.querySelectorAll(`#sidebar a[href*="${childUrlPart}"]`);
+    childLinks.forEach(childLink => {
+        const parentContent = childLink.closest('.collapse-content');
+        if (parentContent) {
+            const parentTrigger = parentContent.previousElementSibling;
+            if (parentTrigger) {
+                const existingBadge = parentTrigger.querySelector('.sidebar-badge');
+                if (existingBadge) existingBadge.remove();
+
+                if (count > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'sidebar-badge ml-auto mr-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full animate-badge-blink';
+                    badge.textContent = count;
+                    
+                    const chevron = parentTrigger.querySelector('.bi-chevron-down');
+                    if (chevron) {
+                        parentTrigger.insertBefore(badge, chevron);
+                    } else {
+                        parentTrigger.appendChild(badge);
+                    }
+                }
+            }
+        }
+    });
 }
 
 // =================================================================================
@@ -611,6 +721,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Initial Page Load ---
     updateActiveSidebarLink(window.location.pathname);
     runPageScripts(window.location.pathname);
+    
+    // --- Check Notifications ---
+    checkAdminNotifications();
 
     // --- Initialize Global Components ---
     initGlobalSearch();

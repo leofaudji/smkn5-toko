@@ -72,6 +72,34 @@ function attempt_login_with_cookie($selector, $validator) {
 }
 
 /**
+ * Menambahkan poin gamifikasi untuk anggota dan mencatatnya.
+ *
+ * @param int $member_id ID anggota.
+ * @param string $action_type Tipe aksi (cth: 'setor_sukarela').
+ * @param int $points Jumlah poin yang diberikan.
+ * @param string $keterangan Deskripsi singkat.
+ * @param int|null $ref_id ID referensi dari transaksi terkait.
+ */
+function addGamificationPoints(int $member_id, string $action_type, int $points, string $keterangan = '', ?int $ref_id = null) {
+    $conn = Database::getInstance()->getConnection();
+    $conn->begin_transaction();
+    try {
+        $stmt_log = $conn->prepare("INSERT INTO ksp_gamification_log (anggota_id, action_type, points_awarded, keterangan, ref_id) VALUES (?, ?, ?, ?, ?)");
+        $stmt_log->bind_param("isisi", $member_id, $action_type, $points, $keterangan, $ref_id);
+        $stmt_log->execute();
+        
+        $stmt_update = $conn->prepare("UPDATE anggota SET gamification_points = gamification_points + ? WHERE id = ?");
+        $stmt_update->bind_param("ii", $points, $member_id);
+        $stmt_update->execute();
+        
+        $conn->commit();
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Gagal menambah poin gamifikasi: " . $e->getMessage());
+    }
+}
+
+/**
  * Mengambil nominal iuran yang berlaku untuk periode tertentu dari histori.
  *
  * @param int $tahun

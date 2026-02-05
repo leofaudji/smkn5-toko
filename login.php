@@ -67,10 +67,10 @@ require_once __DIR__ . '/includes/bootstrap.php';
                         <?php endif; ?>
                         <form id="login-form" action="<?= base_url('/login') ?>" method="POST" class="space-y-5">
                             <div>
-                                <input class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-btn focus:border-transparent transition duration-200" type="text" id="username" name="username" placeholder="Username" required autofocus>
+                                <input class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-btn focus:border-transparent transition duration-200" type="text" id="username" name="username" autocomplete="username" placeholder="Username" required autofocus>
                             </div>
                             <div class="relative">
-                                <input class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-btn focus:border-transparent transition duration-200 pr-12" type="password" id="password" name="password" placeholder="Password" required>
+                                <input class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-btn focus:border-transparent transition duration-200 pr-12" type="password" id="password" name="password" autocomplete="current-password" placeholder="Password" required>
                                 <button class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none" type="button" id="togglePassword" title="Tampilkan/Sembunyikan password">
                                     <i class="bi bi-eye text-xl"></i>
                                 </button>

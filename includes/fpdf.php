@@ -21,6 +21,7 @@ protected $compress;           // compression flag
 protected $k;                  // scale factor (number of points in user unit)
 protected $DefOrientation;     // default orientation
 protected $CurOrientation;     // current orientation
+protected $CurRotation;        // current rotation
 protected $StdPageSizes;       // standard page sizes
 protected $DefPageSize;        // default page size
 protected $CurPageSize;        // current page size
@@ -227,31 +228,31 @@ function SetCompression($compress)
 function SetTitle($title, $isUTF8=false)
 {
 	// Title of document
-	$this->metadata['Title'] = $isUTF8 ? $title : utf8_encode($title);
+	$this->metadata['Title'] = $isUTF8 ? $title : (function_exists('mb_convert_encoding') ? mb_convert_encoding($title, 'UTF-8', 'ISO-8859-1') : $title);
 }
 
 function SetAuthor($author, $isUTF8=false)
 {
 	// Author of document
-	$this->metadata['Author'] = $isUTF8 ? $author : utf8_encode($author);
+	$this->metadata['Author'] = $isUTF8 ? $author : (function_exists('mb_convert_encoding') ? mb_convert_encoding($author, 'UTF-8', 'ISO-8859-1') : $author);
 }
 
 function SetSubject($subject, $isUTF8=false)
 {
 	// Subject of document
-	$this->metadata['Subject'] = $isUTF8 ? $subject : utf8_encode($subject);
+	$this->metadata['Subject'] = $isUTF8 ? $subject : (function_exists('mb_convert_encoding') ? mb_convert_encoding($subject, 'UTF-8', 'ISO-8859-1') : $subject);
 }
 
 function SetKeywords($keywords, $isUTF8=false)
 {
 	// Keywords of document
-	$this->metadata['Keywords'] = $isUTF8 ? $keywords : utf8_encode($keywords);
+	$this->metadata['Keywords'] = $isUTF8 ? $keywords : (function_exists('mb_convert_encoding') ? mb_convert_encoding($keywords, 'UTF-8', 'ISO-8859-1') : $keywords);
 }
 
 function SetCreator($creator, $isUTF8=false)
 {
 	// Creator of document
-	$this->metadata['Creator'] = $isUTF8 ? $creator : utf_encode($creator);
+	$this->metadata['Creator'] = $isUTF8 ? $creator : (function_exists('mb_convert_encoding') ? mb_convert_encoding($creator, 'UTF-8', 'ISO-8859-1') : $creator);
 }
 
 function AliasNbPages($alias='{nb}')

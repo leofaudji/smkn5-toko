@@ -709,16 +709,26 @@ INSERT INTO `permissions` (`slug`, `name`, `description`) VALUES
 ('menu.view.tutup-buku', 'Lihat Sub-Menu: Tutup Buku', 'Memberi akses untuk melihat sub-menu Tutup Buku'),
 ('menu.view.settings', 'Lihat Sub-Menu: Pengaturan', 'Memberi akses untuk melihat sub-menu Pengaturan'),
 ('menu.view.simpan_pinjam', 'Lihat Menu: Simpan Pinjam', 'Memberi akses untuk melihat grup menu Simpan Pinjam'),
-('menu.view.anggota', 'Lihat Sub-Menu: Pendaftaran Anggota', 'Memberi akses untuk melihat sub-menu Pendaftaran Anggota');
+('menu.view.anggota', 'Lihat Sub-Menu: Pendaftaran Anggota', 'Memberi akses untuk melihat sub-menu Pendaftaran Anggota'),
+('menu.view.portal_anggota', 'Lihat Sub-Menu: Portal Anggota', 'Memberi akses untuk melihat link Portal Anggota'),
+('menu.view.generate_qr', 'Lihat Sub-Menu: Generate QR Bayar', 'Memberi akses untuk melihat sub-menu Generate QR Bayar');
 
 -- Query ini mengasumsikan ID role 'Admin' adalah 1 dan ID permission baru dimulai dari 6.
 -- Sesuaikan jika ID-nya berbeda.
 INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
-(1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18);
+(1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19);
+
+-- Beri role Admin (ID 1) hak akses untuk menu Generate QR
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) 
+SELECT 1, id FROM permissions WHERE slug = 'menu.view.generate_qr' AND NOT EXISTS (SELECT 1 FROM role_permissions WHERE role_id = 1 AND permission_id = (SELECT id FROM permissions WHERE slug = 'menu.view.generate_qr'));
 
 -- Beri role Kasir (ID 2) hak akses untuk melihat menu Transaksi agar menu muncul di sidebar
 INSERT INTO `role_permissions` (`role_id`, `permission_id`) 
 SELECT 2, id FROM permissions WHERE slug = 'menu.view.transaksi' AND NOT EXISTS (SELECT 1 FROM role_permissions WHERE role_id = 2 AND permission_id = (SELECT id FROM permissions WHERE slug = 'menu.view.transaksi'));
+
+-- Beri role Admin (ID 1) hak akses untuk menu Portal Anggota
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) 
+SELECT 1, id FROM permissions WHERE slug = 'menu.view.portal_anggota' AND NOT EXISTS (SELECT 1 FROM role_permissions WHERE role_id = 1 AND permission_id = (SELECT id FROM permissions WHERE slug = 'menu.view.portal_anggota'));
 
 -- Hapus tabel role_menus lama
 DROP TABLE IF EXISTS `role_menus`;
@@ -744,6 +754,7 @@ CREATE TABLE `anggota` (
   `no_telepon` varchar(20) DEFAULT NULL,
   `email` varchar(100) DEFAULT NULL,
   `tanggal_daftar` date NOT NULL,
+  `password` varchar(255) DEFAULT NULL,
   `status` enum('aktif','nonaktif') NOT NULL DEFAULT 'aktif',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -754,3 +765,239 @@ CREATE TABLE `anggota` (
   KEY `user_id` (`user_id`),
   FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Update Tabel General Ledger untuk Pemisahan Unit
+ALTER TABLE `general_ledger` ADD COLUMN `unit` ENUM('toko', 'ksp') NOT NULL DEFAULT 'toko' AFTER `user_id`;
+ALTER TABLE `general_ledger` ADD INDEX `idx_unit` (`unit`);
+
+-- Tabel Jenis Simpanan
+CREATE TABLE `ksp_jenis_simpanan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `nama` varchar(50) NOT NULL, -- Pokok, Wajib, Sukarela
+  `akun_id` int(11) NOT NULL, -- Link ke Chart of Accounts (Liabilitas/Ekuitas)
+  `nominal_default` decimal(15,2) DEFAULT 0.00,
+  `tipe` enum('wajib','pokok','sukarela') NOT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`akun_id`) REFERENCES `accounts` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabel Transaksi Simpanan
+CREATE TABLE `ksp_transaksi_simpanan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `anggota_id` int(11) NOT NULL,
+  `jenis_simpanan_id` int(11) NOT NULL,
+  `tanggal` date NOT NULL,
+  `jenis_transaksi` enum('setor','tarik') NOT NULL,
+  `debit` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `kredit` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `jumlah` decimal(15,2) NOT NULL,
+  `keterangan` text DEFAULT NULL,
+  `akun_kas_id` int(11) NOT NULL, -- Akun Kas yang digunakan
+  `nomor_referensi` varchar(50) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`anggota_id`) REFERENCES `anggota` (`id`) ON DELETE RESTRICT,
+  FOREIGN KEY (`jenis_simpanan_id`) REFERENCES `ksp_jenis_simpanan` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Data Awal Jenis Simpanan (Pastikan ID Akun sesuai dengan COA Anda)
+-- Menggunakan akun 301 (Simpanan Pokok) dan 302 (Simpanan Sukarela) dari data demo
+INSERT INTO `ksp_jenis_simpanan` (`user_id`, `nama`, `akun_id`, `nominal_default`, `tipe`) VALUES
+(1, 'Simpanan Pokok', 301, 100000.00, 'pokok'),
+(1, 'Simpanan Wajib', 302, 50000.00, 'wajib'), -- Asumsi menggunakan akun sukarela sementara atau buat akun baru
+(1, 'Simpanan Sukarela', 302, 0.00, 'sukarela');
+
+-- Tambah Akun untuk Pinjaman (Piutang & Pendapatan Bunga)
+INSERT INTO `accounts` (`user_id`, `parent_id`, `kode_akun`, `nama_akun`, `tipe_akun`, `saldo_normal`, `is_kas`, `saldo_awal`) VALUES
+(1, 101, '1-1300', 'Piutang Pinjaman Anggota', 'Aset', 'Debit', 0, 0.00),
+(1, 400, '4-3000', 'Pendapatan Bunga Pinjaman', 'Pendapatan', 'Kredit', 0, 0.00);
+
+-- Tabel Jenis Pinjaman
+CREATE TABLE `ksp_jenis_pinjaman` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `nama` varchar(100) NOT NULL,
+  `bunga_per_tahun` decimal(5,2) NOT NULL DEFAULT 0.00, -- Dalam Persen
+  `akun_piutang_id` int(11) NOT NULL,
+  `akun_pendapatan_bunga_id` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`akun_piutang_id`) REFERENCES `accounts` (`id`) ON DELETE RESTRICT,
+  FOREIGN KEY (`akun_pendapatan_bunga_id`) REFERENCES `accounts` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabel Pinjaman
+CREATE TABLE `ksp_pinjaman` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `nomor_pinjaman` varchar(50) NOT NULL,
+  `anggota_id` int(11) NOT NULL,
+  `jenis_pinjaman_id` int(11) NOT NULL,
+  `jumlah_pinjaman` decimal(15,2) NOT NULL,
+  `bunga_per_tahun` decimal(5,2) NOT NULL,
+  `tenor_bulan` int(11) NOT NULL,
+  `tanggal_pengajuan` date NOT NULL,
+  `tanggal_pencairan` date DEFAULT NULL,
+  `status` enum('pending','aktif','lunas','ditolak') NOT NULL DEFAULT 'pending',
+  `keterangan` text DEFAULT NULL,
+  `agunan` text DEFAULT NULL COMMENT 'Informasi jaminan/agunan pinjaman',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `nomor_pinjaman_user` (`user_id`, `nomor_pinjaman`),
+  FOREIGN KEY (`anggota_id`) REFERENCES `anggota` (`id`) ON DELETE RESTRICT,
+  FOREIGN KEY (`jenis_pinjaman_id`) REFERENCES `ksp_jenis_pinjaman` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabel Jadwal Angsuran
+CREATE TABLE `ksp_angsuran` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `pinjaman_id` int(11) NOT NULL,
+  `angsuran_ke` int(11) NOT NULL,
+  `tanggal_jatuh_tempo` date NOT NULL,
+  `tanggal_bayar` date DEFAULT NULL,
+  `pokok` decimal(15,2) NOT NULL,
+  `bunga` decimal(15,2) NOT NULL,
+  `total_angsuran` decimal(15,2) NOT NULL,
+  `denda` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `pokok_terbayar` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `bunga_terbayar` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `status` enum('belum_bayar','lunas') NOT NULL DEFAULT 'belum_bayar',
+  `transaksi_id` int(11) DEFAULT NULL, -- Link ke GL jika sudah bayar
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`pinjaman_id`) REFERENCES `ksp_pinjaman` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabel Master Tipe Agunan (Untuk konfigurasi input dinamis)
+CREATE TABLE `ksp_tipe_agunan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `nama` varchar(100) NOT NULL,
+  `config` longtext DEFAULT NULL COMMENT 'JSON konfigurasi field input',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Data Awal Tipe Agunan
+INSERT INTO `ksp_tipe_agunan` (`nama`, `config`) VALUES
+('Kendaraan Bermotor', '[{"label":"Nomor Polisi","name":"nopol","type":"text"},{"label":"Merk/Tipe","name":"merk","type":"text"},{"label":"Tahun","name":"tahun","type":"number"},{"label":"Warna","name":"warna","type":"text"},{"label":"No. BPKB","name":"no_bpkb","type":"text"}]'),
+('Sertifikat Tanah/Bangunan', '[{"label":"Nomor Sertifikat (SHM/HGB)","name":"no_sertifikat","type":"text"},{"label":"Luas Tanah (m2)","name":"luas","type":"number"},{"label":"Lokasi","name":"lokasi","type":"text"},{"label":"Atas Nama","name":"atas_nama","type":"text"}]'),
+('Elektronik', '[{"label":"Jenis Barang","name":"jenis","type":"text"},{"label":"Merk/Model","name":"merk","type":"text"},{"label":"No. Seri (SN)","name":"serial","type":"text"},{"label":"Kelengkapan","name":"kelengkapan","type":"text"}]');
+
+-- Tabel Detail Agunan Pinjaman
+CREATE TABLE `ksp_pinjaman_agunan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `pinjaman_id` int(11) NOT NULL,
+  `tipe_agunan_id` int(11) NOT NULL,
+  `detail_json` longtext DEFAULT NULL COMMENT 'Data spesifik agunan dalam JSON',
+  `nilai_taksiran` decimal(15,2) DEFAULT 0.00,
+  PRIMARY KEY (`id`),
+  KEY `pinjaman_id` (`pinjaman_id`),
+  FOREIGN KEY (`pinjaman_id`) REFERENCES `ksp_pinjaman` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`tipe_agunan_id`) REFERENCES `ksp_tipe_agunan` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Data Awal Jenis Pinjaman (Menggunakan ID akun yang baru dibuat, sesuaikan ID jika auto increment berbeda)
+-- Asumsi ID akun baru adalah: Piutang (last_id + 1), Pendapatan Bunga (last_id + 2). 
+-- Di sini saya hardcode query sub-select untuk keamanan.
+INSERT INTO `ksp_jenis_pinjaman` (`user_id`, `nama`, `bunga_per_tahun`, `akun_piutang_id`, `akun_pendapatan_bunga_id`) 
+SELECT 1, 'Pinjaman Reguler', 12.00, 
+(SELECT id FROM accounts WHERE kode_akun = '1-1300' LIMIT 1), 
+(SELECT id FROM accounts WHERE kode_akun = '4-3000' LIMIT 1);
+
+-- Tabel Kategori Transaksi Simpanan (Agar jenis transaksi bisa diatur)
+CREATE TABLE `ksp_kategori_transaksi` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `nama` varchar(100) NOT NULL,
+  `tipe_aksi` enum('setor','tarik') NOT NULL,
+  `posisi` enum('debit','kredit') NOT NULL DEFAULT 'kredit',
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Data Awal Kategori Transaksi
+INSERT INTO `ksp_kategori_transaksi` (`user_id`, `nama`, `tipe_aksi`, `posisi`) VALUES 
+(1, 'Setor Tunai', 'setor', 'kredit'),
+(1, 'Tarik Tunai', 'tarik', 'debit');
+
+-- Tabel Target Tabungan Anggota
+CREATE TABLE `ksp_target_tabungan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `anggota_id` int(11) NOT NULL,
+  `nama_target` varchar(100) NOT NULL,
+  `nominal_target` decimal(15,2) NOT NULL,
+  `nominal_terkumpul` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `tanggal_target` date NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`anggota_id`) REFERENCES `anggota` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabel Pengumuman Koperasi
+CREATE TABLE `ksp_pengumuman` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `judul` varchar(150) NOT NULL,
+  `isi` text NOT NULL,
+  `tanggal_posting` date NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Data Dummy Pengumuman
+INSERT INTO `ksp_pengumuman` (`judul`, `isi`, `tanggal_posting`) VALUES 
+('Rapat Anggota Tahunan', 'RAT akan dilaksanakan pada tanggal 25 Desember 2024 di Aula Utama. Harap hadir tepat waktu.', CURDATE()),
+('Libur Hari Raya', 'Kantor Koperasi akan tutup pada tanggal 1-2 Januari 2025.', CURDATE());
+
+-- Tabel Pengajuan Penarikan Simpanan
+CREATE TABLE `ksp_penarikan_simpanan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `anggota_id` int(11) NOT NULL,
+  `jenis_simpanan_id` int(11) NOT NULL,
+  `jumlah` decimal(15,2) NOT NULL,
+  `keterangan` text DEFAULT NULL,
+  `tanggal_pengajuan` date NOT NULL,
+  `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `tanggal_diproses` date DEFAULT NULL,
+  `diproses_oleh` int(11) DEFAULT NULL,
+  `catatan_admin` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`anggota_id`) REFERENCES `anggota` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`jenis_simpanan_id`) REFERENCES `ksp_jenis_simpanan` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 1. Tambahkan kolom untuk menyimpan total poin anggota
+ALTER TABLE `anggota` ADD `gamification_points` INT(11) NOT NULL DEFAULT 0 AFTER `status`;
+
+-- 2. Buat tabel baru untuk mencatat setiap perolehan poin
+CREATE TABLE `ksp_gamification_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `anggota_id` int(11) NOT NULL,
+  `action_type` varchar(50) NOT NULL COMMENT 'e.g., setor_sukarela, bayar_tepat_waktu',
+  `points_awarded` int(11) NOT NULL,
+  `keterangan` varchar(255) DEFAULT NULL,
+  `ref_id` int(11) DEFAULT NULL COMMENT 'ID dari transaksi/angsuran terkait',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `anggota_id` (`anggota_id`),
+  FOREIGN KEY (`anggota_id`) REFERENCES `anggota` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabel Wishlist Anggota
+CREATE TABLE `ksp_wishlist` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `anggota_id` int(11) NOT NULL,
+  `item_id` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_wishlist` (`anggota_id`, `item_id`),
+  FOREIGN KEY (`anggota_id`) REFERENCES `anggota` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`item_id`) REFERENCES `items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE `anggota` ADD `default_payment_savings_id` INT(11) NULL DEFAULT NULL AFTER `gamification_points`;
+ALTER TABLE `anggota` ADD CONSTRAINT `fk_anggota_default_savings` FOREIGN KEY (`default_payment_savings_id`) REFERENCES `ksp_jenis_simpanan` (`id`) ON DELETE SET NULL;

@@ -277,8 +277,8 @@ try {
                 );
                 // Perbaiki statement GL untuk menyertakan nomor_referensi
                 $stmt_gl = $conn->prepare(
-                    "INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pembelian', ?)"
+                    "INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transaksi', ?)"
                 );
                 // Tambahkan statement untuk kartu stok
                 $stmt_kartu_stok = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, 0, ?, ?, 'pembelian', ?)");

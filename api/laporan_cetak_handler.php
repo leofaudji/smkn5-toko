@@ -27,6 +27,11 @@ require_once PROJECT_ROOT . '/includes/ReportBuilders/AsetTetapReportBuilder.php
 require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukPenjualanReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPenjualanItemReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPenjualanReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/DetailPinjamanReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukAngsuranReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukSimpananReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanNominatifSimpananReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanNominatifPinjamanReportBuilder.php';
 
 $conn = Database::getInstance()->getConnection();
 
@@ -89,6 +94,11 @@ $builder_map = [
     'trial-balance' => TrialBalanceReportBuilder::class, // Tambahkan ini
     'konsinyasi-sisa-utang' => KonsinyasiSisaUtangReportBuilder::class,
     'aset-tetap' => AsetTetapReportBuilder::class,
+    'detail_pinjaman' => DetailPinjamanReportBuilder::class,
+    'struk_angsuran' => StrukAngsuranReportBuilder::class,
+    'struk_simpanan' => StrukSimpananReportBuilder::class,
+    'nominatif_simpanan' => LaporanNominatifSimpananReportBuilder::class,
+    'nominatif_pinjaman' => LaporanNominatifPinjamanReportBuilder::class,
 ];
 
 try {

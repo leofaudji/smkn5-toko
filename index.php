@@ -34,6 +34,11 @@ $router->post('/actions/forgot_password_action.php', 'actions/forgot_password_ac
 $router->get('/reset-password', 'pages/reset_password.php', ['guest']);
 $router->post('/reset-password', 'actions/reset_password_action.php', ['guest']);
 
+// Rute Portal Anggota
+$router->get('/member/login', 'member_login.php');
+$router->get('/member/dashboard', 'pages/ksp/member_dashboard.php');
+$router->get('/member/logout', function() { session_destroy(); header('Location: '.BASE_PATH.'/member/login'); });
+
 // Rute yang memerlukan otentikasi
 $router->get('/', function() {
     if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
@@ -83,7 +88,14 @@ $router->get('/settings', 'pages/settings.php', ['auth']);
 $router->get('/users', 'pages/users.php', ['auth', 'admin']); // Halaman manajemen pengguna
 $router->get('/roles', 'pages/roles.php', ['auth', 'admin']);
 $router->post('/roles', 'pages/roles.php', ['auth', 'admin']);
-$router->get('/anggota', 'pages/anggota.php', ['auth']);
+$router->get('/ksp/anggota', 'pages/ksp/anggota.php', ['auth']);
+$router->get('/ksp/penarikan', 'pages/ksp/penarikan.php', ['auth']);
+$router->get('/ksp/simpanan', 'pages/ksp/simpanan.php', ['auth']);
+$router->get('/ksp/laporan-simpanan', 'pages/ksp/laporan_simpanan.php', ['auth']);
+$router->get('/ksp/pinjaman', 'pages/ksp/pinjaman.php', ['auth']);
+$router->get('/ksp/generate-qr', 'pages/ksp/generate_qr.php', ['auth']);
+$router->get('/ksp/laporan-nominatif', 'pages/ksp/laporan_nominatif.php', ['auth']); // Rute baru
+$router->get('/ksp/pengaturan', 'pages/ksp/pengaturan.php', ['auth']); // Rute baru
 
 // --- Rute API (Untuk proses data via AJAX) ---
 // Rute ini akan dipanggil oleh JavaScript untuk mendapatkan, menambah, mengubah, dan menghapus data tanpa reload halaman.
@@ -155,8 +167,22 @@ $router->get('/api/global-search', 'api/global_search_handler.php', ['auth']); /
 $router->get('/api/users', 'api/users_handler.php', ['auth', 'admin']); // API untuk manajemen pengguna
 $router->post('/api/users', 'api/users_handler.php', ['auth', 'admin']);
 $router->post('/api/my-profile/change-password', 'api/my_profile_handler.php', ['auth']);
-$router->get('/api/anggota_handler.php', 'api/anggota_handler.php', ['auth']);
-$router->post('/api/anggota_handler.php', 'api/anggota_handler.php', ['auth']);
+$router->get('/api/ksp/anggota', 'api/ksp/anggota_handler.php', ['auth']);
+$router->post('/api/ksp/anggota', 'api/ksp/anggota_handler.php', ['auth']);
+$router->get('/api/ksp/penarikan', 'api/ksp/penarikan_handler.php', ['auth']);
+$router->post('/api/ksp/penarikan', 'api/ksp/penarikan_handler.php', ['auth']);
+$router->get('/api/ksp/simpanan', 'api/ksp/simpanan_handler.php', ['auth']);
+$router->post('/api/ksp/simpanan', 'api/ksp/simpanan_handler.php', ['auth']);
+$router->get('/api/ksp/laporan-simpanan', 'api/ksp/laporan_simpanan_handler.php', ['auth']);
+$router->get('/api/ksp/pinjaman', 'api/ksp/pinjaman_handler.php', ['auth']);
+$router->get('/api/ksp/notifications', 'api/ksp/notification_handler.php', ['auth']); // API Notifikasi Admin
+$router->post('/api/ksp/pinjaman', 'api/ksp/pinjaman_handler.php', ['auth']);
+$router->get('/api/ksp/pengaturan', 'api/ksp/pengaturan_handler.php', ['auth']); // API baru
+$router->post('/api/ksp/pengaturan', 'api/ksp/pengaturan_handler.php', ['auth']); // API baru
+$router->post('/api/member/login', 'api/ksp/member_auth.php'); // API Login Anggota
+$router->get('/api/member/dashboard', 'api/ksp/member_dashboard_handler.php'); // API Dashboard Anggota
+$router->post('/api/member/dashboard', 'api/ksp/member_dashboard_handler.php'); // API Dashboard Anggota (POST actions)
+$router->post('/api/member/profile', 'api/ksp/member_profile_handler.php'); // API Profil Anggota
 
 
 // Jalankan router

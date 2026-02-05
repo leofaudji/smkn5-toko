@@ -41,7 +41,7 @@ function initAnggotaPage() {
     // Functions
     function loadData() {
         const search = searchInput.value;
-        const url = `${basePath}/api/anggota_handler.php?action=get_all&page=${currentPage}&limit=${limit}&search=${encodeURIComponent(search)}`;
+        const url = `${basePath}/api/ksp/anggota?action=get_all&page=${currentPage}&limit=${limit}&search=${encodeURIComponent(search)}`;
 
         tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Memuat data...</td></tr>';
 
@@ -114,7 +114,7 @@ function initAnggotaPage() {
         
         if (id) {
             modalTitle.textContent = 'Edit Anggota';
-            fetch(`${basePath}/api/anggota_handler.php?action=get_detail&id=${id}`)
+            fetch(`${basePath}/api/ksp/anggota?action=get_detail&id=${id}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
@@ -146,7 +146,7 @@ function initAnggotaPage() {
         const data = Object.fromEntries(formData.entries());
         const action = id ? 'update' : 'store';
 
-        fetch(`${basePath}/api/anggota_handler.php?action=${action}`, {
+        fetch(`${basePath}/api/ksp/anggota?action=${action}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -170,7 +170,7 @@ function initAnggotaPage() {
 
     window.deleteAnggota = function(id) {
         if (confirm('Apakah Anda yakin ingin menghapus anggota ini?')) {
-            fetch(`${basePath}/api/anggota_handler.php?action=delete`, {
+            fetch(`${basePath}/api/ksp/anggota?action=delete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id })
