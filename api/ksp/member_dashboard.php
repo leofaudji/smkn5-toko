@@ -14,6 +14,19 @@ if (!isset($_SESSION['member_loggedin']) || $_SESSION['member_loggedin'] !== tru
     <title>Dashboard Anggota</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
+            appId: "67c02e7d-b082-4b21-98ee-713d53d2f7fa",
+            safari_web_id: "web.onesignal.auto.12f40fc9-13d7-4ca9-8e4a-0a7d50f473bf",
+            notifyButton: {
+                enable: true,
+            },
+            });
+        });
+    </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         body { background-color: #f0f2f5; padding-bottom: 80px; } /* Padding for bottom nav */

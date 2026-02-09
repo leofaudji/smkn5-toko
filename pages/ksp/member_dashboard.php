@@ -6,9 +6,27 @@ if (!isset($_SESSION['member_loggedin']) || $_SESSION['member_loggedin'] !== tru
     exit;
 }
 
+// Minifikasi Output HTML agar menjadi 1 baris saat Ctrl+U
+ob_start(function($buffer) {
+    // Hapus komentar HTML
+    $buffer = preg_replace('/<!--(?!(?:\[if|<!))(.|\s)*?-->/', '', $buffer);
+    // Ganti semua whitespace (newline, tab, spasi ganda) dengan satu spasi
+    $buffer = preg_replace('/\s+/', ' ', $buffer);
+    // Hapus spasi di antara tag HTML untuk penghematan lebih lanjut
+    $buffer = str_replace('> <', '><', $buffer);
+    return trim($buffer);
+});
+
+// Hitung path relatif untuk aset dan service worker agar tidak error Cross-Origin
+$sw_base_path = BASE_PATH;
+if (preg_match('/^https?:\/\//', $sw_base_path)) {
+    $sw_base_path = parse_url($sw_base_path, PHP_URL_PATH) ?? '';
+}
+$sw_base_path = rtrim($sw_base_path ?? '', '/');
+
 // Ambil logo dari pengaturan aplikasi
 $app_logo_path = get_setting('app_logo');
-$logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PATH . '/assets/img/logo.png';
+$logo_src = !empty($app_logo_path) ? $sw_base_path . '/' . $app_logo_path : $sw_base_path . '/assets/img/logo.png';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -18,9 +36,33 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
     <meta name="theme-color" content="#b4c7bb"> 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="<?= BASE_PATH ?>/manifest.json">
-    <link rel="apple-touch-icon" href="<?= BASE_PATH ?>/assets/img/logo.png">
+    <link rel="manifest" href="<?= $sw_base_path ?>/manifest.json">
+    <link rel="apple-touch-icon" href="<?= $sw_base_path ?>/assets/img/logo.png">
     <title>Dashboard Anggota</title>
+    <?php 
+    $onesignal_app_id = get_setting('onesignal_app_id'); 
+    ?>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <?php if (!empty($onesignal_app_id)): ?>
+    <script>
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(function(OneSignal) {
+            OneSignal.init({
+                appId: "<?= htmlspecialchars($onesignal_app_id) ?>",
+                serviceWorkerParam: { scope: '<?= $sw_base_path ?>/' },
+                serviceWorkerPath: '<?= $sw_base_path ?>/OneSignalSDKWorker.js',
+                serviceWorkerUpdaterPath: '<?= $sw_base_path ?>/OneSignalSDKUpdaterWorker.js',
+                notifyButton: {
+                    enable: true,
+                },
+            });
+
+            if (Notification.permission === 'denied') {
+                console.warn('OneSignal Error: Izin notifikasi diblokir (Denied). Silakan reset izin pada ikon gembok di address bar browser.');
+            }
+        });
+    </script>
+    <?php endif; ?>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -236,8 +278,8 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
     </div>
 
     <script>
-        window.memberDashboardData = {}; // Global store for dashboard data
-        const basePath = '<?= BASE_PATH ?>';
+        window.memberDashboardData = {};
+        const basePath = '<?= $sw_base_path ?>';
     </script>
     <script src="<?= BASE_PATH ?>/assets/js/ksp/member/core.js"></script>
     <script src="<?= BASE_PATH ?>/assets/js/ksp/member/belanja.js"></script>
@@ -247,17 +289,14 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
     <script src="<?= BASE_PATH ?>/assets/js/ksp/member/simulasi.js"></script>
     <script src="<?= BASE_PATH ?>/assets/js/ksp/member/profile.js"></script>
     <script>
-        // Init
         document.addEventListener('DOMContentLoaded', () => {
-            // Handle Splash Screen
             const splash = document.getElementById('splash-screen');
             if (splash) {
-                // Hilangkan splash screen setelah halaman dimuat (min 2 detik agar terlihat)
                 setTimeout(() => {
                     splash.style.opacity = '0';
                     setTimeout(() => {
                         splash.remove();
-                    }, 700); // Sesuaikan dengan duration transition CSS
+                    }, 700);
                 }, 2000);
             }
 
@@ -266,8 +305,6 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
             loadSavingsChart();
             initPullToRefresh();
 
-            // Fix: Pindahkan semua modal ke body agar tidak terpengaruh oleh transform pada #main-content
-            // Ini memperbaiki masalah modal yang muncul di atas saat halaman di-scroll
             document.querySelectorAll('[role="dialog"]').forEach(modal => {
                 document.body.appendChild(modal);
             });
@@ -281,15 +318,13 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
             const ptrIndicator = document.getElementById('ptr-indicator');
             const ptrIcon = document.getElementById('ptr-icon');
             const ptrSpinner = document.getElementById('ptr-spinner');
-            const threshold = 70; // Jarak tarik minimum untuk trigger refresh
+            const threshold = 70;
 
             document.addEventListener('touchstart', (e) => {
-                // Hanya aktifkan jika scroll berada di paling atas
                 if (window.scrollY === 0) {
                     touchStartY = e.touches[0].clientY;
                     isPulling = true;
                     pullDistance = 0;
-                    // Matikan transisi saat menarik agar responsif
                     mainContent.style.transition = 'none'; 
                     ptrIndicator.style.transition = 'none';
                 }
@@ -300,18 +335,15 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
                 const currentY = e.touches[0].clientY;
                 const diff = currentY - touchStartY;
 
-                // Jika menarik ke bawah dan scroll di atas
                 if (diff > 0 && window.scrollY === 0) {
-                    if (e.cancelable) e.preventDefault(); // Mencegah scroll bawaan browser
+                    if (e.cancelable) e.preventDefault();
                     
-                    // Efek resistance (semakin ditarik semakin berat)
                     pullDistance = Math.pow(diff, 0.8); 
-                    if(pullDistance > 150) pullDistance = 150; // Batas maksimal tarikan
+                    if(pullDistance > 150) pullDistance = 150;
 
                     mainContent.style.transform = `translateY(${pullDistance}px)`;
-                    ptrIndicator.style.transform = `translateY(${pullDistance - 60}px)`; // -60 karena posisi awal di -60px
+                    ptrIndicator.style.transform = `translateY(${pullDistance - 60}px)`;
                     
-                    // Putar ikon panah jika sudah melewati threshold
                     if (pullDistance > threshold) ptrIcon.classList.add('ptr-rotate');
                     else ptrIcon.classList.remove('ptr-rotate');
                 } else {
@@ -325,22 +357,18 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
                 if (!isPulling) return;
                 isPulling = false;
                 
-                // Hidupkan kembali transisi untuk efek snap back yang halus
                 mainContent.style.transition = 'transform 0.3s ease-out';
                 ptrIndicator.style.transition = 'transform 0.3s ease-out';
 
                 if (pullDistance > threshold) {
-                    // Trigger Refresh
                     ptrIcon.classList.add('hidden');
                     ptrSpinner.classList.remove('hidden');
                     
-                    // Tahan posisi loading
                     mainContent.style.transform = 'translateY(60px)';
                     ptrIndicator.style.transform = 'translateY(0px)';
                     
                     await refreshDashboard();
                     
-                    // Reset setelah selesai
                     setTimeout(() => {
                         mainContent.style.transform = '';
                         ptrIndicator.style.transform = '';
@@ -351,7 +379,6 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
                         }, 300);
                     }, 500);
                 } else {
-                    // Batal tarik (kembali ke posisi awal)
                     mainContent.style.transform = '';
                     ptrIndicator.style.transform = '';
                 }
@@ -360,7 +387,6 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
         }
 
         async function refreshDashboard() {
-            // Cek tab mana yang aktif untuk refresh data yang relevan
             const activeTabBtn = document.querySelector('.nav-item.active');
             const activeTab = activeTabBtn ? activeTabBtn.id.replace('nav-', '') : 'home';
 
@@ -372,7 +398,7 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
                 } else if (activeTab === 'pinjaman') {
                     if(typeof loadPinjamanList === 'function') await loadPinjamanList();
                 } else if (activeTab === 'belanja') {
-                    await loadSummary(); // Refresh saldo
+                    await loadSummary();
                 } else if (activeTab === 'profile') {
                     await loadSummary();
                 }
@@ -381,20 +407,6 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
             }
         }
 
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('<?= BASE_PATH ?>/service-worker.js')
-                    .then(registration => {
-                        console.log('✅ ServiceWorker berhasil didaftarkan dengan scope:', registration.scope);
-                    })
-                    .catch(err => {
-                        console.error('❌ ServiceWorker gagal didaftarkan:', err);
-                    });
-            });
-        }
-
-        // PWA Install Logic
         let deferredPrompt;
         const installBanner = document.getElementById('install-banner');
         const btnInstall = document.getElementById('btn-install');
@@ -402,14 +414,10 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
 
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('✅ Event PWA (beforeinstallprompt) berhasil dipicu! Aplikasi siap diinstall.');
-            // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             deferredPrompt = e;
-            // Update UI notify the user they can install the PWA
             if (installBanner) {
                 installBanner.classList.remove('hidden');
-                // Small delay for animation
                 setTimeout(() => {
                     installBanner.classList.remove('translate-y-20', 'opacity-0');
                 }, 100);
@@ -422,7 +430,6 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
                     deferredPrompt.prompt();
                     const { outcome } = await deferredPrompt.userChoice;
                     deferredPrompt = null;
-                    // Hide banner
                     if (installBanner) installBanner.classList.add('hidden');
                 }
             });

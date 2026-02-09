@@ -55,23 +55,28 @@
         </div>
 
         <!-- Quick Actions -->
-        <div class="grid grid-cols-4 gap-4 text-center">
-            <button onclick="openWithdrawalModal()" class="group flex flex-col items-center gap-2 transition active:scale-95">
-                <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl shadow-sm border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-colors"><i class="bi bi-box-arrow-up"></i></div>
-                <span class="text-xs font-medium text-gray-600 group-hover:text-blue-600">Tarik</span>
-            </button>
-            <button onclick="openTransferModal()" class="group flex flex-col items-center gap-2 transition active:scale-95">
-                <div class="w-14 h-14 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-2xl shadow-sm border border-cyan-100 group-hover:bg-cyan-600 group-hover:text-white transition-colors"><i class="bi bi-send"></i></div>
-                <span class="text-xs font-medium text-gray-600 group-hover:text-cyan-600">Transfer</span>
-            </button>
-            <button onclick="switchTab('belanja')" class="group flex flex-col items-center gap-2 transition active:scale-95">
-                <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl shadow-sm border border-rose-100 group-hover:bg-rose-600 group-hover:text-white transition-colors"><i class="bi bi-shop"></i></div>
-                <span class="text-xs font-medium text-gray-600 group-hover:text-rose-600">Belanja</span>
-            </button>
-            <button onclick="openPaymentScanner()" class="group flex flex-col items-center gap-2 transition active:scale-95">
-                <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl shadow-sm border border-purple-100 group-hover:bg-purple-600 group-hover:text-white transition-colors"><i class="bi bi-qr-code-scan"></i></div>
-                <span class="text-xs font-medium text-gray-600 group-hover:text-purple-600">Bayar</span>
-            </button>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="font-bold text-gray-800 text-sm mb-4 flex items-center gap-2">
+                <i class="bi bi-grid-fill text-indigo-500"></i> Menu Cepat
+            </h3>
+            <div class="grid grid-cols-4 gap-2 text-center">
+                <button onclick="openWithdrawalModal()" class="group flex flex-col items-center gap-1.5 transition active:scale-95">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 flex items-center justify-center text-xl shadow-sm border border-blue-200 group-hover:from-blue-600 group-hover:to-blue-700 group-hover:text-white transition-all duration-300"><i class="bi bi-box-arrow-up"></i></div>
+                    <span class="text-[10px] font-semibold text-gray-600 group-hover:text-blue-600 transition-colors">Tarik</span>
+                </button>
+                <button onclick="openTransferModal()" class="group flex flex-col items-center gap-1.5 transition active:scale-95">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-50 to-cyan-100 text-cyan-600 flex items-center justify-center text-xl shadow-sm border border-cyan-200 group-hover:from-cyan-600 group-hover:to-cyan-700 group-hover:text-white transition-all duration-300"><i class="bi bi-send"></i></div>
+                    <span class="text-[10px] font-semibold text-gray-600 group-hover:text-cyan-600 transition-colors">Transfer</span>
+                </button>
+                <button onclick="switchTab('belanja')" class="group flex flex-col items-center gap-1.5 transition active:scale-95">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-50 to-rose-100 text-rose-600 flex items-center justify-center text-xl shadow-sm border border-rose-200 group-hover:from-rose-600 group-hover:to-rose-700 group-hover:text-white transition-all duration-300"><i class="bi bi-shop"></i></div>
+                    <span class="text-[10px] font-semibold text-gray-600 group-hover:text-rose-600 transition-colors">Belanja</span>
+                </button>
+                <button onclick="openPaymentScanner()" class="group flex flex-col items-center gap-1.5 transition active:scale-95">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100 text-purple-600 flex items-center justify-center text-xl shadow-sm border border-purple-200 group-hover:from-purple-600 group-hover:to-purple-700 group-hover:text-white transition-all duration-300"><i class="bi bi-qr-code-scan"></i></div>
+                    <span class="text-[10px] font-semibold text-gray-600 group-hover:text-purple-600 transition-colors">Bayar</span>
+                </button>
+            </div>
         </div>
 
         <!-- Financial Pulse Widget (New Idea) -->
@@ -84,12 +89,12 @@
             </div>
             <div class="grid grid-cols-2 gap-4 relative z-10">
                 <div class="bg-green-50 p-3 rounded-xl border border-green-100">
-                    <p class="text-[10px] text-green-600 font-medium mb-0.5">Ditabung</p>
-                    <p class="text-sm font-bold text-green-700" id="pulse-saved">Rp 0</p>
+                    <p class="text-[10px] text-green-600 font-medium mb-0.5 text-center">Ditabung</p>
+                    <p class="text-sm font-bold text-green-700 text-center" id="pulse-saved">Rp 0</p>
                 </div>
                 <div class="bg-orange-50 p-3 rounded-xl border border-orange-100">
-                    <p class="text-[10px] text-orange-600 font-medium mb-0.5">Dibelanjakan</p>
-                    <p class="text-sm font-bold text-orange-700" id="pulse-spent">Rp 0</p>
+                    <p class="text-[10px] text-orange-600 font-medium mb-0.5 text-center">Dibelanjakan</p>
+                    <p class="text-sm font-bold text-orange-700 text-center" id="pulse-spent">Rp 0</p>
                 </div>
             </div>
         </div>
@@ -100,7 +105,9 @@
         <!-- Asset Summary -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-gray-800 text-sm">Ringkasan Aset</h3>
+                <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                    <i class="bi bi-pie-chart-fill text-green-600"></i> Ringkasan Aset
+                </h3>
                 <button onclick="switchTab('simpanan')" class="text-xs text-blue-600 font-medium">Detail</button>
             </div>
             <div class="grid grid-cols-2 gap-4 divide-x divide-gray-100">
@@ -121,15 +128,19 @@
 
         <!-- Savings Growth Chart -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <h3 class="font-bold text-gray-800 mb-3 text-sm">Pertumbuhan Simpanan</h3>
+            <h3 class="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
+                <i class="bi bi-graph-up-arrow text-blue-600"></i> Pertumbuhan Simpanan
+            </h3>
             <div class="h-40">
                 <canvas id="savingsChart"></canvas>
             </div>
-        </div>
+        </div> 
 
         <!-- News/Info -->
         <div id="news-container" class="hidden">
-            <h3 class="font-bold text-gray-800 mb-3 text-sm">Info Koperasi</h3>
+            <h3 class="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
+                <i class="bi bi-megaphone-fill text-orange-500"></i> Info Koperasi
+            </h3>
             <div id="news-list" class="flex gap-3 overflow-x-auto hide-scrollbar pb-2"></div>
         </div>
 
@@ -142,7 +153,9 @@
                 </div>
             </div>
             <div>
-                <h3 class="font-bold text-gray-800 text-sm">Kesehatan Finansial</h3>
+                <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                    <i class="bi bi-heart-pulse-fill text-rose-500"></i> Kesehatan Finansial
+                </h3>
                 <p id="health-score-rating" class="text-xs text-gray-500 mb-1">Menganalisis...</p>
                 <div id="smart-insights-list" class="text-[10px] text-gray-400 line-clamp-1">
                     Cek detail untuk saran keuangan.
@@ -153,7 +166,9 @@
         <!-- Recent History -->
         <div>
             <div class="flex justify-between items-center mb-3">
-                <h3 class="font-bold text-gray-800 text-sm">Aktivitas Terakhir</h3>
+                <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                    <i class="bi bi-clock-history text-blue-600"></i> Aktivitas Terakhir
+                </h3>
                 <button onclick="switchTab('simpanan')" class="text-xs text-blue-600 font-medium hover:underline">Lihat Semua</button>
             </div>
             <div id="recent-history" class="space-y-3">

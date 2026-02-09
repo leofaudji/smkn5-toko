@@ -2,7 +2,7 @@
     RewriteEngine On
 
     # Atur RewriteBase sesuai dengan subdirektori aplikasi Anda
-    RewriteBase /smkn5-toko
+    # RewriteBase /smkn5-toko
 
     # Arahkan semua permintaan ke index.php jika file atau direktori yang diminta tidak ada
     RewriteCond %{REQUEST_FILENAME} !-f

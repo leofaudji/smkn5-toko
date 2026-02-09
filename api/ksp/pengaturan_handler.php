@@ -161,6 +161,120 @@ try {
             echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
             break;
 
+        // --- NOTIFIKASI ---
+        case 'get_notification_settings':
+            $settings = [
+                'onesignal_app_id' => get_setting('onesignal_app_id', '', $db),
+                'onesignal_rest_api_key' => get_setting('onesignal_rest_api_key', '', $db),
+                'notification_due_soon_title' => get_setting('notification_due_soon_title', 'Pengingat Angsuran', $db),
+                'notification_due_soon_body' => get_setting('notification_due_soon_body', 'Angsuran ke-{angsuran_ke} sebesar {jumlah_tagihan} akan jatuh tempo pada {tanggal_jatuh_tempo}.', $db),
+                'notification_overdue_title' => get_setting('notification_overdue_title', 'Angsuran Terlambat!', $db),
+                'notification_overdue_body' => get_setting('notification_overdue_body', 'Angsuran ke-{angsuran_ke} sebesar {jumlah_tagihan} telah melewati jatuh tempo.', $db),
+            ];
+            echo json_encode(['success' => true, 'data' => $settings]);
+            break;
+
+        case 'save_notification_settings':
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            $stmt = $db->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+
+            $settings_to_save = [
+                'onesignal_app_id' => trim($data['onesignal_app_id'] ?? ''),
+                'onesignal_rest_api_key' => trim($data['onesignal_rest_api_key'] ?? ''),
+                'notification_due_soon_title' => $data['notification_due_soon_title'] ?? '',
+                'notification_due_soon_body' => $data['notification_due_soon_body'] ?? '',
+                'notification_overdue_title' => $data['notification_overdue_title'] ?? '',
+                'notification_overdue_body' => $data['notification_overdue_body'] ?? '',
+            ];
+
+            foreach ($settings_to_save as $key => $value) {
+                $stmt->bind_param("ss", $key, $value);
+                $stmt->execute();
+            }
+
+            echo json_encode(['success' => true, 'message' => 'Pengaturan notifikasi berhasil disimpan']);
+            break;
+
+        case 'test_notification':
+            require_once PROJECT_ROOT . '/includes/push_helper.php';
+            $error_detail = '';
+            $success = send_push_notification_to_all(
+                'Notifikasi Tes', 
+                'Jika Anda menerima ini, konfigurasi OneSignal sudah benar!', 
+                '/member/dashboard',
+                $error_detail
+            );
+
+            if ($success) {
+                echo json_encode(['success' => true, 'message' => 'Notifikasi tes berhasil dikirim ke semua pelanggan.']);
+            } else {
+                $errorMessage = 'Gagal mengirim notifikasi. Detail: ' . ($error_detail ?: 'Tidak diketahui');
+                http_response_code(500);
+                echo json_encode(['success' => false, 'message' => $errorMessage]);
+            }
+            break;
+
+        case 'send_mass_notification':
+            require_once PROJECT_ROOT . '/includes/push_helper.php';
+            $data = json_decode(file_get_contents('php://input'), true);
+            $title = $data['title'] ?? '';
+            $body = $data['body'] ?? '';
+
+            if (empty($title) || empty($body)) {
+                throw new Exception("Judul dan isi pesan tidak boleh kosong.");
+            }
+
+            // The URL will point to the member dashboard by default
+            $url = '/member/dashboard';
+
+            $error_detail = '';
+            $success = send_push_notification_to_all($title, $body, $url, $error_detail);
+
+            if ($success) {
+                echo json_encode(['success' => true, 'message' => 'Notifikasi massal berhasil dikirim.']);
+            } else {
+                throw new Exception('Gagal mengirim notifikasi: ' . ($error_detail ?: 'Unknown error'));
+            }
+            break;
+
+        case 'get_notification_logs':
+            $status = $_GET['status'] ?? 'all';
+            $startDate = $_GET['start_date'] ?? '';
+            $endDate = $_GET['end_date'] ?? '';
+
+            $sql = "
+                SELECT l.*, u.nama_lengkap as sender_name 
+                FROM ksp_notification_logs l 
+                LEFT JOIN users u ON l.created_by = u.id 
+                WHERE 1=1";
+            
+            $params = [];
+            $types = "";
+
+            if ($status !== 'all') {
+                $sql .= " AND l.status = ?";
+                $params[] = $status;
+                $types .= "s";
+            }
+            if (!empty($startDate)) {
+                $sql .= " AND DATE(l.sent_at) >= ?";
+                $params[] = $startDate;
+                $types .= "s";
+            }
+            if (!empty($endDate)) {
+                $sql .= " AND DATE(l.sent_at) <= ?";
+                $params[] = $endDate;
+                $types .= "s";
+            }
+
+            $sql .= " ORDER BY l.sent_at DESC LIMIT 100";
+            $stmt = $db->prepare($sql);
+            if (!empty($types)) $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+            break;
+
         default:
             throw new Exception("Aksi tidak valid");
     }

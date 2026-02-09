@@ -15,6 +15,10 @@ $logo_src = !empty($app_logo_path) ? base_url($app_logo_path) : base_url('assets
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Aplikasi resmi Koperasi Siswa SMKN 5 untuk memudahkan transaksi dan layanan anggota.">
+    <meta name="theme-color" content="#25D366">
+    <link rel="manifest" href="<?= base_url('/manifest.json') ?>">
+    <link rel="apple-touch-icon" href="<?= base_url('/assets/img/logo.png') ?>">
     <title>Login Anggota - <?= get_setting('app_name', 'Koperasi') ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -158,6 +162,13 @@ $logo_src = !empty($app_logo_path) ? base_url($app_logo_path) : base_url('assets
                 btn.innerHTML = originalContent;
             }
         });
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('<?= base_url('/OneSignalSDKWorker.js') ?>');
+            });
+        }
     </script>
 </body>
 </html>

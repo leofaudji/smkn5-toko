@@ -204,9 +204,200 @@ function initPengaturanKspPage() {
         }
     });
 
+    // --- Notification Settings Logic ---
+    function initNotificationSettings() {
+        const form = document.getElementById('form-notifikasi');
+        if (!form) return;
+
+        // Load initial settings
+        fetch(`${basePath}/api/ksp/pengaturan?action=get_notification_settings`)
+            .then(response => response.json())
+            .then(json => {
+                if (json.success) {
+                    const appIdEl = document.getElementById('onesignal_app_id');
+                    const apiKeyEl = document.getElementById('onesignal_rest_api_key');
+                    if (appIdEl) appIdEl.value = json.data.onesignal_app_id || '';
+                    if (apiKeyEl) apiKeyEl.value = json.data.onesignal_rest_api_key || '';
+
+                    const dueSoonTitle = document.getElementById('notification_due_soon_title');
+                    if (dueSoonTitle) dueSoonTitle.value = json.data.notification_due_soon_title || '';
+                    const dueSoonBody = document.getElementById('notification_due_soon_body');
+                    if (dueSoonBody) dueSoonBody.value = json.data.notification_due_soon_body || '';
+                    const overdueTitle = document.getElementById('notification_overdue_title');
+                    if (overdueTitle) overdueTitle.value = json.data.notification_overdue_title || '';
+                    const overdueBody = document.getElementById('notification_overdue_body');
+                    if (overdueBody) overdueBody.value = json.data.notification_overdue_body || '';
+                }
+            })
+            .catch(err => console.error('Gagal memuat pengaturan notifikasi:', err));
+
+        // Handle Test Notification
+        const testBtn = document.getElementById('btn-test-notifikasi');
+        if (testBtn) {
+            testBtn.addEventListener('click', function() {
+                this.disabled = true;
+                this.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/50 border-t-white rounded-full"></span> Mengirim...';
+
+                fetch(`${basePath}/api/ksp/pengaturan?action=test_notification`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(json => {
+                        if (json.success) {
+                            Swal.fire('Terkirim!', json.message, 'success');
+                        } else {
+                            Swal.fire('Gagal!', json.message, 'error');
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('Error', 'Gagal mengirim notifikasi tes. Periksa konsol untuk detail.', 'error');
+                    })
+                    .finally(() => {
+                        this.disabled = false;
+                        this.innerHTML = '<i class="bi bi-send"></i> Test Notifikasi';
+                    });
+            });
+        }
+
+        // Handle form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Menyimpan...';
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            fetch(`${basePath}/api/ksp/pengaturan?action=save_notification_settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(json => {
+                if (json.success) {
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: json.message, timer: 1500, showConfirmButton: false });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: json.message });
+                }
+            })
+            .catch(err => {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan jaringan.' });
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            });
+        });
+    }
+
+    function initMassNotification() {
+        const form = document.getElementById('form-mass-notification');
+        if (!form) return;
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            const title = this.querySelector('[name="title"]').value;
+            const body = this.querySelector('[name="body"]').value;
+
+            if (!title || !body) {
+                Swal.fire('Gagal', 'Judul dan isi pesan tidak boleh kosong.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Kirim Notifikasi?',
+                text: "Pesan akan dikirim ke semua anggota yang berlangganan. Aksi ini tidak dapat dibatalkan.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, Kirim!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white/50 border-t-white rounded-full"></span> Mengirim...';
+
+                    fetch(`${basePath}/api/ksp/pengaturan?action=send_mass_notification`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: title, body: body })
+                    })
+                    .then(res => res.json())
+                    .then(json => {
+                        if (json.success) {
+                            Swal.fire('Terkirim!', json.message, 'success');
+                            loadNotificationLogs(); // Refresh logs
+                            form.reset();
+                        } else {
+                            Swal.fire('Gagal!', json.message, 'error');
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('Error', 'Gagal mengirim notifikasi. Periksa konsol untuk detail.', 'error');
+                    })
+                    .finally(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-broadcast"></i> Kirim ke Semua Anggota';
+                    });
+                }
+            });
+        });
+    }
+
+    function loadNotificationLogs() {
+        const tbody = document.getElementById('table-notification-logs');
+        if (!tbody) return;
+
+        tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-gray-500">Memuat riwayat...</td></tr>';
+
+        // Get filter values
+        const status = document.getElementById('log-filter-status').value;
+        const startDate = document.getElementById('log-filter-start-date').value;
+        const endDate = document.getElementById('log-filter-end-date').value;
+
+        // Build query string
+        const params = new URLSearchParams({
+            action: 'get_notification_logs',
+            status: status,
+            start_date: startDate,
+            end_date: endDate
+        });
+
+        fetch(`${basePath}/api/ksp/pengaturan?${params.toString()}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.success && res.data.length > 0) {
+                    tbody.innerHTML = res.data.map(log => `
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td class="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
+                                ${new Date(log.sent_at).toLocaleString('id-ID')}
+                            </td>
+                            <td class="px-4 py-3">
+                                <p class="font-semibold text-gray-800 dark:text-white text-sm">${log.title}</p>
+                                <p class="text-gray-500 dark:text-gray-400 text-xs line-clamp-1">${log.body}</p>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded-full text-xs font-bold ${log.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${log.status.toUpperCase()}</span>
+                                ${log.status === 'failed' ? `<i class="bi bi-info-circle text-red-500 ml-1 cursor-pointer" title="${log.error_message}"></i>` : ''}
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-gray-500">Belum ada riwayat notifikasi.</td></tr>';
+                }
+            });
+    };
+
     // Initial load
     loadJenisSimpanan();
     loadKategoriTransaksi();
     loadJenisPinjaman();
     loadTipeAgunan();
+    initNotificationSettings();
+    initMassNotification();
+    loadNotificationLogs();
 }

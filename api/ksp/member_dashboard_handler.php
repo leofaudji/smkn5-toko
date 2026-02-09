@@ -1030,6 +1030,24 @@ try {
         } else {
             throw new Exception("Gagal memproses pengajuan: " . $stmt->error);
         }
+    } elseif ($action === 'save_push_subscription' && $request_method === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $endpoint = $input['endpoint'] ?? '';
+        $p256dh = $input['keys']['p256dh'] ?? '';
+        $auth = $input['keys']['auth'] ?? '';
+
+        if (empty($endpoint) || empty($p256dh) || empty($auth)) {
+            throw new Exception("Data langganan push tidak lengkap.");
+        }
+
+        // Simpan atau update langganan berdasarkan endpoint yang unik
+        $stmt = $db->prepare("
+            INSERT INTO ksp_push_subscriptions (anggota_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE p256dh = VALUES(p256dh), auth = VALUES(auth), anggota_id = VALUES(anggota_id)
+        ");
+        $stmt->bind_param("isss", $member_id, $endpoint, $p256dh, $auth);
+        if (!$stmt->execute()) throw new Exception("Gagal menyimpan langganan: " . $stmt->error);
+        echo json_encode(['success' => true, 'message' => 'Berhasil berlangganan notifikasi.']);
     }
 } catch (Exception $e) {
     http_response_code(500);

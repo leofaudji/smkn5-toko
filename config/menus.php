@@ -37,12 +37,15 @@ return [
         ['key' => 'anggota', 'label' => 'Pendaftaran Anggota', 'url' => '/ksp/anggota'],
         ['key' => 'simpanan', 'label' => 'Simpanan Anggota', 'url' => '/ksp/simpanan'],
         ['key' => 'penarikan', 'label' => 'Persetujuan Penarikan', 'url' => '/ksp/penarikan'],
-        ['key' => 'laporan_simpanan', 'label' => 'Laporan Simpanan', 'url' => '/ksp/laporan-simpanan'],
-        ['key' => 'generate_qr', 'label' => 'Generate QR Bayar', 'url' => '/ksp/generate-qr'],
         ['key' => 'pinjaman', 'label' => 'Pinjaman Anggota', 'url' => '/ksp/pinjaman'],
+        ['key' => 'simulasi_pinjaman', 'label' => 'Simulasi Kredit', 'url' => '/ksp/simulasi'],
+        ['key' => 'generate_qr', 'label' => 'Generate QR Bayar', 'url' => '/ksp/generate-qr'],
+        ['key' => 'pengumuman', 'label' => 'Pengumuman KSP', 'url' => '/ksp/pengumuman'],
+        ['key' => 'laporan_simpanan', 'label' => 'Laporan Simpanan', 'url' => '/ksp/laporan-simpanan'],
+        ['key' => 'laporan_pinjaman', 'label' => 'Laporan Pinjaman', 'url' => '/ksp/laporan-pinjaman'],
+        ['key' => 'poin_anggota', 'label' => 'Poin & Reward', 'url' => '/ksp/poin-anggota'],
         ['key' => 'laporan_nominatif', 'label' => 'Laporan Nominatif', 'url' => '/ksp/laporan-nominatif'],
         ['key' => 'ksp_pengaturan', 'label' => 'Pengaturan KSP', 'url' => '/ksp/pengaturan'],
-        ['key' => 'portal_anggota', 'label' => 'Portal Anggota', 'url' => '/member/login'],
     ]],
 
     ['type' => 'collapse', 'key' => 'laporan', 'label' => 'Laporan', 'icon' => 'bi bi-bar-chart-line-fill', 'children' => [

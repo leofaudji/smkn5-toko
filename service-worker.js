@@ -1,7 +1,6 @@
-const CACHE_NAME = 'ksp-member-v8';
+const CACHE_NAME = 'ksp-member-v17'; // Naikkan versi cache setelah fix Vhost
 // Daftar file yang ingin di-cache agar loading lebih cepat
 const urlsToCache = [
-    './',
     './member/login',
     './member/dashboard',
     './assets/img/logo.png',
@@ -44,11 +43,20 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+    // Skip request yang bukan HTTP/HTTPS (seperti chrome-extension://)
+    if (!event.request.url.startsWith('http')) return;
+
+    // Jangan cache file OneSignal agar selalu fresh
+    if (event.request.url.includes('OneSignalSDK')) return;
+
     event.respondWith(
         fetch(event.request)
             .then(response => {
                 // Clone response untuk disimpan di cache (Dynamic Caching)
                 if (response && response.status === 200 && event.request.method === 'GET') {
+                    // Cek ulang skema URL sebelum put ke cache
+                    if (!response.url.startsWith('http')) return response;
+
                     const responseToCache = response.clone();
                     caches.open(CACHE_NAME).then(cache => {
                         cache.put(event.request, responseToCache);
@@ -61,4 +69,37 @@ self.addEventListener('fetch', event => {
                 return caches.match(event.request);
             })
     );
+});
+
+self.addEventListener('push', event => {
+    console.log('[Service Worker] Push Diterima.');
+    let data = {};
+    if (event.data) {
+        try {
+            data = event.data.json();
+            // Cek apakah ini notifikasi dari OneSignal (memiliki properti custom.i)
+            // Jika ya, biarkan SDK OneSignal yang menanganinya agar tidak muncul ganda
+            if (data.custom && data.custom.i) {
+                console.log('[Service Worker] Notifikasi OneSignal terdeteksi, skip handler manual.');
+                return;
+            }
+        } catch (e) {
+            data = { body: event.data.text() };
+        }
+    }
+
+    const title = data.title || 'Pengumuman Baru';
+    const options = {
+        body: data.body || 'Ada informasi baru dari koperasi.',
+        icon: data.icon || './assets/img/icon-192.png',
+        badge: './assets/img/icon-192.png',
+        data: { url: data.url || './member/dashboard' }
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    event.waitUntil(clients.openWindow(event.notification.data.url));
 });

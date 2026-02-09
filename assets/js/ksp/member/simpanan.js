@@ -57,7 +57,7 @@ async function loadSimpananHistory() {
 
         if (summaryJson.success && summaryJson.data.simpanan_per_jenis) {
             const simpanan = summaryJson.data.simpanan_per_jenis;
-            let totalSimpanan = 0;
+            let totalSimpanan = 0; 
             
             if (gridContainer) {
                 if (simpanan.length > 0) {
@@ -72,19 +72,17 @@ async function loadSimpananHistory() {
                         else if (s.tipe === 'sukarela') { icon = 'bi-piggy-bank-fill'; color = 'emerald'; }
 
                         // Layout Kartu: 
-                        // - Icon dan Nama Simpanan sejajar
-                        // - Saldo rata kanan bawah dengan font tebal
+                        // - Icon dan Nama Simpanan rata tengah
+                        // - Saldo rata tengah di bawahnya
                         return `
-                        <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-full relative overflow-hidden group transition-all hover:shadow-md min-h-[100px] cursor-pointer" onclick="showSavingsDetail(${s.id}, '${s.nama}')">
-                            <div class="flex items-center gap-3 mb-2">
-                                <div class="w-8 h-8 rounded-full bg-${color}-50 text-${color}-600 flex items-center justify-center shadow-sm shrink-0">
-                                    <i class="bi ${icon} text-sm"></i>
+                        <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center h-full relative overflow-hidden group transition-all hover:shadow-md cursor-pointer" onclick="showSavingsDetail(${s.id}, '${s.nama}')">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-6 h-6 rounded-full bg-${color}-50 text-${color}-600 flex items-center justify-center shadow-sm shrink-0">
+                                    <i class="bi ${icon} text-xs"></i>
                                 </div>
-                                <p class="text-xs text-gray-700 font-bold line-clamp-2 leading-tight" title="${s.nama}">${s.nama}</p>
+                                <p class="text-xs text-gray-600 font-bold truncate" title="${s.nama}">${s.nama}</p>
                             </div>
-                            <div>
-                                <p class="text-base font-bold text-gray-800 text-right tracking-tight">${formatRupiah(s.saldo)}</p>
-                            </div>
+                            <p class="text-base font-bold text-gray-800 tracking-tight">${formatRupiah(s.saldo)}</p>
                         </div>
                         `;
                     }).join('');

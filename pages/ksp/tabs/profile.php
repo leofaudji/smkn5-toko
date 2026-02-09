@@ -210,6 +210,7 @@ $logo_src = !empty($app_logo_path) ? BASE_PATH . '/' . $app_logo_path : BASE_PAT
                     <i class="bi bi-chevron-right text-gray-300 text-xs group-hover:text-red-300"></i>
                 </button>
             </div>
+
         </div>
         
         <!-- Target List (Hidden/Optional view) -->

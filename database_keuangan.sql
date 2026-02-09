@@ -1001,3 +1001,16 @@ CREATE TABLE `ksp_wishlist` (
 
 ALTER TABLE `anggota` ADD `default_payment_savings_id` INT(11) NULL DEFAULT NULL AFTER `gamification_points`;
 ALTER TABLE `anggota` ADD CONSTRAINT `fk_anggota_default_savings` FOREIGN KEY (`default_payment_savings_id`) REFERENCES `ksp_jenis_simpanan` (`id`) ON DELETE SET NULL;
+
+-- Tabel Log Notifikasi
+CREATE TABLE `ksp_notification_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) NOT NULL,
+  `body` text NOT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  `sent_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `status` enum('success','failed') NOT NULL DEFAULT 'success',
+  `error_message` text DEFAULT NULL,
+  `created_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

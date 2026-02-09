@@ -436,6 +436,22 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/ksp/generate_qr.js`)
             .then(() => initGenerateQrPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/simulasi') {
+        loadScript(`${basePath}/assets/js/ksp/simulasi.js`)
+            .then(() => initSimulasiPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/pengumuman') {
+        loadScript(`${basePath}/assets/js/ksp/pengumuman.js`)
+            .then(() => initPengumumanPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/laporan-pinjaman') {
+        loadScript(`${basePath}/assets/js/ksp/laporan_pinjaman.js`)
+            .then(() => initLaporanPinjamanPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/poin-anggota') {
+        loadScript(`${basePath}/assets/js/ksp/poin_anggota.js`)
+            .then(() => initPoinAnggotaPage())
+            .catch(err => console.error(err));
     }else if (cleanPath === '/buku-panduan') {        // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
         // Cukup daftarkan agar tidak error dan hentikan eksekusi.
         return; 
