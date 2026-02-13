@@ -66,6 +66,7 @@ $router->get('/my-profile/change-password', 'pages/my_profile.php', ['auth']);
 // --- Rute Utama Aplikasi Keuangan ---
 $router->get('/transaksi', 'pages/transaksi.php', ['auth']);
 $router->get('/pembelian', 'pages/pembelian.php', ['auth']);
+$router->get('/wajib-belanja', 'pages/wajib_belanja.php', ['auth']);
 $router->get('/penjualan', 'pages/penjualan.php', ['auth']); // Rute baru untuk halaman penjualan
 $router->get('/stok', 'pages/stok.php', ['auth']);
 $router->get('/stok-opname', 'pages/stok_opname.php', ['auth']);
@@ -83,6 +84,8 @@ $router->get('/laporan-stok', 'pages/laporan_stok.php', ['auth']);
 $router->get('/laporan-penjualan', 'pages/laporan_penjualan.php', ['auth']);
 $router->get('/laporan-penjualan-item', 'pages/laporan_penjualan_item.php', ['auth']);
 $router->get('/laporan-kartu-stok', 'pages/laporan_kartu_stok.php', ['auth']);
+$router->get('/laporan-wb-tahunan', 'pages/laporan_wb_tahunan.php', ['auth']);
+$router->get('/laporan-kesehatan-bank', 'pages/laporan_kesehatan_bank.php', ['auth']);
 $router->get('/laporan-persediaan', 'pages/laporan_persediaan.php', ['auth']);
 $router->get('/laporan-pertumbuhan-persediaan', 'pages/laporan_pertumbuhan_persediaan.php', ['auth']);
 $router->get('/anggaran', 'pages/anggaran.php', ['auth']);
@@ -101,11 +104,15 @@ $router->post('/roles', 'pages/roles.php', ['auth', 'admin']);
 $router->get('/ksp/anggota', 'pages/ksp/anggota.php', ['auth']);
 $router->get('/ksp/penarikan', 'pages/ksp/penarikan.php', ['auth']);
 $router->get('/ksp/simpanan', 'pages/ksp/simpanan.php', ['auth']);
+$router->get('/ksp/menu', 'pages/ksp/menu.php', ['auth']); // Menu Utama KSP
 $router->get('/ksp/laporan-simpanan', 'pages/ksp/laporan_simpanan.php', ['auth']);
+$router->get('/ksp/statistik', 'pages/ksp/statistik.php', ['auth']);
 $router->get('/ksp/pinjaman', 'pages/ksp/pinjaman.php', ['auth']);
 $router->get('/ksp/generate-qr', 'pages/ksp/generate_qr.php', ['auth']);
 $router->get('/ksp/simulasi', 'pages/ksp/simulasi.php', ['auth']);
 $router->get('/ksp/pengumuman', 'pages/ksp/pengumuman.php', ['auth']);
+$router->get('/ksp/target-tabungan', 'pages/ksp/target_tabungan.php', ['auth']);
+$router->get('/ksp/wishlist', 'pages/ksp/wishlist.php', ['auth']);
 $router->get('/ksp/laporan-pinjaman', 'pages/ksp/laporan_pinjaman.php', ['auth']);
 $router->get('/ksp/poin-anggota', 'pages/ksp/poin_anggota.php', ['auth']);
 $router->get('/ksp/laporan-nominatif', 'pages/ksp/laporan_nominatif.php', ['auth']); // Rute baru
@@ -118,6 +125,11 @@ $router->get('/api/dashboard', 'api/dashboard_handler.php', ['auth']); // Mengam
 // API untuk Transaksi
 $router->get('/api/transaksi', 'api/transaksi_handler.php', ['auth']);
 $router->post('/api/transaksi', 'api/transaksi_handler.php', ['auth']);
+
+// API untuk Wajib Belanja
+$router->get('/api/wajib-belanja', 'api/wajib_belanja_handler.php', ['auth']);
+$router->post('/api/wajib-belanja', 'api/wajib_belanja_handler.php', ['auth']);
+$router->get('/api/laporan-wb-tahunan', 'api/laporan_wb_tahunan_handler.php', ['auth']);
 
 // API untuk Pembelian
 $router->get('/api/pembelian', 'api/pembelian_handler.php', ['auth']);
@@ -141,6 +153,7 @@ $router->get('/api/laporan/laba-rugi', 'api/laporan_laba_rugi_handler.php', ['au
 $router->get('/api/laporan-harian', 'api/laporan_harian_handler.php', ['auth']);
 $router->get('/api/pertumbuhan_persediaan', 'api/pertumbuhan_persediaan.php', ['auth']);
 $router->get('/api/laporan_stok', 'api/laporan_stok_handler.php', ['auth']);
+$router->get('/api/laporan-kesehatan-bank', 'api/laporan_kesehatan_bank_handler.php', ['auth']);
 $router->get('/api/csv', 'api/laporan_cetak_csv_handler.php', ['auth']); // Rute baru untuk cetak CSV
 $router->get('/api/pdf', 'api/laporan_cetak_handler.php', ['auth']); // Rute baru untuk cetak PDF (GET)
 $router->post('/api/pdf', 'api/laporan_cetak_handler.php', ['auth']); // Rute baru untuk cetak PDF (POST)
@@ -193,6 +206,9 @@ $router->get('/api/ksp/notifications', 'api/ksp/notification_handler.php', ['aut
 $router->post('/api/ksp/pinjaman', 'api/ksp/pinjaman_handler.php', ['auth']);
 $router->get('/api/ksp/pengumuman', 'api/ksp/pengumuman_handler.php', ['auth']);
 $router->post('/api/ksp/pengumuman', 'api/ksp/pengumuman_handler.php', ['auth']);
+$router->get('/api/ksp/target-tabungan', 'api/ksp/target_tabungan_handler.php', ['auth']);
+$router->get('/api/ksp/wishlist', 'api/ksp/wishlist_handler.php', ['auth']);
+$router->get('/api/ksp/statistik', 'api/ksp/statistik_handler.php', ['auth']);
 $router->get('/api/ksp/laporan-pinjaman', 'api/ksp/laporan_pinjaman_handler.php', ['auth']);
 $router->get('/api/ksp/poin-anggota', 'api/ksp/poin_anggota_handler.php', ['auth']);
 $router->post('/api/ksp/poin-anggota', 'api/ksp/poin_anggota_handler.php', ['auth']);

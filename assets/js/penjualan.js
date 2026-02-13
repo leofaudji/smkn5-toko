@@ -32,6 +32,15 @@ function initPenjualanPage() {
     const paginationContainer = document.getElementById('pagination');
     const paginationInfo = document.getElementById('pagination-info');
     const tanggalInput = document.getElementById('tanggal');
+    
+    // Element untuk Anggota & WB
+    const memberSearchInput = document.getElementById('member_search');
+    const memberSuggestions = document.getElementById('member-suggestions');
+    const wbPaymentContainer = document.getElementById('wb-payment-container');
+    const bayarWbInput = document.getElementById('bayar_wb');
+    const memberInfoDiv = document.getElementById('member-info');
+    const anggotaIdInput = document.getElementById('anggota_id');
+    let currentMemberBalance = 0;
 
     let cart = [];
     let currentPage = 1;
@@ -274,15 +283,17 @@ function initPenjualanPage() {
         const totalDiscount = itemDiscounts + totalDiscountInput;
         const total = subtotal - totalDiscount;
         
+        const bayarWb = parseFloat(bayarWbInput?.value) || 0;
+        
         // Auto-fill bayar jika metode pembayaran bukan tunai (Transfer/QRIS)
         const paymentMethod = document.getElementById('payment_method');
         const bayarInput = document.getElementById('bayar');
         if (paymentMethod && bayarInput && paymentMethod.value !== 'cash') {
-            bayarInput.value = total;
+            bayarInput.value = Math.max(0, total - bayarWb);
         }
 
         const bayar = parseFloat(bayarInput.value) || 0;
-        const kembali = bayar - total;
+        const kembali = (bayar + bayarWb) - total;
 
         document.getElementById('subtotal').textContent = formatRupiah(subtotal);
         document.getElementById('total').textContent = formatRupiah(total);
@@ -293,6 +304,13 @@ function initPenjualanPage() {
     document.getElementById('btn-tambah-penjualan').addEventListener('click', () => {
         document.getElementById('form-penjualan').reset();
         tanggalPicker.setDate(new Date()); // Reset tanggal ke hari ini menggunakan API Flatpickr
+        
+        // Reset Member Info
+        anggotaIdInput.value = '';
+        wbPaymentContainer.classList.add('hidden');
+        memberInfoDiv.classList.add('hidden');
+        currentMemberBalance = 0;
+        
         cart = [];
         renderCart();
         openModal('penjualanModal');
@@ -322,12 +340,14 @@ function initPenjualanPage() {
     // Handle "Uang Pas" button
     document.getElementById('btn-uang-pas')?.addEventListener('click', () => {
         const totalText = document.getElementById('total').textContent;
+        const bayarWb = parseFloat(bayarWbInput?.value) || 0;
         // Extract number from "Rp 123.456"
         const totalValue = parseFloat(totalText.replace(/[^0-9,-]+/g,"").replace(",", "."));
+        const sisaTagihan = Math.max(0, totalValue - bayarWb);
         
         const bayarInput = document.getElementById('bayar');
         if (bayarInput && !isNaN(totalValue)) {
-            bayarInput.value = totalValue;
+            bayarInput.value = sisaTagihan;
             updateSummary(); // Recalculate change
         }
     });
@@ -501,6 +521,62 @@ function initPenjualanPage() {
         }
     });
 
+    // --- Member Search Logic ---
+    memberSearchInput?.addEventListener('input', async (e) => {
+        const term = e.target.value;
+        if (term.length < 2) {
+            memberSuggestions.classList.add('hidden');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${basePath}/api/penjualan?action=search_member&term=${term}`);
+            const result = await response.json();
+            
+            if (result.success && result.data.length > 0) {
+                memberSuggestions.innerHTML = result.data.map(m => `
+                    <div class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-100 dark:border-gray-600" 
+                         data-id="${m.id}" data-nama="${m.nama_lengkap}" data-saldo="${m.saldo_wajib_belanja}">
+                        <div class="font-bold text-sm">${m.nama_lengkap}</div>
+                        <div class="text-xs text-gray-500">No: ${m.nomor_anggota} | Saldo WB: ${formatRupiah(m.saldo_wajib_belanja)}</div>
+                    </div>
+                `).join('');
+                memberSuggestions.classList.remove('hidden');
+            } else {
+                memberSuggestions.classList.add('hidden');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    });
+
+    memberSuggestions?.addEventListener('click', (e) => {
+        const item = e.target.closest('div[data-id]');
+        if (item) {
+            const id = item.dataset.id;
+            const nama = item.dataset.nama;
+            const saldo = parseFloat(item.dataset.saldo);
+
+            memberSearchInput.value = nama;
+            anggotaIdInput.value = id;
+            currentMemberBalance = saldo;
+            
+            memberInfoDiv.textContent = `Saldo Wajib Belanja: ${formatRupiah(saldo)}`;
+            memberInfoDiv.classList.remove('hidden');
+            
+            if (saldo > 0) {
+                wbPaymentContainer.classList.remove('hidden');
+            } else {
+                wbPaymentContainer.classList.add('hidden');
+            }
+            
+            memberSuggestions.classList.add('hidden');
+            updateSummary();
+        }
+    });
+    
+    bayarWbInput?.addEventListener('input', updateSummary);
+
     // --- Navigasi Keyboard (Enter) untuk UX yang lebih cepat ---
     searchProdukInput.addEventListener('keydown', (e) => {
         // Jika tekan Enter saat input kosong, pindah ke kolom bayar
@@ -547,6 +623,7 @@ function initPenjualanPage() {
         const totalDiscount = itemDiscounts + totalDiscountInput;
         const total = subtotal - totalDiscount;
         const bayar = parseFloat(document.getElementById('bayar').value) || 0;
+        const bayarWb = parseFloat(document.getElementById('bayar_wb')?.value) || 0;
 
         // Validasi tambahan untuk non-tunai
         const paymentMethod = document.getElementById('payment_method')?.value || 'cash';
@@ -560,8 +637,13 @@ function initPenjualanPage() {
             showToast('Keranjang belanja masih kosong.', 'warning');
             return;
         }
-        if (bayar < total) {
+        if ((bayar + bayarWb) < total) {
             showToast('Jumlah bayar kurang dari total.', 'warning');
+            return;
+        }
+        
+        if (bayarWb > currentMemberBalance) {
+            showToast('Saldo Wajib Belanja tidak mencukupi.', 'error');
             return;
         }
 
@@ -577,13 +659,15 @@ function initPenjualanPage() {
         };
         const formData = {
             tanggal: formatDateForDB(tanggalPicker.selectedDates[0]),
-            customer_name: document.getElementById('customer_name').value || 'Umum',
+            customer_name: document.getElementById('member_search').value || 'Umum',
+            anggota_id: document.getElementById('anggota_id').value || null,
             subtotal: subtotal,
             discount: totalDiscount,
             total: total,
             total_hpp: totalHPP, // Kirim total HPP untuk jurnal (Debit HPP, Kredit Persediaan)
             bayar: bayar,
-            kembali: bayar - total,
+            bayar_wb: bayarWb,
+            kembali: (bayar + bayarWb) - total,
             catatan: document.getElementById('catatan').value || '', // Ambil nilai dari input catatan
             payment_method: paymentMethod,
             payment_account_id: paymentAccountId,
@@ -612,7 +696,7 @@ function initPenjualanPage() {
                 // Gunakan SweetAlert untuk konfirmasi sukses yang lebih modern
                 Swal.fire({
                     title: 'Transaksi Berhasil!',
-                    html: `Total: <b>${formatRupiah(total)}</b><br>Kembali: <b>${formatRupiah(bayar - total)}</b>`,
+                    html: `Total: <b>${formatRupiah(total)}</b><br>Kembali: <b>${formatRupiah((bayar + bayarWb) - total)}</b>`,
                     icon: 'success',
                     showCancelButton: true,
                     confirmButtonText: '<i class="bi bi-printer"></i> Cetak Struk',

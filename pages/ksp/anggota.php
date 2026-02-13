@@ -12,9 +12,14 @@ check_permission('menu.view.anggota');
     <h1 class="text-2xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
         <i class="bi bi-people-fill"></i> Pendaftaran Anggota
     </h1>
-    <button id="btn-add-anggota" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-        <i class="bi bi-plus-lg mr-2"></i> Tambah Anggota
-    </button>
+    <div class="flex gap-2">
+        <button id="btn-print-batch" class="hidden inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
+            <i class="bi bi-printer mr-2"></i> Cetak Terpilih (<span id="selected-count">0</span>)
+        </button>
+        <button id="btn-add-anggota" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+            <i class="bi bi-plus-lg mr-2"></i> Tambah Anggota
+        </button>
+    </div>
 </div>
 
 <!-- Filter & Search -->
@@ -35,6 +40,9 @@ check_permission('menu.view.anggota');
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-10">
+                        <input type="checkbox" id="select-all-members" class="rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                    </th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No Anggota</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nama Lengkap</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No Telepon</th>

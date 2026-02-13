@@ -32,6 +32,7 @@ require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukAngsuranReportBuilder
 require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukSimpananReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanNominatifSimpananReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanNominatifPinjamanReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/KartuAnggotaReportBuilder.php';
 
 $conn = Database::getInstance()->getConnection();
 
@@ -99,6 +100,7 @@ $builder_map = [
     'struk_simpanan' => StrukSimpananReportBuilder::class,
     'nominatif_simpanan' => LaporanNominatifSimpananReportBuilder::class,
     'nominatif_pinjaman' => LaporanNominatifPinjamanReportBuilder::class,
+    'kartu_anggota' => KartuAnggotaReportBuilder::class,
 ];
 
 try {

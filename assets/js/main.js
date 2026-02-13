@@ -136,7 +136,7 @@ function updateActiveSidebarLink(path) {
         const cleanLinkPath = linkPath.length > 1 ? linkPath.replace(/\/$/, "") : linkPath;
 
         // Reset all links first
-        link.classList.remove('bg-primary-50', 'dark:bg-gray-700', 'text-primary', 'font-semibold');
+        link.classList.remove('bg-primary-50', 'dark:bg-gray-800', 'text-primary', 'font-semibold', 'shadow-sm');
         const parentCollapseTrigger = link.closest('[data-controller="collapse"]')?.querySelector('button');
         if (parentCollapseTrigger) {
             parentCollapseTrigger.classList.remove('text-primary', 'font-semibold');
@@ -144,7 +144,7 @@ function updateActiveSidebarLink(path) {
 
         if (cleanLinkPath === cleanCurrentPath) {
             // Style the active link
-            link.classList.add('bg-primary-50', 'dark:bg-gray-700', 'text-primary', 'font-semibold');
+            link.classList.add('bg-primary-50', 'dark:bg-gray-800', 'text-primary', 'font-semibold', 'shadow-sm');
 
             // Check if it's inside a collapsible menu
             const parentCollapseContent = link.closest('.collapse-content');
@@ -272,6 +272,14 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/transaksi.js`)
             .then(() => initTransaksiPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/wajib-belanja') {
+        loadScript(`${basePath}/assets/js/wajib_belanja.js`)
+            .then(() => initWajibBelanjaPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/laporan-wb-tahunan') {
+        loadScript(`${basePath}/assets/js/laporan_wb_tahunan.js`)
+            .then(() => initLaporanWbTahunanPage())
+            .catch(err => console.error(err));
     } else if (cleanPath === '/entri-jurnal') {
         loadScript(`${basePath}/assets/js/entri_jurnal.js`)
             .then(() => initEntriJurnalPage())
@@ -388,6 +396,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/laporan_penjualan_item.js`)
             .then(() => initLaporanPenjualanItemPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/laporan-kesehatan-bank') {
+        loadScript(`${basePath}/assets/js/laporan_kesehatan_bank.js`)
+            .then(() => initLaporanKesehatanBankPage())
+            .catch(err => console.error(err));
     } else if (cleanPath === '/laporan-penjualan') {
         loadScript(`${basePath}/assets/js/laporan_penjualan.js`)
             .then(() => initLaporanPenjualanPage())
@@ -448,10 +460,16 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/ksp/laporan_pinjaman.js`)
             .then(() => initLaporanPinjamanPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/statistik') {
+        loadScript(`${basePath}/assets/js/ksp/statistik.js`)
+            .then(() => initStatistikKspPage())
+            .catch(err => console.error(err));
     } else if (cleanPath === '/ksp/poin-anggota') {
         loadScript(`${basePath}/assets/js/ksp/poin_anggota.js`)
             .then(() => initPoinAnggotaPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/ksp/menu') {
+        initKspMenuPage();
     }else if (cleanPath === '/buku-panduan') {        // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
         // Cukup daftarkan agar tidak error dan hentikan eksekusi.
         return; 
@@ -524,6 +542,10 @@ function timeSince(date) {
     return "Baru saja";
 }
 
+function initKspMenuPage() {
+    checkAdminNotifications();
+}
+
 /**
  * Fetches pending request counts and updates sidebar badges.
  */
@@ -542,6 +564,10 @@ async function checkAdminNotifications() {
             // Update Parent Badge (Simpan Pinjam)
             const totalSimpanPinjam = (json.data.pinjaman || 0) + (json.data.penarikan || 0);
             updateParentSidebarBadge('/ksp/pinjaman', totalSimpanPinjam);
+
+            // Update KSP Grid Menu Badges
+            updateKspGridBadge('/ksp/pinjaman', json.data.pinjaman, json.data.pinjaman_details);
+            updateKspGridBadge('/ksp/penarikan', json.data.penarikan, json.data.penarikan_details);
         }
     } catch (e) {
         console.error('Gagal memuat notifikasi sidebar', e);
@@ -589,6 +615,71 @@ function updateParentSidebarBadge(childUrlPart, count) {
         }
     });
 }
+
+function updateKspGridBadge(urlPart, count, details = []) {
+    const badges = document.querySelectorAll(`.ksp-menu-badge[data-url="${urlPart}"]`);
+    badges.forEach(badge => {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.classList.remove('hidden');
+            
+            // Populate dropdown if exists
+            const dropdown = document.querySelector(`.ksp-dropdown[data-url="${urlPart}"]`);
+            if (dropdown) {
+                const content = dropdown.querySelector('.ksp-dropdown-content');
+                if (content) {
+                    if (details && details.length > 0) {
+                        content.innerHTML = details.map(item => {
+                            let text = '';
+                            let subtext = '';
+                            if (item.nomor_pinjaman) { // Pinjaman
+                                text = item.nama_lengkap;
+                                subtext = `Pengajuan: ${item.nomor_pinjaman}`;
+                            } else { // Penarikan
+                                text = item.nama_lengkap;
+                                subtext = `Penarikan: ${formatRupiah(item.jumlah)}`;
+                            }
+                            return `
+                                <div class="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0 cursor-pointer transition-colors" onclick="navigate('${basePath}${urlPart}')">
+                                    <div class="font-semibold text-gray-800 dark:text-gray-200 text-sm">${text}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${subtext}</div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        content.innerHTML = '<div class="p-3 text-center text-gray-500 text-xs">Tidak ada detail.</div>';
+                    }
+                }
+            }
+        } else {
+            badge.classList.add('hidden');
+        }
+    });
+}
+
+window.toggleBadgeDropdown = function(event, element) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const url = element.getAttribute('data-url');
+    const dropdown = document.querySelector(`.ksp-dropdown[data-url="${url}"]`);
+    
+    // Close other dropdowns
+    document.querySelectorAll('.ksp-dropdown').forEach(d => {
+        if (d !== dropdown) d.classList.add('hidden');
+    });
+
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+    }
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.ksp-menu-badge') && !event.target.closest('.ksp-dropdown')) {
+        document.querySelectorAll('.ksp-dropdown').forEach(d => d.classList.add('hidden'));
+    }
+});
 
 // =================================================================================
 // GLOBAL INITIALIZATION

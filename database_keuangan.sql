@@ -1014,3 +1014,41 @@ CREATE TABLE `ksp_notification_logs` (
   `created_by` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabel Transaksi Wajib Belanja (Unit Toko)
+CREATE TABLE `transaksi_wajib_belanja` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `anggota_id` int(11) NOT NULL,
+  `tanggal` date NOT NULL,
+  `jenis` enum('setor','belanja') NOT NULL DEFAULT 'setor',
+  `jumlah` decimal(15,2) NOT NULL,
+  `metode_pembayaran` enum('tunai','transfer','potong_saldo') NOT NULL,
+  `akun_kas_id` int(11) DEFAULT NULL COMMENT 'Akun Kas/Bank penerima dana',
+  `keterangan` text DEFAULT NULL,
+  `nomor_referensi` varchar(50) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`anggota_id`) REFERENCES `anggota` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`akun_kas_id`) REFERENCES `accounts` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Menambahkan kolom saldo wajib belanja ke tabel anggota
+ALTER TABLE `anggota` ADD `saldo_wajib_belanja` DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER `gamification_points`;
+
+-- Setting nominal default wajib belanja
+INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES ('nominal_wajib_belanja', '50000');
+
+-- Tambah Akun untuk Hutang Wajib Belanja (Liabilitas)
+INSERT INTO `accounts` (`user_id`, `parent_id`, `kode_akun`, `nama_akun`, `tipe_akun`, `saldo_normal`, `is_kas`, `saldo_awal`) 
+SELECT 1, 201, '2-1200', 'Utang Wajib Belanja', 'Liabilitas', 'Kredit', 0, 0.00
+WHERE NOT EXISTS (SELECT 1 FROM `accounts` WHERE `kode_akun` = '2-1200' AND `user_id` = 1);
+
+-- Setting untuk akun hutang wajib belanja
+INSERT INTO `settings` (`setting_key`, `setting_value`)
+SELECT 'wajib_belanja_liability_account_id', id FROM `accounts` WHERE `kode_akun` = '2-1200' AND `user_id` = 1
+ON DUPLICATE KEY UPDATE `setting_value` = (SELECT id FROM `accounts` WHERE `kode_akun` = '2-1200' AND `user_id` = 1);
+
+ALTER TABLE `general_ledger` 
+MODIFY COLUMN `ref_type` ENUM('transaksi','jurnal','penjualan','pembelian','transaksi_wajib_belanja') NOT NULL COMMENT 'Tabel sumber';

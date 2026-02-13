@@ -69,8 +69,13 @@ check_permission('penjualan', 'menu');
                             <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50" id="tanggal" name="tanggal" required placeholder="DD-MM-YYYY">
                         </div>
                         <div>
-                            <label for="customer_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Customer</label>
-                            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50" id="customer_name" name="customer_name" placeholder="Umum">
+                            <label for="member_search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pelanggan / Anggota</label>
+                            <div class="relative">
+                                <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 pr-8" id="member_search" placeholder="Cari Nama / No. Anggota...">
+                                <input type="hidden" id="anggota_id" name="anggota_id">
+                                <div id="member-suggestions" class="absolute z-20 w-full bg-white dark:bg-gray-700 shadow-lg rounded-md mt-1 max-h-60 overflow-y-auto hidden"></div>
+                            </div>
+                            <div id="member-info" class="hidden mt-1 text-xs text-green-600 dark:text-green-400 font-medium"></div>
                         </div>
                         <div>
                             <label for="kasir" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kasir</label>
@@ -144,6 +149,13 @@ check_permission('penjualan', 'menu');
                                         <option value="">-- Pilih Akun Bank --</option>
                                     </select>
                                 </div>
+                                
+                                <!-- Input Saldo WB -->
+                                <div id="wb-payment-container" class="hidden flex justify-between items-center bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                                    <label for="bayar_wb" class="text-sm font-medium text-green-700 dark:text-green-300">Gunakan Saldo WB</label>
+                                    <input type="number" id="bayar_wb" min="0" class="w-32 text-right rounded-md border-green-300 dark:border-green-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm py-1" placeholder="0">
+                                </div>
+
                                 <div class="flex justify-between items-center">
                                     <label for="bayar" class="text-sm text-gray-600 dark:text-gray-400">Jumlah Bayar</label>
                                     <input type="number" id="bayar" min="0" class="w-32 text-right rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-1">

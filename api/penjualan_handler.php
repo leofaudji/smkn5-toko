@@ -21,6 +21,9 @@ switch ($action) {
     case 'search_produk':
         search_produk($db);
         break;
+    case 'search_member':
+        search_member($db);
+        break;
     case 'void':
         void_penjualan($db);
         break;
@@ -93,9 +96,36 @@ function store_penjualan($db) {
         return;
     }
 
+    // Extract variables early (Pindahkan definisi variabel ke atas agar bisa divalidasi)
+    $tanggal = $data['tanggal'];
+    $customer_name = $data['customer_name'] ?? 'Umum';
+    $subtotal = $data['subtotal'];
+    $discount = $data['discount'];
+    $total = $data['total'];
+    $bayar = $data['bayar'];
+    $bayar_wb = (float)($data['bayar_wb'] ?? 0);
+    $anggota_id = !empty($data['anggota_id']) ? (int)$data['anggota_id'] : null;
+    $kembali = $data['kembali'];
+    $keterangan = isset($data['catatan']) ? trim($data['catatan']) : '';
+    $user_id = 1; // ID Pemilik Data (Toko)
+    $logged_in_user_id = (int)$_SESSION['user_id']; // ID User yang login (Actor)
+    $payment_method = $data['payment_method'] ?? 'cash';
+    $payment_account_id = $data['payment_account_id'] ?? null;
+
     $db->begin_transaction();
 
     try {
+        // Validasi Saldo WB jika digunakan
+        if ($bayar_wb > 0) {
+            if (!$anggota_id) throw new Exception("Anggota harus dipilih untuk menggunakan Saldo WB.");
+            $stmt_cek = $db->prepare("SELECT saldo_wajib_belanja FROM anggota WHERE id = ?");
+            $stmt_cek->bind_param('i', $anggota_id);
+            $stmt_cek->execute();
+            $saldo_wb = $stmt_cek->get_result()->fetch_assoc()['saldo_wajib_belanja'];
+            if ($saldo_wb < $bayar_wb) throw new Exception("Saldo Wajib Belanja tidak mencukupi.");
+            $stmt_cek->close();
+        }
+
         // 1. Generate Nomor Faktur (lebih robust untuk mencegah duplikat)
         $tanggal_transaksi = $data['tanggal'];
         $date_for_prefix = date('Ymd', strtotime($tanggal_transaksi));
@@ -117,21 +147,8 @@ function store_penjualan($db) {
         $nomor_referensi = $prefix . str_pad($sequence, 4, '0', STR_PAD_LEFT);
 
         // 2. Insert ke tabel 'penjualan'
-        $tanggal = $data['tanggal'];
-        $customer_name = $data['customer_name'] ?? 'Umum'; // Ambil customer_name
-        $subtotal = $data['subtotal'];
-        $discount = $data['discount'];
-        $total = $data['total'];
-        $bayar = $data['bayar'];
-        $kembali = $data['kembali'];
-        $keterangan = isset($data['catatan']) ? trim($data['catatan']) : '';
-        $user_id = 1; // ID Pemilik Data (Toko)
-        $logged_in_user_id = (int)$_SESSION['user_id']; // ID User yang login (Actor)
-
         // Tambahkan info metode pembayaran ke keterangan jika bukan tunai
         // (Opsional: jika tabel penjualan punya kolom payment_method, simpan di sana)
-        $payment_method = $data['payment_method'] ?? 'cash';
-        $payment_account_id = $data['payment_account_id'] ?? null;
         if ($payment_method !== 'cash') {
             $keterangan = trim("[" . strtoupper($payment_method) . "] " . $keterangan);
         }
@@ -141,10 +158,10 @@ function store_penjualan($db) {
         }
 
         $stmt = $db->prepare(
-            "INSERT INTO penjualan (user_id, nomor_referensi, tanggal_penjualan, customer_name, subtotal, discount, total, bayar, kembali, keterangan, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO penjualan (user_id, customer_id, nomor_referensi, tanggal_penjualan, customer_name, subtotal, discount, total, bayar, kembali, keterangan, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
-        $stmt->bind_param('isssdddsssi', $user_id, $nomor_referensi, $tanggal, $customer_name, $subtotal, $discount, $total, $bayar, $kembali, $keterangan, $logged_in_user_id);
+        $stmt->bind_param('iisssdddsssi', $user_id, $anggota_id, $nomor_referensi, $tanggal, $customer_name, $subtotal, $discount, $total, $bayar, $kembali, $keterangan, $logged_in_user_id);
         $stmt->execute();
         $penjualanId = $stmt->insert_id;
         $stmt->close();
@@ -240,11 +257,41 @@ function store_penjualan($db) {
         }
         $item_details_stmt->close();
 
-        // (Dr) Kas
-        $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $total, $zero, $penjualanId, $logged_in_user_id);
-        if (!$stmt_gl->execute()) {
-            throw new Exception("Gagal insert GL (Kas): " . $stmt_gl->error);
+        // Handle Pembayaran dengan Saldo WB
+        if ($bayar_wb > 0) {
+            // Kurangi Saldo Anggota
+            $stmt_upd_wb = $db->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja - ? WHERE id = ?");
+            $stmt_upd_wb->bind_param('di', $bayar_wb, $anggota_id);
+            $stmt_upd_wb->execute();
+            $stmt_upd_wb->close();
+
+            // Catat Log Transaksi WB (Jenis: Belanja)
+            $ket_wb = "Pembayaran Belanja #$nomor_referensi";
+            $stmt_log_wb = $db->prepare("INSERT INTO transaksi_wajib_belanja (user_id, anggota_id, tanggal, jenis, jumlah, metode_pembayaran, keterangan, nomor_referensi, created_by) VALUES (?, ?, ?, 'belanja', ?, 'potong_saldo', ?, ?, ?)");
+            $stmt_log_wb->bind_param('iisdssi', $user_id, $anggota_id, $tanggal, $bayar_wb, $ket_wb, $nomor_referensi, $logged_in_user_id);
+            $stmt_log_wb->execute();
+            $stmt_log_wb->close();
+
+            // Jurnal: Debit Utang WB (Liabilitas Berkurang)
+            $akun_utang_wb = get_setting('wajib_belanja_liability_account_id', null, $db);
+            if ($akun_utang_wb) {
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $akun_utang_wb, $bayar_wb, $zero, $penjualanId, $logged_in_user_id);
+                $stmt_gl->execute();
+            }
         }
+
+        // (Dr) Kas (Hanya sebesar yang dibayar tunai/transfer, yaitu Total - Bayar WB)
+        // Jika bayar > total (ada kembalian), yang masuk kas tetap sejumlah tagihan dikurangi WB, 
+        // karena kembalian diambil dari uang yang diserahkan.
+        // Namun secara akuntansi sederhana: Debit Kas = Total Tagihan - WB.
+        $cash_portion = max(0, $total - $bayar_wb);
+        if ($cash_portion > 0) {
+            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $cash_portion, $zero, $penjualanId, $logged_in_user_id);
+            if (!$stmt_gl->execute()) {
+                throw new Exception("Gagal insert GL (Kas): " . $stmt_gl->error);
+            }
+        }
+
         // (Cr) Pendapatan (bisa lebih dari satu akun)
         foreach ($revenue_totals as $acc_id => $sub_total) {
             $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $acc_id, $zero, $sub_total, $penjualanId, $logged_in_user_id);
@@ -440,4 +487,16 @@ function search_produk($db) {
     $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
     echo json_encode($result);
+}
+
+function search_member($db) {
+    $user_id = 1; // ID Pemilik Data (Toko)
+    $term = $_GET['term'] ?? '';
+    $search = "%{$term}%";
+    $stmt = $db->prepare("SELECT id, nomor_anggota, nama_lengkap, saldo_wajib_belanja FROM anggota WHERE user_id = ? AND status='aktif' AND (nama_lengkap LIKE ? OR nomor_anggota LIKE ?) LIMIT 10");
+    $stmt->bind_param('iss', $user_id, $search, $search);
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    echo json_encode(['success' => true, 'data' => $result]);
 }

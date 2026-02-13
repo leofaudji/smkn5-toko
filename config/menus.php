@@ -12,6 +12,7 @@ return [
         ['key' => 'penjualan', 'label' => 'Penjualan', 'url' => '/penjualan'],
         ['key' => 'pembelian', 'label' => 'Pembelian', 'url' => '/pembelian'],
         ['key' => 'transaksi_kas', 'label' => 'Transaksi Kas', 'url' => '/transaksi'],
+        ['key' => 'wajib_belanja', 'label' => 'Setor Wajib Belanja', 'url' => '/wajib-belanja'],
         ['key' => 'entri_jurnal', 'label' => 'Entri Jurnal', 'url' => '/entri-jurnal'],
     ]],
     
@@ -34,17 +35,31 @@ return [
     ]],
 
     ['type' => 'collapse', 'key' => 'simpan_pinjam', 'label' => 'Simpan Pinjam', 'icon' => 'bi bi-piggy-bank', 'children' => [
+        ['key' => 'ksp_menu', 'label' => 'Menu Utama', 'url' => '/ksp/menu'],
+        ['key' => 'statistik_ksp', 'label' => 'Statistik KSP', 'url' => '/ksp/statistik'],
+        ['key' => 'laporan_kesehatan_bank', 'label' => 'Kesehatan KSP', 'url' => '/laporan-kesehatan-bank'],
         ['key' => 'anggota', 'label' => 'Pendaftaran Anggota', 'url' => '/ksp/anggota'],
-        ['key' => 'simpanan', 'label' => 'Simpanan Anggota', 'url' => '/ksp/simpanan'],
-        ['key' => 'penarikan', 'label' => 'Persetujuan Penarikan', 'url' => '/ksp/penarikan'],
-        ['key' => 'pinjaman', 'label' => 'Pinjaman Anggota', 'url' => '/ksp/pinjaman'],
-        ['key' => 'simulasi_pinjaman', 'label' => 'Simulasi Kredit', 'url' => '/ksp/simulasi'],
+        
+        // Submenu Simpanan
+        ['key' => 'group_simpanan', 'label' => 'Simpanan', 'type' => 'collapse', 'children' => [
+            ['key' => 'simpanan', 'label' => 'Transaksi Simpanan', 'url' => '/ksp/simpanan'],
+            ['key' => 'penarikan', 'label' => 'Persetujuan Penarikan', 'url' => '/ksp/penarikan'],
+            ['key' => 'target_tabungan', 'label' => 'Target Tabungan', 'url' => '/ksp/target-tabungan'],
+            ['key' => 'laporan_simpanan', 'label' => 'Laporan Simpanan', 'url' => '/ksp/laporan-simpanan'],
+        ]],
+
+        // Submenu Pinjaman
+        ['key' => 'group_pinjaman', 'label' => 'Pinjaman', 'type' => 'collapse', 'children' => [
+            ['key' => 'pinjaman', 'label' => 'Pinjaman Anggota', 'url' => '/ksp/pinjaman'],
+            ['key' => 'simulasi_pinjaman', 'label' => 'Simulasi Kredit', 'url' => '/ksp/simulasi'],
+            ['key' => 'laporan_pinjaman', 'label' => 'Laporan Pinjaman', 'url' => '/ksp/laporan-pinjaman'],
+            ['key' => 'laporan_nominatif', 'label' => 'Laporan Nominatif', 'url' => '/ksp/laporan-nominatif'],
+        ]],
+
+        ['key' => 'wishlist_anggota', 'label' => 'Wishlist Barang', 'url' => '/ksp/wishlist'],
         ['key' => 'generate_qr', 'label' => 'Generate QR Bayar', 'url' => '/ksp/generate-qr'],
         ['key' => 'pengumuman', 'label' => 'Pengumuman KSP', 'url' => '/ksp/pengumuman'],
-        ['key' => 'laporan_simpanan', 'label' => 'Laporan Simpanan', 'url' => '/ksp/laporan-simpanan'],
-        ['key' => 'laporan_pinjaman', 'label' => 'Laporan Pinjaman', 'url' => '/ksp/laporan-pinjaman'],
         ['key' => 'poin_anggota', 'label' => 'Poin & Reward', 'url' => '/ksp/poin-anggota'],
-        ['key' => 'laporan_nominatif', 'label' => 'Laporan Nominatif', 'url' => '/ksp/laporan-nominatif'],
         ['key' => 'ksp_pengaturan', 'label' => 'Pengaturan KSP', 'url' => '/ksp/pengaturan'],
     ]],
 
@@ -54,6 +69,7 @@ return [
         ['key' => 'laporan_penjualan', 'label' => 'Laporan Penjualan', 'url' => '/laporan-penjualan'],
         ['key' => 'laporan_keuangan', 'label' => 'Laporan Keuangan', 'url' => '/laporan'],
         ['key' => 'neraca_saldo', 'label' => 'Neraca Saldo', 'url' => '/neraca-saldo'],
+        ['key' => 'laporan_wb_tahunan', 'label' => 'Rekap WB Tahunan', 'url' => '/laporan-wb-tahunan'],
         ['key' => 'perubahan_laba', 'label' => 'Perubahan Laba', 'url' => '/laporan-laba-ditahan'],
         ['key' => 'pertumbuhan_laba', 'label' => 'Pertumbuhan Laba', 'url' => '/laporan-pertumbuhan-laba'],
         ['key' => 'analisis_rasio', 'label' => 'Analisis Rasio', 'url' => '/analisis-rasio'],

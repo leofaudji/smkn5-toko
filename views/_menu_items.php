@@ -54,17 +54,46 @@ function render_collapsible_menu($id, $icon, $text, $items) {
         // Garis vertikal: jika item terakhir, tingginya setengah (h-1/2) untuk membentuk sudut L
         $vertical_line_height = $is_last ? 'h-1/2' : 'h-full';
         
-        $items_html .= '
-        <div class="relative">
-            <!-- Garis Vertikal -->
-            <div class="absolute left-6 top-0 ' . $vertical_line_height . ' w-px bg-gray-300 dark:bg-gray-600"></div>
-            <!-- Garis Horizontal -->
-            <div class="absolute left-6 top-1/2 w-5 h-px bg-gray-300 dark:bg-gray-600"></div>
-            
-            <a href="' . base_url($item['url']) . '" class="flex items-center ml-11 px-3 py-2 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors">
-                ' . $item['label'] . '
-            </a>
-        </div>';
+        // Cek apakah item ini adalah grup (nested collapse)
+        if (isset($item['children']) && is_array($item['children'])) {
+            $nested_html = '';
+            $nested_total = count($item['children']);
+            foreach ($item['children'] as $n_index => $n_item) {
+                $n_is_last = ($n_index === $nested_total - 1);
+                $n_vertical_line_height = $n_is_last ? 'h-1/2' : 'h-full';
+                
+                $nested_html .= '
+                <div class="relative">
+                    <div class="absolute left-[3.25rem] top-0 ' . $n_vertical_line_height . ' w-px bg-gray-300 dark:bg-gray-600"></div>
+                    <div class="absolute left-[3.25rem] top-1/2 w-4 h-px bg-gray-300 dark:bg-gray-600"></div>
+                    <a href="' . base_url($n_item['url']) . '" class="flex items-center ml-[4.5rem] px-3 py-2 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors">
+                        ' . $n_item['label'] . '
+                    </a>
+                </div>';
+            }
+
+            $items_html .= '
+            <div class="relative">
+                <div class="absolute left-6 top-0 ' . $vertical_line_height . ' w-px bg-gray-300 dark:bg-gray-600"></div>
+                <div class="absolute left-6 top-3.5 w-5 h-px bg-gray-300 dark:bg-gray-600"></div>
+                <div data-controller="collapse">
+                    <button onclick="toggleCollapse(this)" class="w-full flex items-center justify-between ml-11 px-3 py-2 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors pr-4" style="width: calc(100% - 2.75rem);">
+                        <span>' . $item['label'] . '</span>
+                        <i class="bi bi-chevron-down transform transition-transform duration-200 text-xs"></i>
+                    </button>
+                    <div class="collapse-content hidden">' . $nested_html . '</div>
+                </div>
+            </div>';
+        } else {
+            $items_html .= '
+            <div class="relative">
+                <div class="absolute left-6 top-0 ' . $vertical_line_height . ' w-px bg-gray-300 dark:bg-gray-600"></div>
+                <div class="absolute left-6 top-1/2 w-5 h-px bg-gray-300 dark:bg-gray-600"></div>
+                <a href="' . base_url($item['url']) . '" class="flex items-center ml-11 px-3 py-2 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors">
+                    ' . $item['label'] . '
+                </a>
+            </div>';
+        }
     }
 
     echo '<div data-controller="collapse">
@@ -107,9 +136,23 @@ function is_menu_allowed($key, $allowed_menus, $is_admin) {
         // Filter children based on permissions
         $visible_children = [];
         foreach ($item['children'] as $child) {
-            if (is_menu_allowed($child['key'], $allowed_menus, $is_admin ?? false)) {
-                $child['text'] = $child['label']; // Helper expects 'text'
-                $visible_children[] = $child;
+            // Cek apakah child ini adalah grup (nested collapse)
+            if (isset($child['children']) && is_array($child['children'])) {
+                $visible_grandchildren = [];
+                foreach ($child['children'] as $grandchild) {
+                    if (is_menu_allowed($grandchild['key'], $allowed_menus, $is_admin ?? false)) {
+                        $visible_grandchildren[] = $grandchild;
+                    }
+                }
+                if (!empty($visible_grandchildren)) {
+                    $child['children'] = $visible_grandchildren;
+                    $visible_children[] = $child;
+                }
+            } else {
+                if (is_menu_allowed($child['key'], $allowed_menus, $is_admin ?? false)) {
+                    $child['text'] = $child['label']; // Helper expects 'text'
+                    $visible_children[] = $child;
+                }
             }
         }
         
