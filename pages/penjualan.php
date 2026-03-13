@@ -141,6 +141,7 @@ check_permission('penjualan', 'menu');
                                         <option value="cash">Tunai</option>
                                         <option value="transfer">Transfer Bank</option>
                                         <option value="qris">QRIS</option>
+                                        <option value="hutang">Hutang (Tempo)</option>
                                     </select>
                                 </div>
                                 <div id="account-select-container" class="hidden flex justify-between items-center">

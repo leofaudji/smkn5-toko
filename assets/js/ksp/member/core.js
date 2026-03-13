@@ -2,6 +2,9 @@
 
 window.isPrivacyMode = localStorage.getItem('privacy_mode') === 'true';
 
+// Hilangkan scroll vertikal saat halaman & splash screen sedang dimuat
+document.body.style.overflowY = 'hidden';
+
 document.addEventListener('DOMContentLoaded', () => {
     const cardContainer = document.getElementById('member-card-container');
     if (cardContainer) {
@@ -400,8 +403,19 @@ async function loadSummary() {
             // Load financial health after summary is complete
             if (typeof loadFinancialHealth === 'function') loadFinancialHealth();
         }
+
+        // Kembalikan scroll setelah data dimuat (asumsi splash screen hilang)
+        // Diberi sedikit jeda agar transisi lebih mulus
+        setTimeout(() => {
+            document.body.style.overflowY = 'auto';
+        }, 150);
+
         return json; // Return result for await
-    } catch(e) { console.error(e); }
+    } catch(e) {   
+        console.error(e);
+        // Pastikan scroll kembali aktif jika terjadi error, agar user tidak stuck
+        document.body.style.overflowY = 'auto';
+    }
 }
 
 async function payInstallment(angsuranId, amount) {

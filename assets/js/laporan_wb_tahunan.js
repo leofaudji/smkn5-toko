@@ -6,6 +6,9 @@ function initLaporanWbTahunanPage() {
     const tfoot = document.getElementById('laporan-wb-footer');
     const loadingEl = document.getElementById('laporan-loading');
     const titleEl = document.getElementById('laporan-title');
+    const historyBody = document.getElementById('wb-history-body');
+    const btnExportPdf = document.getElementById('btn-export-pdf');
+    const btnExportCsv = document.getElementById('btn-export-csv');
 
     // Isi dropdown tahun (5 tahun ke belakang)
     const currentYear = new Date().getFullYear();
@@ -61,7 +64,7 @@ function initLaporanWbTahunanPage() {
         // Render Body
         tbody.innerHTML = data.map(row => {
             let cells = `<td class="px-3 py-2 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800 z-10 border-r border-gray-200 dark:border-gray-700">
-                            <div class="font-medium text-gray-900 dark:text-white">${row.nama_lengkap}</div>
+                            <div class="font-medium text-primary hover:text-primary-600 cursor-pointer member-name" data-id="${row.id}" data-name="${row.nama_lengkap}">${row.nama_lengkap}</div>
                             <div class="text-xs text-gray-500">${row.nomor_anggota}</div>
                          </td>`;
             
@@ -133,7 +136,88 @@ function initLaporanWbTahunanPage() {
         return new Intl.NumberFormat('id-ID').format(value);
     }
 
+    async function showMemberHistory(memberId, memberName) {
+        const tahun = tahunSelect.value;
+        document.getElementById('wbHistoryModalLabel').textContent = `Riwayat Transaksi WB - ${memberName} (${tahun})`;
+        historyBody.innerHTML = '<tr><td colspan="4" class="text-center p-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div></td></tr>';
+        openModal('wbHistoryModal');
+
+        try {
+            const response = await fetch(`${basePath}/api/laporan-wb-tahunan?action=get_history&anggota_id=${memberId}&tahun=${tahun}`);
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                if (result.data.length === 0) {
+                    historyBody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-gray-500">Tidak ada riwayat transaksi.</td></tr>';
+                } else {
+                    historyBody.innerHTML = result.data.map(item => `
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${formatDate(item.tanggal)}</td>
+                            <td class="px-4 py-2 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.jenis === 'setor' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                                    ${item.jenis === 'setor' ? 'Setoran' : 'Belanja'}
+                                </span>
+                            </td>
+                            <td class="px-4 py-2 whitespace-nowrap text-sm text-right font-medium ${item.jenis === 'setor' ? 'text-green-600' : 'text-blue-600'}">
+                                ${formatRupiah(item.jumlah)}
+                            </td>
+                            <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${item.keterangan || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } else {
+                historyBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">${result.message}</td></tr>`;
+            }
+        } catch (error) {
+            console.error(error);
+            historyBody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-red-500">Gagal memuat data.</td></tr>';
+        }
+    }
+
+    tbody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('member-name')) {
+            const memberId = e.target.dataset.id;
+            const memberName = e.target.dataset.name;
+            showMemberHistory(memberId, memberName);
+        }
+    });
+
     btnTampilkan.addEventListener('click', fetchReport);
+
+    if (btnExportPdf) {
+        btnExportPdf.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tahun = tahunSelect.value;
+            const onlyArrears = filterTunggakan.checked ? 1 : 0;
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `${basePath}/api/pdf`;
+            form.target = '_blank';
+            
+            const params = { report: 'laporan-wb-tahunan', tahun: tahun, only_arrears: onlyArrears };
+            for (const key in params) {
+                const hiddenField = document.createElement('input');
+                hiddenField.type = 'hidden';
+                hiddenField.name = key;
+                hiddenField.value = params[key];
+                form.appendChild(hiddenField);
+            }
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        });
+    }
+
+    if (btnExportCsv) {
+        btnExportCsv.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tahun = tahunSelect.value;
+            const onlyArrears = filterTunggakan.checked ? 1 : 0;
+            const url = `${basePath}/api/csv?report=laporan-wb-tahunan&format=csv&tahun=${tahun}&only_arrears=${onlyArrears}`;
+            window.open(url, '_blank');
+        });
+    }
 
     // Load initial data
     fetchReport();

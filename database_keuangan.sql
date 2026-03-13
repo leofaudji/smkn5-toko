@@ -1052,3 +1052,16 @@ ON DUPLICATE KEY UPDATE `setting_value` = (SELECT id FROM `accounts` WHERE `kode
 
 ALTER TABLE `general_ledger` 
 MODIFY COLUMN `ref_type` ENUM('transaksi','jurnal','penjualan','pembelian','transaksi_wajib_belanja') NOT NULL COMMENT 'Tabel sumber';
+
+-- 1. Tambahkan kolom payment_method ke tabel penjualan
+ALTER TABLE `penjualan` ADD COLUMN `payment_method` VARCHAR(20) NOT NULL DEFAULT 'cash' AFTER `status`;
+
+-- 2. Tambahkan Akun "Piutang Penjualan Toko" (Aset) jika belum ada
+INSERT INTO `accounts` (`user_id`, `parent_id`, `kode_akun`, `nama_akun`, `tipe_akun`, `saldo_normal`, `is_kas`, `saldo_awal`) 
+SELECT 1, 101, '1-1400', 'Piutang Penjualan Toko', 'Aset', 'Debit', 0, 0.00
+WHERE NOT EXISTS (SELECT 1 FROM `accounts` WHERE `kode_akun` = '1-1400' AND `user_id` = 1);
+
+-- 3. Simpan ID akun tersebut ke tabel settings agar bisa diakses oleh sistem
+INSERT INTO `settings` (`setting_key`, `setting_value`) 
+SELECT 'sales_receivable_account_id', id FROM `accounts` WHERE `kode_akun` = '1-1400' AND `user_id` = 1
+ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`);

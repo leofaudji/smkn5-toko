@@ -288,7 +288,7 @@ function initPenjualanPage() {
         // Auto-fill bayar jika metode pembayaran bukan tunai (Transfer/QRIS)
         const paymentMethod = document.getElementById('payment_method');
         const bayarInput = document.getElementById('bayar');
-        if (paymentMethod && bayarInput && paymentMethod.value !== 'cash') {
+        if (paymentMethod && bayarInput && (paymentMethod.value === 'transfer' || paymentMethod.value === 'qris')) {
             bayarInput.value = Math.max(0, total - bayarWb);
         }
 
@@ -329,16 +329,29 @@ function initPenjualanPage() {
 
     // Handle payment method change
     document.getElementById('payment_method')?.addEventListener('change', (e) => {
-        const isNonCash = e.target.value !== 'cash';
-        document.getElementById('account-select-container').classList.toggle('hidden', !isNonCash);
+        const method = e.target.value;
+        const isTransferOrQris = method === 'transfer' || method === 'qris';
+        
+        document.getElementById('account-select-container').classList.toggle('hidden', !isTransferOrQris);
         const accSelect = document.getElementById('payment_account_id');
-        accSelect.required = isNonCash;
-        if (!isNonCash) accSelect.value = '';
+        accSelect.required = isTransferOrQris;
+        if (!isTransferOrQris) accSelect.value = '';
+        
+        if (method === 'hutang') {
+            document.getElementById('bayar').value = 0;
+            document.getElementById('bayar').placeholder = "DP (Opsional)";
+        }
+        
         updateSummary(); // Update summary to auto-fill amount if non-cash
     });
 
     // Handle "Uang Pas" button
     document.getElementById('btn-uang-pas')?.addEventListener('click', () => {
+        const paymentMethod = document.getElementById('payment_method')?.value;
+        if (paymentMethod === 'hutang') {
+            showToast('Tombol Uang Pas tidak tersedia untuk metode Hutang.', 'info');
+            return;
+        }
         const totalText = document.getElementById('total').textContent;
         const bayarWb = parseFloat(bayarWbInput?.value) || 0;
         // Extract number from "Rp 123.456"
@@ -629,7 +642,7 @@ function initPenjualanPage() {
         const paymentMethod = document.getElementById('payment_method')?.value || 'cash';
         const paymentAccountId = document.getElementById('payment_account_id')?.value;
 
-        if (paymentMethod !== 'cash' && !paymentAccountId) {
+        if ((paymentMethod === 'transfer' || paymentMethod === 'qris') && !paymentAccountId) {
             showToast('Harap pilih Akun Tujuan untuk pembayaran non-tunai.', 'warning');
             return;
         }
@@ -637,7 +650,7 @@ function initPenjualanPage() {
             showToast('Keranjang belanja masih kosong.', 'warning');
             return;
         }
-        if ((bayar + bayarWb) < total) {
+        if (paymentMethod !== 'hutang' && (bayar + bayarWb) < total) {
             showToast('Jumlah bayar kurang dari total.', 'warning');
             return;
         }

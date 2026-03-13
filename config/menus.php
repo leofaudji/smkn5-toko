@@ -5,41 +5,59 @@
 return [
     ['type' => 'item', 'key' => 'dashboard', 'label' => 'Dashboard', 'url' => '/dashboard', 'icon' => 'bi bi-speedometer2'],
     ['type' => 'item', 'key' => 'buku_panduan', 'label' => 'Buku Panduan', 'url' => '/buku-panduan', 'icon' => 'bi bi-question-circle-fill'],
-    
+
     ['type' => 'header', 'label' => 'Aktivitas Utama'],
-    
-    ['type' => 'collapse', 'key' => 'transaksi', 'label' => 'Transaksi', 'icon' => 'bi bi-pencil-square', 'children' => [
-        ['key' => 'penjualan', 'label' => 'Penjualan', 'url' => '/penjualan'],
-        ['key' => 'pembelian', 'label' => 'Pembelian', 'url' => '/pembelian'],
-        ['key' => 'transaksi_kas', 'label' => 'Transaksi Kas', 'url' => '/transaksi'],
-        ['key' => 'wajib_belanja', 'label' => 'Setor Wajib Belanja', 'url' => '/wajib-belanja'],
-        ['key' => 'entri_jurnal', 'label' => 'Entri Jurnal', 'url' => '/entri-jurnal'],
-    ]],
-    
-    ['type' => 'collapse', 'key' => 'akuntansi', 'label' => 'Akuntansi', 'icon' => 'bi bi-calculator', 'children' => [
-        ['key' => 'coa', 'label' => 'Bagan Akun (COA)', 'url' => '/coa'],
-        ['key' => 'saldo_awal', 'label' => 'Saldo Awal', 'url' => '/saldo-awal'],
-        ['key' => 'anggaran', 'label' => 'Anggaran', 'url' => '/anggaran'],
-        ['key' => 'daftar_jurnal', 'label' => 'Daftar Jurnal', 'url' => '/daftar-jurnal'],
-        ['key' => 'buku_besar', 'label' => 'Buku Besar', 'url' => '/buku-besar'],
-    ]],
 
-    ['type' => 'collapse', 'key' => 'stok', 'label' => 'Stok & Inventaris', 'icon' => 'bi bi-box-seam', 'children' => [
-        ['key' => 'barang_stok', 'label' => 'Barang & Stok', 'url' => '/stok'],
-        ['key' => 'stok_opname', 'label' => 'Stok Opname', 'url' => '/stok-opname'],
-        ['key' => 'laporan_stok', 'label' => 'Laporan Stok', 'url' => '/laporan-stok'],
-        ['key' => 'kartu_stok', 'label' => 'Kartu Stok', 'url' => '/laporan-kartu-stok'],
-        ['key' => 'nilai_persediaan', 'label' => 'Nilai Persediaan', 'url' => '/laporan-persediaan'],
-        ['key' => 'pertumbuhan_persediaan', 'label' => 'Pertumbuhan Persediaan', 'url' => '/laporan-pertumbuhan-persediaan'],
-        ['key' => 'aset_tetap', 'label' => 'Aset Tetap', 'url' => '/aset-tetap'],
-    ]],
+    [
+        'type' => 'collapse',
+        'key' => 'transaksi',
+        'label' => 'Transaksi',
+        'icon' => 'bi bi-pencil-square',
+        'children' => [
+            ['key' => 'penjualan', 'label' => 'Penjualan', 'url' => '/penjualan'],
+            ['key' => 'pembelian', 'label' => 'Pembelian', 'url' => '/pembelian'],
+            ['key' => 'transaksi_kas', 'label' => 'Transaksi Kas', 'url' => '/transaksi'],
+            ['key' => 'wajib_belanja', 'label' => 'Setor Wajib Belanja', 'url' => '/wajib-belanja'],
+            ['key' => 'entri_jurnal', 'label' => 'Entri Jurnal', 'url' => '/entri-jurnal'],
+        ]
+    ],
 
-    ['type' => 'collapse', 'key' => 'simpan_pinjam', 'label' => 'Simpan Pinjam', 'icon' => 'bi bi-piggy-bank', 'children' => [
+    [
+        'type' => 'collapse',
+        'key' => 'akuntansi',
+        'label' => 'Akuntansi',
+        'icon' => 'bi bi-calculator',
+        'children' => [
+            ['key' => 'coa', 'label' => 'Bagan Akun (COA)', 'url' => '/coa'],
+            ['key' => 'saldo_awal', 'label' => 'Saldo Awal', 'url' => '/saldo-awal'],
+            ['key' => 'anggaran', 'label' => 'Anggaran', 'url' => '/anggaran'],
+            ['key' => 'daftar_jurnal', 'label' => 'Daftar Jurnal', 'url' => '/daftar-jurnal'],
+            ['key' => 'buku_besar', 'label' => 'Buku Besar', 'url' => '/buku-besar'],
+        ]
+    ],
+
+    [
+        'type' => 'collapse',
+        'key' => 'stok',
+        'label' => 'Stok & Inventaris',
+        'icon' => 'bi bi-box-seam',
+        'children' => [
+            ['key' => 'barang_stok', 'label' => 'Barang & Stok', 'url' => '/stok'],
+            ['key' => 'stok_opname', 'label' => 'Stok Opname', 'url' => '/stok-opname'],
+            ['key' => 'laporan_stok', 'label' => 'Laporan Stok', 'url' => '/laporan-stok'],
+            ['key' => 'kartu_stok', 'label' => 'Kartu Stok', 'url' => '/laporan-kartu-stok'],
+            ['key' => 'nilai_persediaan', 'label' => 'Nilai Persediaan', 'url' => '/laporan-persediaan'],
+            ['key' => 'pertumbuhan_persediaan', 'label' => 'Pertumbuhan Persediaan', 'url' => '/laporan-pertumbuhan-persediaan'],
+            ['key' => 'aset_tetap', 'label' => 'Aset Tetap', 'url' => '/aset-tetap'],
+        ]
+    ],
+
+    /*['type' => 'collapse', 'key' => 'simpan_pinjam', 'label' => 'Simpan Pinjam', 'icon' => 'bi bi-piggy-bank', 'children' => [
         ['key' => 'ksp_menu', 'label' => 'Menu Utama', 'url' => '/ksp/menu'],
         ['key' => 'statistik_ksp', 'label' => 'Statistik KSP', 'url' => '/ksp/statistik'],
         ['key' => 'laporan_kesehatan_bank', 'label' => 'Kesehatan KSP', 'url' => '/laporan-kesehatan-bank'],
         ['key' => 'anggota', 'label' => 'Pendaftaran Anggota', 'url' => '/ksp/anggota'],
-        
+
         // Submenu Simpanan
         ['key' => 'group_simpanan', 'label' => 'Simpanan', 'type' => 'collapse', 'children' => [
             ['key' => 'simpanan', 'label' => 'Transaksi Simpanan', 'url' => '/ksp/simpanan'],
@@ -61,24 +79,37 @@ return [
         ['key' => 'pengumuman', 'label' => 'Pengumuman KSP', 'url' => '/ksp/pengumuman'],
         ['key' => 'poin_anggota', 'label' => 'Poin & Reward', 'url' => '/ksp/poin-anggota'],
         ['key' => 'ksp_pengaturan', 'label' => 'Pengaturan KSP', 'url' => '/ksp/pengaturan'],
-    ]],
+    ]],*/
 
-    ['type' => 'collapse', 'key' => 'laporan', 'label' => 'Laporan', 'icon' => 'bi bi-bar-chart-line-fill', 'children' => [
-        ['key' => 'laporan_harian', 'label' => 'Laporan Harian', 'url' => '/laporan-harian'],
-        ['key' => 'penjualan_item', 'label' => 'Penjualan per Item', 'url' => '/laporan-penjualan-item'],
-        ['key' => 'laporan_penjualan', 'label' => 'Laporan Penjualan', 'url' => '/laporan-penjualan'],
-        ['key' => 'laporan_keuangan', 'label' => 'Laporan Keuangan', 'url' => '/laporan'],
-        ['key' => 'neraca_saldo', 'label' => 'Neraca Saldo', 'url' => '/neraca-saldo'],
-        ['key' => 'laporan_wb_tahunan', 'label' => 'Rekap WB Tahunan', 'url' => '/laporan-wb-tahunan'],
-        ['key' => 'perubahan_laba', 'label' => 'Perubahan Laba', 'url' => '/laporan-laba-ditahan'],
-        ['key' => 'pertumbuhan_laba', 'label' => 'Pertumbuhan Laba', 'url' => '/laporan-pertumbuhan-laba'],
-        ['key' => 'analisis_rasio', 'label' => 'Analisis Rasio', 'url' => '/analisis-rasio'],
-    ]],
+    [
+        'type' => 'collapse',
+        'key' => 'laporan',
+        'label' => 'Laporan',
+        'icon' => 'bi bi-bar-chart-line-fill',
+        'children' => [
+            ['key' => 'laporan_harian', 'label' => 'Laporan Harian', 'url' => '/laporan-harian'],
+            ['key' => 'penjualan_item', 'label' => 'Penjualan per Item', 'url' => '/laporan-penjualan-item'],
+            ['key' => 'laporan_penjualan', 'label' => 'Laporan Penjualan', 'url' => '/laporan-penjualan'],
+            ['key' => 'laporan_piutang', 'label' => 'Laporan Piutang', 'url' => '/laporan-piutang'],
+            ['key' => 'laporan_keuangan', 'label' => 'Laporan Keuangan', 'url' => '/laporan'],
+            ['key' => 'neraca_saldo', 'label' => 'Neraca Saldo', 'url' => '/neraca-saldo'],
+            ['key' => 'laporan_wb_tahunan', 'label' => 'Rekap WB Tahunan', 'url' => '/laporan-wb-tahunan'],
+            ['key' => 'perubahan_laba', 'label' => 'Perubahan Laba', 'url' => '/laporan-laba-ditahan'],
+            ['key' => 'pertumbuhan_laba', 'label' => 'Pertumbuhan Laba', 'url' => '/laporan-pertumbuhan-laba'],
+            ['key' => 'analisis_rasio', 'label' => 'Analisis Rasio', 'url' => '/analisis-rasio'],
+        ]
+    ],
 
-    ['type' => 'collapse', 'key' => 'tools', 'label' => 'Alat & Proses', 'icon' => 'bi bi-tools', 'children' => [
-        ['key' => 'transaksi_berulang', 'label' => 'Transaksi Berulang', 'url' => '/transaksi-berulang'],
-        ['key' => 'rekonsiliasi_bank', 'label' => 'Rekonsiliasi Bank', 'url' => '/rekonsiliasi-bank'],
-    ]],
+    [
+        'type' => 'collapse',
+        'key' => 'tools',
+        'label' => 'Alat & Proses',
+        'icon' => 'bi bi-tools',
+        'children' => [
+            ['key' => 'transaksi_berulang', 'label' => 'Transaksi Berulang', 'url' => '/transaksi-berulang'],
+            ['key' => 'rekonsiliasi_bank', 'label' => 'Rekonsiliasi Bank', 'url' => '/rekonsiliasi-bank'],
+        ]
+    ],
 
     ['type' => 'header', 'label' => 'Administrasi'],
 

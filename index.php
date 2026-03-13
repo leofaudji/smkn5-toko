@@ -84,6 +84,7 @@ $router->get('/laporan-stok', 'pages/laporan_stok.php', ['auth']);
 $router->get('/laporan-penjualan', 'pages/laporan_penjualan.php', ['auth']);
 $router->get('/laporan-penjualan-item', 'pages/laporan_penjualan_item.php', ['auth']);
 $router->get('/laporan-kartu-stok', 'pages/laporan_kartu_stok.php', ['auth']);
+$router->get('/laporan-piutang', 'pages/laporan_piutang.php', ['auth']); // Route baru
 $router->get('/laporan-wb-tahunan', 'pages/laporan_wb_tahunan.php', ['auth']);
 $router->get('/laporan-kesehatan-bank', 'pages/laporan_kesehatan_bank.php', ['auth']);
 $router->get('/laporan-persediaan', 'pages/laporan_persediaan.php', ['auth']);
@@ -137,6 +138,8 @@ $router->post('/api/pembelian', 'api/pembelian_handler.php', ['auth']);
 
 $router->get('/api/laporan-penjualan', 'api/laporan_penjualan_handler.php', ['auth']);
 $router->get('/api/laporan-penjualan-item', 'api/laporan_penjualan_item_handler.php', ['auth']);
+$router->get('/api/laporan-piutang', 'api/laporan_piutang_handler.php', ['auth']); // API baru
+$router->post('/api/laporan-piutang', 'api/laporan_piutang_handler.php', ['auth']);
 // API untuk Penjualan
 $router->get('/api/penjualan', 'api/penjualan_handler.php', ['auth']);
 $router->post('/api/penjualan', 'api/penjualan_handler.php', ['auth']);

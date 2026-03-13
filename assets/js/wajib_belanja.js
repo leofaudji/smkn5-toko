@@ -1,5 +1,6 @@
 function initWajibBelanjaPage() {
     const form = document.getElementById('wb-form');
+    const editForm = document.getElementById('wb-edit-form');
     const modal = document.getElementById('wb-form-modal');
     const tableBody = document.getElementById('wb-table-body');
     const loadingEl = document.getElementById('wb-loading');
@@ -53,8 +54,11 @@ function initWajibBelanjaPage() {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${item.metode_pembayaran}</td>
                 <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${item.keterangan || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button class="text-red-600 hover:text-red-900" title="Hapus" disabled>
-                        <i class="bi bi-trash"></i>
+                    <button class="text-indigo-600 hover:text-indigo-900 mr-3 btn-edit" data-id="${item.id}" title="Edit">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <button class="text-red-600 hover:text-red-900 btn-delete" data-id="${item.id}" title="Hapus">
+                        <i class="bi bi-trash-fill"></i>
                     </button>
                 </td>
             </tr>
@@ -180,6 +184,7 @@ function initWajibBelanjaPage() {
         try {
             // Kumpulkan data manual karena struktur array
             const formData = {
+                action: 'create',
                 tanggal: document.getElementById('wb-tanggal').value,
                 metode_pembayaran: document.getElementById('wb-metode-pembayaran').value,
                 akun_kas_id: document.getElementById('wb-akun-kas-id').value,
@@ -219,6 +224,90 @@ function initWajibBelanjaPage() {
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
+        }
+    });
+
+    // Handle Edit & Delete Buttons
+    tableBody.addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('.btn-edit');
+        const deleteBtn = e.target.closest('.btn-delete');
+
+        if (deleteBtn) {
+            const id = deleteBtn.dataset.id;
+            if (confirm('Apakah Anda yakin ingin menghapus transaksi ini? Saldo anggota akan dikembalikan.')) {
+                try {
+                    const response = await fetch(`${basePath}/api/wajib-belanja`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'delete', id: id })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        showToast(result.message, 'success');
+                        fetchWajibBelanja(currentPage);
+                    } else {
+                        showToast(result.message, 'error');
+                    }
+                } catch (error) {
+                    showToast('Gagal menghapus data.', 'error');
+                }
+            }
+        }
+
+        if (editBtn) {
+            const id = editBtn.dataset.id;
+            try {
+                const response = await fetch(`${basePath}/api/wajib-belanja?action=get_single&id=${id}`);
+                const result = await response.json();
+                if (result.success) {
+                    const data = result.data;
+                    document.getElementById('edit-wb-id').value = data.id;
+                    document.getElementById('edit-wb-anggota-display').value = data.nama_anggota;
+                    document.getElementById('edit-wb-tanggal').value = data.tanggal;
+                    document.getElementById('edit-wb-jumlah').value = parseFloat(data.jumlah);
+                    document.getElementById('edit-wb-metode').value = data.metode_pembayaran;
+                    document.getElementById('edit-wb-keterangan').value = data.keterangan;
+                    openModal('wb-edit-modal');
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('Gagal memuat data edit.', 'error');
+            }
+        }
+    });
+
+    // Handle Edit Form Submit
+    editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = editForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Menyimpan...';
+
+        try {
+            const formData = new FormData(editForm);
+            const data = Object.fromEntries(formData.entries());
+            data.action = 'update';
+
+            const response = await fetch(`${basePath}/api/wajib-belanja`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                closeModal('wb-edit-modal');
+                fetchWajibBelanja(currentPage);
+            } else {
+                showToast(result.message, 'error');
+            }
+        } catch (error) {
+            showToast('Gagal memperbarui data.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
     });
 

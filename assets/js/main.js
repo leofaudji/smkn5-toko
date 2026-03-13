@@ -404,6 +404,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/laporan_penjualan.js`)
             .then(() => initLaporanPenjualanPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/laporan-piutang') {
+        loadScript(`${basePath}/assets/js/laporan_piutang.js`)
+            .then(() => initLaporanPiutangPage())
+            .catch(err => console.error(err));
     } else if (cleanPath === '/penjualan') {
         loadScript(`${basePath}/assets/js/penjualan.js`)
             .then(() => initPenjualanPage())

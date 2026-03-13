@@ -12,6 +12,26 @@ $conn = Database::getInstance()->getConnection();
 $user_id = 1; // ID Toko/Unit
 
 try {
+    $action = $_GET['action'] ?? 'list';
+
+    if ($action === 'get_history') {
+        $anggota_id = (int)($_GET['anggota_id'] ?? 0);
+        $tahun = (int)($_GET['tahun'] ?? date('Y'));
+
+        if ($anggota_id <= 0) {
+            throw new Exception("ID Anggota tidak valid.");
+        }
+
+        $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE anggota_id = ? AND YEAR(tanggal) = ? ORDER BY tanggal DESC");
+        $stmt->bind_param('ii', $anggota_id, $tahun);
+        $stmt->execute();
+        $history = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        echo json_encode(['status' => 'success', 'data' => $history]);
+        exit;
+    }
+
     $tahun = isset($_GET['tahun']) ? (int)$_GET['tahun'] : date('Y');
 
     // 1. Ambil semua anggota aktif

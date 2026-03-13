@@ -102,7 +102,7 @@ function store_penjualan($db) {
     $subtotal = $data['subtotal'];
     $discount = $data['discount'];
     $total = $data['total'];
-    $bayar = $data['bayar'];
+    $bayar = (float)($data['bayar'] ?? 0);
     $bayar_wb = (float)($data['bayar_wb'] ?? 0);
     $anggota_id = !empty($data['anggota_id']) ? (int)$data['anggota_id'] : null;
     $kembali = $data['kembali'];
@@ -111,6 +111,7 @@ function store_penjualan($db) {
     $logged_in_user_id = (int)$_SESSION['user_id']; // ID User yang login (Actor)
     $payment_method = $data['payment_method'] ?? 'cash';
     $payment_account_id = $data['payment_account_id'] ?? null;
+    $is_hutang = ($payment_method === 'hutang');
 
     $db->begin_transaction();
 
@@ -124,6 +125,11 @@ function store_penjualan($db) {
             $saldo_wb = $stmt_cek->get_result()->fetch_assoc()['saldo_wajib_belanja'];
             if ($saldo_wb < $bayar_wb) throw new Exception("Saldo Wajib Belanja tidak mencukupi.");
             $stmt_cek->close();
+        }
+
+        // Validasi Hutang
+        if ($is_hutang && empty($anggota_id)) {
+            throw new Exception("Untuk pembayaran Hutang, Anggota wajib dipilih.");
         }
 
         // 1. Generate Nomor Faktur (lebih robust untuk mencegah duplikat)
@@ -149,7 +155,7 @@ function store_penjualan($db) {
         // 2. Insert ke tabel 'penjualan'
         // Tambahkan info metode pembayaran ke keterangan jika bukan tunai
         // (Opsional: jika tabel penjualan punya kolom payment_method, simpan di sana)
-        if ($payment_method !== 'cash') {
+        if ($payment_method !== 'cash' && $payment_method !== 'hutang') {
             $keterangan = trim("[" . strtoupper($payment_method) . "] " . $keterangan);
         }
 
@@ -158,10 +164,10 @@ function store_penjualan($db) {
         }
 
         $stmt = $db->prepare(
-            "INSERT INTO penjualan (user_id, customer_id, nomor_referensi, tanggal_penjualan, customer_name, subtotal, discount, total, bayar, kembali, keterangan, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO penjualan (user_id, customer_id, nomor_referensi, tanggal_penjualan, customer_name, subtotal, discount, total, bayar, kembali, keterangan, created_by, payment_method) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
-        $stmt->bind_param('iisssdddsssi', $user_id, $anggota_id, $nomor_referensi, $tanggal, $customer_name, $subtotal, $discount, $total, $bayar, $kembali, $keterangan, $logged_in_user_id);
+        $stmt->bind_param('iisssdddsssis', $user_id, $anggota_id, $nomor_referensi, $tanggal, $customer_name, $subtotal, $discount, $total, $bayar, $kembali, $keterangan, $logged_in_user_id, $payment_method);
         $stmt->execute();
         $penjualanId = $stmt->insert_id;
         $stmt->close();
@@ -208,13 +214,20 @@ function store_penjualan($db) {
         // 5. Integrasi Akuntansi ke General Ledger
         // Tentukan akun debit (Kas/Bank)
         $debit_acc_id = null;
-        if ($payment_method !== 'cash' && !empty($payment_account_id)) {
+        $piutang_acc_id = null;
+
+        if ($is_hutang) {
+            $piutang_acc_id = get_setting('sales_receivable_account_id', null, $db);
+            if (!$piutang_acc_id) throw new Exception("Akun Piutang Penjualan Toko belum diatur di Pengaturan.");
+            // Jika hutang, debit_acc_id (kas) hanya digunakan jika ada DP (bayar > 0)
+            $debit_acc_id = get_setting('default_sales_cash_account_id', null, $db); 
+        } elseif ($payment_method !== 'cash' && !empty($payment_account_id)) {
             $debit_acc_id = $payment_account_id; // Gunakan akun pilihan user (Bank/QRIS)
         } else {
             $debit_acc_id = get_setting('default_sales_cash_account_id', null, $db); // Gunakan default tunai
         }
 
-        if (!$debit_acc_id) {
+        if (!$debit_acc_id && !$is_hutang) {
             throw new Exception("Akun penerimaan pembayaran (Kas/Bank) belum ditentukan.");
         }
 
@@ -280,15 +293,34 @@ function store_penjualan($db) {
             }
         }
 
-        // (Dr) Kas (Hanya sebesar yang dibayar tunai/transfer, yaitu Total - Bayar WB)
-        // Jika bayar > total (ada kembalian), yang masuk kas tetap sejumlah tagihan dikurangi WB, 
-        // karena kembalian diambil dari uang yang diserahkan.
-        // Namun secara akuntansi sederhana: Debit Kas = Total Tagihan - WB.
-        $cash_portion = max(0, $total - $bayar_wb);
+        // Hitung porsi Kas dan Piutang
+        $cash_portion = 0;
+        $piutang_portion = 0;
+
+        if ($is_hutang) {
+            // Jika hutang, yang masuk kas adalah DP (bayar), sisanya piutang
+            $cash_portion = $bayar; 
+            $piutang_portion = max(0, $total - $bayar - $bayar_wb);
+        } else {
+            // Jika tunai/transfer, seluruh tagihan (minus WB) masuk kas
+            $cash_portion = max(0, $total - $bayar_wb);
+        }
+
+        // (Dr) Kas
         if ($cash_portion > 0) {
+            if (!$debit_acc_id) throw new Exception("Akun Kas belum ditentukan untuk penerimaan uang.");
             $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $cash_portion, $zero, $penjualanId, $logged_in_user_id);
             if (!$stmt_gl->execute()) {
                 throw new Exception("Gagal insert GL (Kas): " . $stmt_gl->error);
+            }
+        }
+
+        // (Dr) Piutang (Jika Hutang)
+        if ($piutang_portion > 0) {
+            $ket_piutang = "Piutang Anggota: " . $customer_name;
+            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $ket_piutang, $nomor_referensi, $piutang_acc_id, $piutang_portion, $zero, $penjualanId, $logged_in_user_id);
+            if (!$stmt_gl->execute()) {
+                throw new Exception("Gagal insert GL (Piutang): " . $stmt_gl->error);
             }
         }
 

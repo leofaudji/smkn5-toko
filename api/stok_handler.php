@@ -20,8 +20,8 @@ try {
         $action = $_GET['action'] ?? 'list';
 
         if ($action === 'list') {
-            $limit = (int)($_GET['limit'] ?? 15);
-            $page = (int)($_GET['page'] ?? 1);
+            $limit = (int) ($_GET['limit'] ?? 15);
+            $page = (int) ($_GET['page'] ?? 1);
             $offset = ($page - 1) * $limit;
             $search = $_GET['search'] ?? '';
             $stok_filter = $_GET['stok_filter'] ?? '';
@@ -51,7 +51,9 @@ try {
 
             $total_stmt = $conn->prepare("SELECT COUNT(*) as total FROM items i $where_sql");
             $bind_params_total = [&$params[0]];
-            for ($i = 1; $i < count($params); $i++) { $bind_params_total[] = &$params[$i]; }
+            for ($i = 1; $i < count($params); $i++) {
+                $bind_params_total[] = &$params[$i];
+            }
             call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
             $total_stmt->execute();
             $total_records = $total_stmt->get_result()->fetch_assoc()['total'];
@@ -69,7 +71,9 @@ try {
 
             $stmt = $conn->prepare($query);
             $bind_params_main = [&$params[0]];
-            for ($i = 1; $i < count($params); $i++) { $bind_params_main[] = &$params[$i]; }
+            for ($i = 1; $i < count($params); $i++) {
+                $bind_params_main[] = &$params[$i];
+            }
             call_user_func_array([$stmt, 'bind_param'], $bind_params_main);
             $stmt->execute();
             $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -77,7 +81,7 @@ try {
 
             $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records];
             echo json_encode(['status' => 'success', 'data' => $items, 'pagination' => $pagination]);
-        
+
         } elseif ($action === 'get_accounts') {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
@@ -91,7 +95,7 @@ try {
                 'pendapatan' => array_values(array_filter($all_accounts, fn($acc) => $acc['tipe_akun'] == 'Pendapatan')),
             ];
             echo json_encode(['status' => 'success', 'data' => $accounts]);
-        
+
         } elseif ($action === 'get_categories') {
             $stmt = $conn->prepare("SELECT id, nama_kategori FROM item_categories WHERE user_id = ? ORDER BY nama_kategori ASC");
             $stmt->bind_param('i', $user_id);
@@ -109,8 +113,9 @@ try {
             echo json_encode(['status' => 'success', 'data' => $accounts]);
 
         } elseif ($action === 'get_adjustment_history') {
-            $item_id = (int)($_GET['item_id'] ?? 0);
-            if (empty($item_id)) throw new Exception("Item ID tidak valid.");
+            $item_id = (int) ($_GET['item_id'] ?? 0);
+            if (empty($item_id))
+                throw new Exception("Item ID tidak valid.");
 
             $stmt = $conn->prepare("SELECT sa.*, u.username FROM stock_adjustments sa LEFT JOIN users u ON sa.user_id = u.id WHERE sa.item_id = ? ORDER BY sa.tanggal DESC, sa.created_at DESC");
             $stmt->bind_param('i', $item_id);
@@ -119,12 +124,12 @@ try {
             $stmt->close();
 
             echo json_encode(['status' => 'success', 'data' => $history]);
-        
+
         } elseif ($action === 'get_kartu_stok') {
-            $item_id = (int)($_GET['item_id'] ?? 0);
+            $item_id = (int) ($_GET['item_id'] ?? 0);
             $start_date = $_GET['start_date'] ?? '';
             $end_date = $_GET['end_date'] ?? '';
-            
+
             if (empty($item_id) || empty($start_date) || empty($end_date)) {
                 throw new Exception("Parameter tidak lengkap: item_id, start_date, dan end_date diperlukan.");
             }
@@ -135,7 +140,8 @@ try {
             $stmt->execute();
             $item_info = $stmt->get_result()->fetch_assoc();
             $stmt->close();
-            if (!$item_info) throw new Exception("Barang tidak ditemukan.");
+            if (!$item_info)
+                throw new Exception("Barang tidak ditemukan.");
 
             // 2. Calculate Saldo Awal (stock at the beginning of start_date)
             $stmt = $conn->prepare("
@@ -146,7 +152,7 @@ try {
             $stmt->bind_param("is", $item_id, $start_date);
             $stmt->execute();
             $result = $stmt->get_result()->fetch_assoc();
-            $saldo_awal = (int)$result['saldo'];
+            $saldo_awal = (int) $result['saldo'];
             $stmt->close();
 
             // 3. Get all transactions within the date range
@@ -177,10 +183,10 @@ try {
                 $transactions[] = [
                     'tanggal' => $trx['tanggal'],
                     'keterangan' => $trx['keterangan'],
-                    'debit' => (int)$trx['debit'],
-                    'kredit' => (int)$trx['kredit'],
-                    'masuk' => (int)$trx['debit'], // Alias untuk kompatibilitas frontend
-                    'keluar' => (int)$trx['kredit'], // Alias untuk kompatibilitas frontend
+                    'debit' => (int) $trx['debit'],
+                    'kredit' => (int) $trx['kredit'],
+                    'masuk' => (int) $trx['debit'], // Alias untuk kompatibilitas frontend
+                    'keluar' => (int) $trx['kredit'], // Alias untuk kompatibilitas frontend
                     'saldo' => $saldo_berjalan
                 ];
             }
@@ -212,25 +218,25 @@ try {
         if ($action === 'save' || $action === 'update') { // Handle both add and update
             $nama_barang = trim($_POST['nama_barang']);
             $sku = trim($_POST['sku']) ?: null;
-            $category_id = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
-            $harga_beli = (float)$_POST['harga_beli'];
-            $harga_jual = (float)$_POST['harga_jual'];
-            $inventory_account_id = !empty($_POST['inventory_account_id']) ? (int)$_POST['inventory_account_id'] : null;
-            $cogs_account_id = !empty($_POST['cogs_account_id']) ? (int)$_POST['cogs_account_id'] : null;
-            $revenue_account_id = !empty($_POST['sales_account_id']) ? (int)$_POST['sales_account_id'] : null;
+            $category_id = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
+            $harga_beli = (float) $_POST['harga_beli'];
+            $harga_jual = (float) $_POST['harga_jual'];
+            $inventory_account_id = !empty($_POST['inventory_account_id']) ? (int) $_POST['inventory_account_id'] : null;
+            $cogs_account_id = !empty($_POST['cogs_account_id']) ? (int) $_POST['cogs_account_id'] : null;
+            $revenue_account_id = !empty($_POST['sales_account_id']) ? (int) $_POST['sales_account_id'] : null;
 
             if (empty($nama_barang) || $harga_beli < 0 || $harga_jual < 0) {
-                throw new Exception("Data barang tidak lengkap atau tidak valid."); 
+                throw new Exception("Data barang tidak lengkap atau tidak valid.");
             }
 
             if ($action === 'update') { // Update
-                $id = (int)($_POST['item-id'] ?? 0);
+                $id = (int) ($_POST['item-id'] ?? 0);
                 // Saat update, jangan ubah stok. Stok diubah melalui penyesuaian/pembelian.
                 $stmt = $conn->prepare("UPDATE items SET nama_barang=?, sku=?, category_id=?, harga_beli=?, harga_jual=?, inventory_account_id=?, cogs_account_id=?, revenue_account_id=? WHERE id=? AND user_id=?");
                 $stmt->bind_param('ssiddiiiii', $nama_barang, $sku, $category_id, $harga_beli, $harga_jual, $inventory_account_id, $cogs_account_id, $revenue_account_id, $id, $user_id);
             } else { // Add
                 // Saat add, ambil stok dari form.
-                $stok = (int)($_POST['stok'] ?? 0);
+                $stok = (int) ($_POST['stok'] ?? 0);
                 if ($stok < 0) {
                     throw new Exception("Stok awal tidak boleh negatif.");
                 }
@@ -241,33 +247,34 @@ try {
             $message = ($action === 'update') ? 'Data barang berhasil diperbarui.' : 'Data barang berhasil ditambahkan.';
             $stmt->close();
             echo json_encode(['status' => 'success', 'message' => $message]);
-        
+
         } elseif ($action === 'get_single') {
-            $id = (int)($_POST['id'] ?? 0); // This is correct for get_single
+            $id = (int) ($_POST['id'] ?? 0); // This is correct for get_single
             $stmt = $conn->prepare("SELECT * FROM items WHERE id = ? AND user_id = ?");
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
             $item = $stmt->get_result()->fetch_assoc();
             $stmt->close();
-            if (!$item) throw new Exception("Barang tidak ditemukan.");
+            if (!$item)
+                throw new Exception("Barang tidak ditemukan.");
             echo json_encode(['status' => 'success', 'data' => $item]);
-        
+
         } elseif ($action === 'delete') {
-            $id = (int)($_POST['id'] ?? 0); // This is correct for delete
+            $id = (int) ($_POST['id'] ?? 0); // This is correct for delete
             // TODO: Cek keterkaitan dengan transaksi pembelian/penjualan sebelum hapus
             $stmt = $conn->prepare("DELETE FROM items WHERE id = ? AND user_id = ?");
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
             $stmt->close();
             echo json_encode(['status' => 'success', 'message' => 'Barang berhasil dihapus.']);
-        
+
         } elseif ($action === 'adjust_stock') {
             // This part uses JSON, so we need to read from the raw input
             $data = json_decode(file_get_contents('php://input'), true);
 
             // Validasi input
             $itemId = $data['item_id'] ?? 0;
-            $stokFisik = (int)($data['stok_fisik'] ?? 0);
+            $stokFisik = (int) ($data['stok_fisik'] ?? 0);
             $tanggal = $data['tanggal'] ?? '';
             $adjAccountId = $data['adj_account_id'] ?? 0;
             $keterangan = $data['keterangan'] ?? '';
@@ -287,10 +294,11 @@ try {
                 $item = $stmt->get_result()->fetch_assoc();
                 $stmt->close();
 
-                if (!$item) throw new Exception("Barang tidak ditemukan.");
+                if (!$item)
+                    throw new Exception("Barang tidak ditemukan.");
 
-                $stokSebelum = (int)$item['stok'];
-                $hargaBeli = (float)$item['harga_beli'];
+                $stokSebelum = (int) $item['stok'];
+                $hargaBeli = (float) $item['harga_beli'];
                 $inventoryAccountId = $item['inventory_account_id'] ?: get_setting('default_inventory_account_id');
 
                 if (empty($inventoryAccountId)) {
@@ -385,28 +393,32 @@ try {
                 $ledgerTotals = [];
 
                 foreach ($itemsToAdjust as $itemData) {
-                    $itemId = (int)($itemData['item_id'] ?? 0);
-                    $stokFisik = (int)($itemData['stok_fisik'] ?? 0);
+                    $itemId = (int) ($itemData['item_id'] ?? 0);
+                    $stokFisik = (int) ($itemData['stok_fisik'] ?? 0);
 
-                    if ($itemId <= 0 || $stokFisik < 0) continue; // Lewati data tidak valid
+                    if ($itemId <= 0 || $stokFisik < 0)
+                        continue; // Lewati data tidak valid
 
                     // 2. Ambil data barang saat ini
                     $itemStmt->bind_param("ii", $itemId, $userId);
                     $itemStmt->execute();
                     $item = $itemStmt->get_result()->fetch_assoc();
 
-                    if (!$item) continue; // Lewati jika barang tidak ditemukan atau bukan milik user
+                    if (!$item)
+                        continue; // Lewati jika barang tidak ditemukan atau bukan milik user
 
-                    $stokSebelum = (int)$item['stok'];
+                    $stokSebelum = (int) $item['stok'];
                     $selisihKuantitas = $stokFisik - $stokSebelum;
 
-                    if ($selisihKuantitas == 0) continue; // Tidak ada perubahan, lanjut ke item berikutnya
+                    if ($selisihKuantitas == 0)
+                        continue; // Tidak ada perubahan, lanjut ke item berikutnya
 
-                    $hargaBeli = (float)$item['harga_beli'];
+                    $hargaBeli = (float) $item['harga_beli'];
                     $selisihNilai = $selisihKuantitas * $hargaBeli;
                     $inventoryAccountId = $item['inventory_account_id'] ?: get_setting('default_inventory_account_id');
 
-                    if (empty($inventoryAccountId)) throw new Exception("Akun persediaan untuk salah satu barang belum diatur.");
+                    if (empty($inventoryAccountId))
+                        throw new Exception("Akun persediaan untuk salah satu barang belum diatur.");
 
                     $zero_val = 0.0;
 
@@ -470,7 +482,7 @@ try {
             }
 
             $file_path = $_FILES['excel_file']['tmp_name'];
-            
+
             // Validasi tipe file
             $file_mime_type = mime_content_type($file_path);
             if ($file_mime_type !== 'text/plain' && $file_mime_type !== 'text/csv') {
@@ -480,8 +492,8 @@ try {
             $rows = [];
             if (($handle = fopen($file_path, "r")) !== FALSE) {
                 // Lewati baris header
-                fgetcsv($handle); 
-                
+                fgetcsv($handle);
+
                 while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                     $rows[] = $data;
                 }
@@ -492,7 +504,7 @@ try {
                 throw new Exception("File Excel kosong atau tidak memiliki data.");
             }
 
-            $adjAccountId = (int)($_POST['adj_account_id'] ?? 0);
+            $adjAccountId = (int) ($_POST['adj_account_id'] ?? 0);
             if (empty($adjAccountId)) {
                 throw new Exception("Akun Penyeimbang Saldo Awal wajib dipilih.");
             }
@@ -500,13 +512,13 @@ try {
             $defaultInventoryAccountId = get_setting('default_inventory_account_id', null, $conn);
             if (empty($defaultInventoryAccountId)) {
                 throw new Exception("Akun Persediaan Default belum diatur. Silakan atur di Pengaturan > Akuntansi sebelum melakukan impor.");
-            } 
+            }
 
             $tanggal_import = date('Y-m-d'); // Gunakan tanggal hari ini untuk penyesuaian
 
             $conn->begin_transaction();
             $stmt_select = $conn->prepare("SELECT id FROM items WHERE id = ? AND user_id = ?");
-            $stmt_update = $conn->prepare("UPDATE items SET harga_beli=?, harga_jual=?, stok=? WHERE id=?");
+            $stmt_update = $conn->prepare("UPDATE items SET harga_beli=?, harga_jual=?, stok=?, sku=? WHERE id=?");
             $stmt_insert = $conn->prepare("INSERT INTO items (user_id, nama_barang, sku, category_id, harga_beli, harga_jual, stok) VALUES (?, ?, ?, ?, ?, ?, ?)");
             $stmt_select_cat = $conn->prepare("SELECT id FROM item_categories WHERE nama_kategori = ? AND user_id = ?");
             $stmt_insert_cat = $conn->prepare("INSERT INTO item_categories (user_id, nama_kategori) VALUES (?, ?)");
@@ -522,25 +534,48 @@ try {
 
             // Siapkan statement untuk kartu stok
             $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'import', ?)");
+ 
+            // Statement untuk cek keunikan SKU
+            $stmt_check_sku = $conn->prepare("SELECT id FROM items WHERE sku = ? AND user_id = ?");
 
             $ledgerTotals = []; // Array untuk rekapitulasi ke General Ledger
 
             foreach ($rows as $index => $row) {
 
-                $nama_barang = trim($row[0] ?? ''); 
-                $item_id_csv = (int)trim($row[1] ?? 0); // Ambil ID Barang dari kolom B
-                $kategori_nama = trim($row[1] ?? ''); // Ambil Nama Kategori dari kolom C
-                // Kolom kategori ($row[1]) diabaikan sesuai instruksi
+                $nama_barang = trim($row[0] ?? '');
+                $item_id_csv = (int) trim($row[1] ?? 0); // Ambil ID Barang dari kolom B
+                $kategori_nama = trim($row[1] ?? ''); // Ambil Nama Kategori dari kolom C (Index 2)
+                $sku_base = trim($row[11] ?? ''); // Ambil SKU dari kolom 12 (Index 11)
+                $sku = !empty($sku_base) ? $sku_base : null;
+
+                // Jika SKU diisi, pastikan unik dengan menambahkan suffix jika perlu
+                if ($sku !== null && $item_id_csv == 0) { // Hanya cek keunikan jika ini item baru (bukan update by ID)
+                    $is_unique = false;
+                    $counter = 0;
+                    $current_sku = $sku;
+                    while (!$is_unique) {
+                        $stmt_check_sku->bind_param('si', $current_sku, $user_id);
+                        $stmt_check_sku->execute();
+                        if ($stmt_check_sku->get_result()->num_rows === 0) {
+                            $sku = $current_sku;
+                            $is_unique = true;
+                        } else {
+                            $counter++;
+                            $current_sku = $sku_base . '-' . $counter;
+                        }
+                    }
+                }
                 $stok_raw = $row[9] ?? '0'; // stok setelah stok opname
                 $harga_beli_raw = $row[4] ?? '0'; // Sesuai instruksi di modal: D: beli
                 $harga_jual_raw = $row[5] ?? '0'; // Sesuai instruksi di modal: E: jual
 
-                if (empty($nama_barang)) continue; // Lewati baris kosong
+                if (empty($nama_barang))
+                    continue; // Lewati baris kosong
 
                 // Fungsi untuk membersihkan dan mengkonversi nilai numerik dari format CSV
-                $stok = (int)preg_replace('/[^\d-]/', '', $stok_raw);
-                $harga_beli = (float)str_replace(',', '.', preg_replace('/[^\d,-]/', '', $harga_beli_raw));
-                $harga_jual = (float)str_replace(',', '.', preg_replace('/[^\d,-]/', '', $harga_jual_raw));
+                $stok = (int) preg_replace('/[^\d-]/', '', $stok_raw);
+                $harga_beli = (float) str_replace(',', '.', preg_replace('/[^\d,-]/', '', $harga_beli_raw));
+                $harga_jual = (float) str_replace(',', '.', preg_replace('/[^\d,-]/', '', $harga_jual_raw));
 
                 if ($harga_beli < 0 || $harga_jual < 0 || $stok < 0) {
                     // Baris ini akan dilewati jika nilai numerik tidak valid setelah pembersihan
@@ -587,7 +622,7 @@ try {
                     $stmt_get_stok = $conn->prepare("SELECT stok, harga_beli FROM items WHERE id = ?");
                     $stmt_get_stok->bind_param('i', $item_id);
                     $stmt_get_stok->execute();
-                    $stok_sebelum = (int)$stmt_get_stok->get_result()->fetch_assoc()['stok'];
+                    $stok_sebelum = (int) $stmt_get_stok->get_result()->fetch_assoc()['stok'];
                     $stmt_get_stok->close();
 
                 } else { // Insert
@@ -620,8 +655,8 @@ try {
                         $ledgerTotals[$inventoryAccountId]['credit'] = ($ledgerTotals[$inventoryAccountId]['credit'] ?? 0) + abs($selisih_nilai);
                     }
 
-                    // Update stok di tabel items
-                    $stmt_update->bind_param('ddii', $harga_beli, $harga_jual, $stok, $item_id);
+                    // Update stok & sku di tabel items
+                    $stmt_update->bind_param('ddisi', $harga_beli, $harga_jual, $stok, $sku, $item_id);
                     $stmt_update->execute();
 
                     // Catat ke kartu stok sebagai saldo awal/penyesuaian
@@ -629,7 +664,7 @@ try {
                     $kredit = $selisih_kuantitas < 0 ? abs($selisih_kuantitas) : 0;
                     $stmt_ks->bind_param('siiisii', $tanggal_import, $item_id, $debit, $kredit, $keterangan_impor, $journalId, $logged_in_user_id);
                     $stmt_ks->execute();
-                } 
+                }
 
                 $processed++;
             }

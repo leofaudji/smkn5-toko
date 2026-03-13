@@ -88,6 +88,51 @@ check_permission('wajib_belanja', 'menu');
     </div>
 </div>
 
+<!-- Edit Modal (Single Transaction) -->
+<div id="wb-edit-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('wb-edit-modal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <form id="wb-edit-form">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Edit Transaksi Wajib Belanja</h3>
+                    <input type="hidden" id="edit-wb-id" name="id">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Anggota</label>
+                            <input type="text" id="edit-wb-anggota-display" class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 dark:bg-gray-700 dark:border-gray-600 shadow-sm sm:text-sm" readonly>
+                        </div>
+                        <div>
+                            <label for="edit-wb-tanggal" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
+                            <input type="date" id="edit-wb-tanggal" name="tanggal" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
+                        </div>
+                        <div>
+                            <label for="edit-wb-jumlah" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah</label>
+                            <input type="number" id="edit-wb-jumlah" name="jumlah" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
+                        </div>
+                        <div>
+                            <label for="edit-wb-metode" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Metode Pembayaran</label>
+                            <select id="edit-wb-metode" name="metode_pembayaran" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
+                                <option value="tunai">Tunai</option>
+                                <option value="transfer">Transfer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="edit-wb-keterangan" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan</label>
+                            <textarea id="edit-wb-keterangan" name="keterangan" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-600 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Simpan Perubahan</button>
+                    <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm" onclick="closeModal('wb-edit-modal')">Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Table -->
 <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
     <div class="p-6">
