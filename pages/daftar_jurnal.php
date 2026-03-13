@@ -40,10 +40,16 @@ check_permission('daftar_jurnal', 'menu');
             </div>
             <div class="md:col-span-2">
                 <select id="filter-jurnal-limit" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
-                    <option value="10">10</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
+                    <option value="10">10 Baris</option>
+                    <option value="50">50 Baris</option>
+                    <option value="100">100 Baris</option>
                     <option value="-1">Semua</option>
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <select id="filter-jurnal-sort" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
+                    <option value="tanggal">Tgl Terbaru</option>
+                    <option value="no_ref">No. Ref</option>
                 </select>
             </div>
         </div>

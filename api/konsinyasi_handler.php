@@ -54,7 +54,7 @@ try {
             SELECT 
                 ci.*,
                 s.nama_pemasok,
-                (ci.stok_awal - COALESCE((SELECT SUM(qty) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type = 'jurnal' AND debit > 0 AND account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_cogs_account')), 0)) as stok_saat_ini
+                (ci.stok_awal - COALESCE((SELECT SUM(IF(debit > 0, qty, -qty)) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type IN ('jurnal', 'penjualan') AND account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_cogs_account')), 0)) as stok_saat_ini
             FROM consignment_items ci
             JOIN suppliers s ON ci.supplier_id = s.id
             WHERE ci.user_id = $user_id
@@ -77,44 +77,21 @@ try {
         $conn->begin_transaction();
 
         if ($id > 0) { // Update
-            // TODO: Handle logic for updating stock and creating adjustment journals if needed.
-            // For now, we only update the item details.
-            $stmt = $conn->prepare("UPDATE consignment_items SET supplier_id=?, nama_barang=?, harga_jual=?, harga_beli=?, stok_awal=?, tanggal_terima=?, updated_by=? WHERE id=? AND user_id=?");
-            $stmt->bind_param('isddisiii', $supplier_id, $nama_barang, $harga_jual, $harga_beli, $stok_awal, $tanggal_terima, $logged_in_user_id, $id, $user_id);
+            $stmt = $conn->prepare("UPDATE consignment_items SET supplier_id=?, sku=?, barcode=?, nama_barang=?, harga_jual=?, harga_beli=?, stok_awal=?, tanggal_terima=?, updated_by=? WHERE id=? AND user_id=?");
+            $sku = trim($_POST['sku'] ?? '');
+            $barcode = trim($_POST['barcode'] ?? '');
+            $stmt->bind_param('isssddisiii', $supplier_id, $sku, $barcode, $nama_barang, $harga_jual, $harga_beli, $stok_awal, $tanggal_terima, $logged_in_user_id, $id, $user_id);
             $stmt->execute();
             $stmt->close();
         } else { // Add
-            // 1. Insert item to get ID
-            $stmt = $conn->prepare("INSERT INTO consignment_items (user_id, supplier_id, nama_barang, harga_jual, harga_beli, stok_awal, tanggal_terima, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('iisddisi', $user_id, $supplier_id, $nama_barang, $harga_jual, $harga_beli, $stok_awal, $tanggal_terima, $logged_in_user_id);
+            $stmt = $conn->prepare("INSERT INTO consignment_items (user_id, supplier_id, sku, barcode, nama_barang, harga_jual, harga_beli, stok_awal, tanggal_terima, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $sku = trim($_POST['sku'] ?? '');
+            $barcode = trim($_POST['barcode'] ?? '');
+            $stmt->bind_param('iisssddisi', $user_id, $supplier_id, $sku, $barcode, $nama_barang, $harga_jual, $harga_beli, $stok_awal, $tanggal_terima, $logged_in_user_id);
             $stmt->execute();
             $item_id = $conn->insert_id;
             $stmt->close();
 
-            // 2. Create memo journal entry in general ledger
-            $total_nilai_barang = $stok_awal * $harga_beli;
-            if ($total_nilai_barang > 0) {
-                $inventory_acc_id = get_setting('consignment_inventory_account', null, $conn);
-                $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
-
-                if (empty($inventory_acc_id) || empty($payable_acc_id)) {
-                    throw new Exception("Akun untuk Persediaan/Utang Konsinyasi belum diatur di Pengaturan. Silakan hubungi admin.");
-                }
-
-                $keterangan_jurnal = "Penerimaan barang konsinyasi: {$stok_awal} x {$nama_barang}";
-                $nomor_referensi = "CIN-{$item_id}"; // Consignment In
-                $zero = 0.00;
-
-                $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_type, ref_id, consignment_item_id, qty, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'jurnal', 0, ?, ?, ?)");
-
-                // (Dr) Persediaan Konsinyasi
-                $stmt_gl->bind_param('isssiddiii', $user_id, $tanggal_terima, $keterangan_jurnal, $nomor_referensi, $inventory_acc_id, $total_nilai_barang, $zero, $item_id, $stok_awal, $logged_in_user_id);
-                $stmt_gl->execute();
-                // (Cr) Utang Konsinyasi
-                $stmt_gl->bind_param('isssiddiii', $user_id, $tanggal_terima, $keterangan_jurnal, $nomor_referensi, $payable_acc_id, $zero, $total_nilai_barang, $item_id, $stok_awal, $logged_in_user_id);
-                $stmt_gl->execute();
-                $stmt_gl->close();
-            }
         }
         $conn->commit();
         echo json_encode(['status' => 'success', 'message' => 'Barang konsinyasi berhasil disimpan.']);
@@ -205,20 +182,25 @@ try {
         $conn->begin_transaction();
 
         $zero = 0.00;
-        // Buat 4 entri di General Ledger
-        $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_type, ref_id, consignment_item_id, qty, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'jurnal', 0, ?, ?, ?)"); // ref_id 0 karena ini bukan dari tabel transaksi/jurnal_entries
+        $komisi = $total_penjualan - $total_modal;
 
-        // 1. (Dr) Kas, (Cr) Pendapatan Konsinyasi
+        // Buat 3 entri di General Ledger (Balanced Journal)
+        // 1. (Dr) Kas/Kas Toko - Total Harga Jual
+        // 2. (Cr) Utang Konsinyasi (Utang Titipan) - Total Harga Beli
+        // 3. (Cr) Pendapatan Konsinyasi (Pendapatan Komisi) - Selisih (Komisi)
+
+        $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_type, ref_id, consignment_item_id, qty, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'jurnal', 0, ?, ?, ?)");
+
+        // 1. (Dr) Kas
         $stmt_gl->bind_param('isssiddiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $item['kas_acc_id'], $total_penjualan, $zero, $item_id, $qty, $created_by);
         $stmt_gl->execute();
-        $stmt_gl->bind_param('isssiddiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $item['revenue_acc_id'], $zero, $total_penjualan, $item_id, $qty, $created_by);
+
+        // 2. (Cr) Utang Konsinyasi (Utang Titipan)
+        $stmt_gl->bind_param('isssiddiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $item['payable_acc_id'], $zero, $total_modal, $item_id, $qty, $created_by);
         $stmt_gl->execute();
 
-        // 2. (Dr) HPP Konsinyasi, (Cr) Persediaan Konsinyasi
-        $stmt_gl->bind_param('isssiddiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $item['cogs_acc_id'], $total_modal, $zero, $item_id, $qty, $created_by);
-        $stmt_gl->execute();
-        // Mengurangi persediaan konsinyasi yang tercatat
-        $stmt_gl->bind_param('isssiddiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $item['inventory_acc_id'], $zero, $total_modal, $item_id, $qty, $created_by);
+        // 3. (Cr) Pendapatan Konsinyasi (Pendapatan Komisi)
+        $stmt_gl->bind_param('isssiddiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $item['revenue_acc_id'], $zero, $komisi, $item_id, $qty, $created_by);
         $stmt_gl->execute();
 
         $stmt_gl->close();
@@ -285,15 +267,14 @@ try {
             SELECT 
                 s.nama_pemasok,
                 ci.nama_barang,
-                SUM(gl.qty) as total_terjual, ci.harga_beli, (SUM(gl.qty) * ci.harga_beli) as total_utang
+                SUM(IF(gl.debit > 0, gl.qty, -gl.qty)) as total_terjual, ci.harga_beli, (SUM(IF(gl.debit > 0, gl.qty, -gl.qty)) * ci.harga_beli) as total_utang
             FROM general_ledger gl
             JOIN consignment_items ci ON gl.consignment_item_id = ci.id
             JOIN suppliers s ON ci.supplier_id = s.id
             WHERE gl.user_id = ?
               AND gl.tanggal BETWEEN ? AND ?
-              AND gl.ref_type = 'jurnal' 
+              AND gl.ref_type IN ('jurnal', 'penjualan') 
               AND gl.consignment_item_id IS NOT NULL 
-              AND gl.debit > 0 
               AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_cogs_account')
             GROUP BY s.nama_pemasok, ci.nama_barang, ci.harga_beli
             ORDER BY s.nama_pemasok, ci.nama_barang
@@ -347,14 +328,16 @@ try {
                 suppliers s
             LEFT JOIN (
                 -- Subquery untuk menghitung total utang dari barang yang terjual
+                -- Sekarang mengambil dari AKUN UTANG (Kredit) karena HPP tidak lagi dijurnal per item
                 SELECT 
                     ci.supplier_id,
-                    SUM(gl.qty * ci.harga_beli) as total_utang
+                    SUM(gl.kredit) as total_utang
                 FROM general_ledger gl
                 JOIN consignment_items ci ON gl.consignment_item_id = ci.id
                 WHERE gl.user_id = ?
-                  AND gl.account_id = ? AND gl.tanggal BETWEEN ? AND ? -- HPP Konsinyasi
-                  AND gl.debit > 0
+                  AND gl.account_id = ? AND gl.tanggal BETWEEN ? AND ? -- Akun UTANG Konsinyasi
+                  AND gl.kredit > 0
+                  AND gl.ref_type IN ('jurnal', 'penjualan')
                 GROUP BY ci.supplier_id
             ) utang ON s.id = utang.supplier_id
             LEFT JOIN (
@@ -363,17 +346,16 @@ try {
                     s_inner.id as supplier_id,
                     SUM(gl.debit) as total_bayar
                 FROM general_ledger gl
-                -- Join ke supplier berdasarkan nama di keterangan
                 JOIN suppliers s_inner ON SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s_inner.nama_pemasok
                 WHERE gl.user_id = ?
-                  AND gl.account_id = ? AND gl.tanggal BETWEEN ? AND ? -- Utang Konsinyasi
+                  AND gl.account_id = ? AND gl.tanggal BETWEEN ? AND ? -- Akun UTANG Konsinyasi
                   AND gl.debit > 0
                 GROUP BY s_inner.id
             ) bayar ON s.id = bayar.supplier_id
             WHERE s.user_id = ?
             ORDER BY s.nama_pemasok
         ");
-        $stmt->bind_param('isssisssi', $user_id, $cogs_acc_id, $start_date, $end_date, $user_id, $payable_acc_id, $start_date, $end_date, $user_id);
+        $stmt->bind_param('isssisssi', $user_id, $payable_acc_id, $start_date, $end_date, $user_id, $payable_acc_id, $start_date, $end_date, $user_id);
         $stmt->execute();
         echo json_encode(['status' => 'success', 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
     }

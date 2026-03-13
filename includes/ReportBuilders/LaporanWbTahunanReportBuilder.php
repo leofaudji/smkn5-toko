@@ -100,37 +100,37 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
 
         // --- PDF Generation ---
         $this->pdf->report_title = 'Rekap Wajib Belanja Tahunan ' . $tahun;
-        $this->pdf->SetMargins(5, 10, 5); // Perkecil margin kiri/kanan menjadi 5mm
-        $this->pdf->AddPage('L', 'A4'); // Force Landscape A4
+        $this->pdf->SetMargins(5, 10, 5); 
+        $this->pdf->AddPage('P', 'A4'); // Portrait (P)
         
         // Title
-        $this->pdf->SetFont('Helvetica', 'B', 14);
+        $this->pdf->SetFont('Helvetica', 'B', 12);
         $this->pdf->Cell(0, 8, strtoupper($this->pdf->report_title), 0, 1, 'C');
-        $this->pdf->SetFont('Helvetica', '', 10);
-        $this->pdf->Cell(0, 6, 'Dicetak pada: ' . date('d-m-Y H:i'), 0, 1, 'C');
-        $this->pdf->Ln(5);
+        $this->pdf->SetFont('Helvetica', '', 8);
+        $this->pdf->Cell(0, 5, 'Dicetak pada: ' . date('d-m-Y H:i'), 0, 1, 'C');
+        $this->pdf->Ln(3);
 
         // Table Header
-        $this->pdf->SetFont('Helvetica', 'B', 7); // Font diperkecil ke 7pt
+        $this->pdf->SetFont('Helvetica', 'B', 6); // Font 6pt agar muat 17 kolom
         $this->pdf->SetFillColor(240, 240, 240);
         
-        // Lebar kolom disesuaikan (Total 265mm, aman untuk A4 & Letter)
-        $w_name = 45;
-        $w_month = 12;
-        $w_total = 19;
+        // Lebar kolom dioptimalkan untuk Portrait (~190mm)
+        $w_name = 25;
+        $w_month = 9;
+        $w_total = 14.25;
         
         $this->pdf->Cell($w_name, 8, 'Nama Anggota', 1, 0, 'L', true);
         $months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
         foreach ($months as $m) {
             $this->pdf->Cell($w_month, 8, $m, 1, 0, 'C', true);
         }
-        $this->pdf->Cell($w_total, 8, 'Total Setor', 1, 0, 'R', true);
-        $this->pdf->Cell($w_total, 8, 'Belanja', 1, 0, 'R', true);
-        $this->pdf->Cell($w_total, 8, 'Tunggakan', 1, 0, 'R', true);
-        $this->pdf->Cell($w_total, 8, 'Saldo Akhir', 1, 1, 'R', true);
+        $this->pdf->Cell($w_total, 8, 'Setor', 1, 0, 'R', true);
+        $this->pdf->Cell($w_total, 8, 'Blj', 1, 0, 'R', true);
+        $this->pdf->Cell($w_total, 8, 'Tgk', 1, 0, 'R', true);
+        $this->pdf->Cell($w_total, 8, 'Saldo', 1, 1, 'R', true);
 
         // Table Body
-        $this->pdf->SetFont('Helvetica', '', 7);
+        $this->pdf->SetFont('Helvetica', '', 6);
         $grand_total_setor = 0;
         $grand_total_belanja = 0;
         $grand_total_tunggakan = 0;
@@ -138,7 +138,20 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         $month_totals = array_fill(1, 12, 0);
 
         foreach ($report_data as $row) {
-            $this->pdf->Cell($w_name, 6, $row['nama_lengkap'], 1, 0, 'L');
+            // Cek Page Break
+            if ($this->pdf->GetY() > 250) {
+                $this->pdf->AddPage('P');
+                $this->pdf->SetFont('Helvetica', 'B', 6);
+                $this->pdf->Cell($w_name, 8, 'Nama Anggota', 1, 0, 'L', true);
+                foreach ($months as $m) $this->pdf->Cell($w_month, 8, $m, 1, 0, 'C', true);
+                $this->pdf->Cell($w_total, 8, 'Setor', 1, 0, 'R', true);
+                $this->pdf->Cell($w_total, 8, 'Blj', 1, 0, 'R', true);
+                $this->pdf->Cell($w_total, 8, 'Tgk', 1, 0, 'R', true);
+                $this->pdf->Cell($w_total, 8, 'Saldo', 1, 1, 'R', true);
+                $this->pdf->SetFont('Helvetica', '', 6);
+            }
+
+            $this->pdf->Cell($w_name, 6, substr($row['nama_lengkap'], 0, 18), 1, 0, 'L');
             
             for ($m = 1; $m <= 12; $m++) {
                 $val = $row['bulan_' . $m];
@@ -153,11 +166,11 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
             // Highlight tunggakan
             if ($row['sisa_tunggakan'] > 0) {
                 $this->pdf->SetTextColor(255, 0, 0);
-                $this->pdf->SetFont('Helvetica', 'B', 7);
+                $this->pdf->SetFont('Helvetica', 'B', 6);
             }
             $this->pdf->Cell($w_total, 6, number_format($row['sisa_tunggakan'], 0, ',', '.'), 1, 0, 'R');
             $this->pdf->SetTextColor(0);
-            $this->pdf->SetFont('Helvetica', '', 7);
+            $this->pdf->SetFont('Helvetica', '', 6);
 
             $this->pdf->Cell($w_total, 6, number_format($row['saldo_akhir'], 0, ',', '.'), 1, 1, 'R');
 
@@ -168,7 +181,7 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         }
 
         // Footer Totals
-        $this->pdf->SetFont('Helvetica', 'B', 7);
+        $this->pdf->SetFont('Helvetica', 'B', 6);
         $this->pdf->SetFillColor(240, 240, 240);
         $this->pdf->Cell($w_name, 8, 'TOTAL', 1, 0, 'C', true);
         for ($m = 1; $m <= 12; $m++) {

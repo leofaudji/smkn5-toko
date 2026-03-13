@@ -46,7 +46,15 @@ if (!$is_spa_request) {
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
-                            <tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nama Barang</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Jual</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Beli</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Stok</th><th class="relative px-6 py-3"><span class="sr-only">Aksi</span></th></tr>
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">SKU</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nama Barang</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Jual</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Beli</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Stok</th>
+                                <th class="relative px-6 py-3"><span class="sr-only">Aksi</span></th>
+                            </tr>
                         </thead>
                         <tbody id="items-table-body"></tbody>
                     </table>
@@ -150,7 +158,50 @@ if (!$is_spa_request) {
             <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                 <h5 class="text-lg font-medium text-gray-900 dark:text-white" id="itemModalLabel"></h5><button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeModal('itemModal')"><i class="bi bi-x-lg"></i></button>
             </div>
-            <div class="p-6"><form id="item-form" class="space-y-4"><input type="hidden" name="id" id="item-id"><input type="hidden" name="action" id="item-action"><div><label for="supplier_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pemasok</label><select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="supplier_id" name="supplier_id" required></select></div><div><label for="nama_barang" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Barang</label><input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="nama_barang" name="nama_barang" required></div><div class="grid grid-cols-2 gap-4"><div><label for="harga_jual" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Harga Jual</label><input type="number" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="harga_jual" name="harga_jual" required></div><div><label for="harga_beli" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Harga Beli (Modal)</label><input type="number" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="harga_beli" name="harga_beli" required></div></div><div class="grid grid-cols-2 gap-4"><div><label for="stok_awal" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stok Awal Diterima</label><input type="number" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="stok_awal" name="stok_awal" required></div><div><label for="tanggal_terima" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Terima</label><input type="date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="tanggal_terima" name="tanggal_terima" required></div></div></form></div>
+            <div class="p-6">
+                <form id="item-form" class="space-y-4">
+                    <input type="hidden" name="id" id="item-id">
+                    <input type="hidden" name="action" id="item-action">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="supplier_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pemasok</label>
+                            <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="supplier_id" name="supplier_id" required></select>
+                        </div>
+                        <div>
+                            <label for="sku" class="block text-sm font-medium text-gray-700 dark:text-gray-300">SKU</label>
+                            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="sku" name="sku" placeholder="Contoh: KNS001">
+                        </div>
+                        <div>
+                            <label for="barcode" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Barcode</label>
+                            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="barcode" name="barcode" placeholder="Scan barcode...">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="nama_barang" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Barang</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="nama_barang" name="nama_barang" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="harga_jual" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Harga Jual</label>
+                            <input type="number" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="harga_jual" name="harga_jual" required>
+                        </div>
+                        <div>
+                            <label for="harga_beli" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Harga Beli (Modal)</label>
+                            <input type="number" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="harga_beli" name="harga_beli" required>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="stok_awal" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stok Awal Diterima</label>
+                            <input type="number" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="stok_awal" name="stok_awal" required>
+                        </div>
+                        <div>
+                            <label for="tanggal_terima" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Terima</label>
+                            <input type="date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="tanggal_terima" name="tanggal_terima" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
             <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"><button type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none sm:ml-3 sm:w-auto sm:text-sm" id="save-item-btn">Simpan</button><button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm" onclick="closeModal('itemModal')">Batal</button></div>
         </div>
     </div>

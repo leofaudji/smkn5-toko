@@ -103,7 +103,12 @@ try {
         ";
 
         // Add ORDER BY before LIMIT clause
-        $query .= " ORDER BY gl.tanggal DESC, gl.ref_id DESC, gl.debit DESC";
+        $sort_by = $_GET['sort_by'] ?? 'tanggal';
+        if ($sort_by === 'no_ref') {
+            $query .= " ORDER BY gl.nomor_referensi DESC, gl.debit DESC";
+        } else {
+            $query .= " ORDER BY gl.tanggal DESC, gl.ref_id DESC, gl.debit DESC";
+        }
 
         // Handle pagination only if limit is not -1 (ALL)
         if ($limit != -1) {

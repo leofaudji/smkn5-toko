@@ -31,10 +31,10 @@ try {
             $params = ['i', $user_id];
 
             if (!empty($search)) {
-                $where_clauses[] = '(nama_barang LIKE ? OR sku LIKE ?)';
-                $params[0] .= 'ss';
+                $where_clauses[] = '(nama_barang LIKE ? OR sku LIKE ? OR barcode LIKE ?)';
+                $params[0] .= 'sss';
                 $searchTerm = '%' . $search . '%';
-                array_push($params, $searchTerm, $searchTerm);
+                array_push($params, $searchTerm, $searchTerm, $searchTerm);
             }
             if ($stok_filter === 'ready') {
                 $where_clauses[] = 'stok > 0';
@@ -218,6 +218,7 @@ try {
         if ($action === 'save' || $action === 'update') { // Handle both add and update
             $nama_barang = trim($_POST['nama_barang']);
             $sku = trim($_POST['sku']) ?: null;
+            $barcode = trim($_POST['barcode']) ?: null;
             $category_id = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
             $harga_beli = (float) $_POST['harga_beli'];
             $harga_jual = (float) $_POST['harga_jual'];
@@ -232,16 +233,16 @@ try {
             if ($action === 'update') { // Update
                 $id = (int) ($_POST['item-id'] ?? 0);
                 // Saat update, jangan ubah stok. Stok diubah melalui penyesuaian/pembelian.
-                $stmt = $conn->prepare("UPDATE items SET nama_barang=?, sku=?, category_id=?, harga_beli=?, harga_jual=?, inventory_account_id=?, cogs_account_id=?, revenue_account_id=? WHERE id=? AND user_id=?");
-                $stmt->bind_param('ssiddiiiii', $nama_barang, $sku, $category_id, $harga_beli, $harga_jual, $inventory_account_id, $cogs_account_id, $revenue_account_id, $id, $user_id);
+                $stmt = $conn->prepare("UPDATE items SET nama_barang=?, sku=?, barcode=?, category_id=?, harga_beli=?, harga_jual=?, inventory_account_id=?, cogs_account_id=?, revenue_account_id=? WHERE id=? AND user_id=?");
+                $stmt->bind_param('sssiddiiiii', $nama_barang, $sku, $barcode, $category_id, $harga_beli, $harga_jual, $inventory_account_id, $cogs_account_id, $revenue_account_id, $id, $user_id);
             } else { // Add
                 // Saat add, ambil stok dari form.
                 $stok = (int) ($_POST['stok'] ?? 0);
                 if ($stok < 0) {
                     throw new Exception("Stok awal tidak boleh negatif.");
                 }
-                $stmt = $conn->prepare("INSERT INTO items (user_id, nama_barang, sku, category_id, harga_beli, harga_jual, stok, inventory_account_id, cogs_account_id, revenue_account_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param('issiddiiii', $user_id, $nama_barang, $sku, $category_id, $harga_beli, $harga_jual, $stok, $inventory_account_id, $cogs_account_id, $revenue_account_id);
+                $stmt = $conn->prepare("INSERT INTO items (user_id, nama_barang, sku, barcode, category_id, harga_beli, harga_jual, stok, inventory_account_id, cogs_account_id, revenue_account_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('isssiddiiii', $user_id, $nama_barang, $sku, $barcode, $category_id, $harga_beli, $harga_jual, $stok, $inventory_account_id, $cogs_account_id, $revenue_account_id);
             }
             $stmt->execute();
             $message = ($action === 'update') ? 'Data barang berhasil diperbarui.' : 'Data barang berhasil ditambahkan.';

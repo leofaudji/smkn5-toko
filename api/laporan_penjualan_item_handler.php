@@ -44,17 +44,19 @@ try {
 
     $query = "
         SELECT
-            i.id,
-            i.sku,
-            i.nama_barang,
+            COALESCE(i.id, ci.id) as id,
+            COALESCE(i.sku, ci.sku) as sku,
+            COALESCE(i.nama_barang, ci.nama_barang) as nama_barang,
+            pd.item_type,
             SUM(pd.quantity) as total_terjual,
             SUM(pd.subtotal) as total_penjualan,
-            SUM(pd.subtotal - (pd.quantity * i.harga_beli)) as total_profit
+            SUM(pd.subtotal - (pd.quantity * COALESCE(i.harga_beli, ci.harga_beli, 0))) as total_profit
         FROM penjualan_details pd
         JOIN penjualan p ON pd.penjualan_id = p.id
-        JOIN items i ON pd.item_id = i.id
+        LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
+        LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
         $where_sql
-        GROUP BY i.id, i.sku, i.nama_barang
+        GROUP BY COALESCE(i.id, ci.id), COALESCE(i.sku, ci.sku), COALESCE(i.nama_barang, ci.nama_barang), pd.item_type
     ";
 
     // Get total count for pagination

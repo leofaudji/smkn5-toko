@@ -382,9 +382,17 @@ function initPenjualanPage() {
         }
     });
 
-    searchProdukInput.addEventListener('keyup', async (e) => {
+    const debounce = (func, delay) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    };
+
+    const handleProductSearch = async (e) => {
         // Jangan jalankan pencarian jika tombol navigasi ditekan
-        if (['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)) {
+        if (['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
             return;
         }
 
@@ -395,40 +403,73 @@ function initPenjualanPage() {
             return;
         }
 
-        const response = await fetch(`${basePath}/api/penjualan?action=search_produk&term=${term}`);
-        const result = await response.json();
-        
-        suggestionsContainer.innerHTML = '';
+        try {
+            const response = await fetch(`${basePath}/api/penjualan?action=search_produk&term=${term}`);
+            const result = await response.json();
+            
+            suggestionsContainer.innerHTML = '';
 
-        let products = [];
-        // Handle both plain array response and object response for success cases
-        if (Array.isArray(result)) {
-            products = result;
-        } else if (result && result.success && Array.isArray(result.data)) {
-            products = result.data;
-        } else {
-            // Log an error if the format is unexpected or if it's an explicit error object
-            console.error("API Error on product search:", result.message || "Unexpected API response format");
-            return;
-        }
+            let products = [];
+            // Handle both plain array response and object response for success cases
+            if (Array.isArray(result)) {
+                products = result;
+            } else if (result && result.success && Array.isArray(result.data)) {
+                products = result.data;
+            } else {
+                console.error("API Error on product search:", result.message || "Unexpected API response format");
+                return;
+            }
 
-        if (products && products.length > 0) {
-            const list = products.map(p => 
-                `<a href="#" class="flex justify-between items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600" data-product='${JSON.stringify(p)}'>
-                    <div>
-                        <div class="font-bold"><i class="bi bi-box-seam mr-2 text-primary"></i>${p.nama_barang}</div>
-                        <small class="text-gray-500"><i class="bi bi-upc-scan mr-1"></i>${p.sku || p.kode_barang || '-'} | ${formatRupiah(p.harga_jual)}</small>
-                    </div>
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-${p.stok > 10 ? 'green' : 'yellow'}-100 text-${p.stok > 10 ? 'green' : 'yellow'}-800">Stok: ${p.stok}</span>
-                </a>`
-            ).join('');
-            suggestionsContainer.innerHTML = list;
+            if (products && products.length > 0) {
+                const list = products.map(p => {
+                    const isConsignment = p.item_type === 'consignment';
+                    const badgeColor = isConsignment ? 'purple' : (p.stok > 10 ? 'green' : 'yellow');
+                    const badgeText = isConsignment ? 'Konsinyasi' : `Stok: ${p.stok}`;
+                    
+                    return `<a href="#" class="flex justify-between items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600" data-product='${JSON.stringify(p)}'>
+                        <div>
+                            <div class="font-bold">
+                                <i class="bi bi-${isConsignment ? 'handbag' : 'box-seam'} mr-2 text-${isConsignment ? 'purple' : 'primary'}-500"></i>
+                                ${p.nama_barang}
+                            </div>
+                            <small class="text-gray-500">
+                                <i class="bi bi-upc-scan mr-1"></i>${p.barcode || p.sku || '-'} 
+                                ${p.sku && p.barcode ? ' | SKU: ' + p.sku : ''} | ${formatRupiah(p.harga_jual)}
+                            </small>
+                        </div>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-${badgeColor}-100 text-${badgeColor}-800">
+                            ${badgeText} ${isConsignment ? '(Sisa: ' + p.stok + ')' : ''}
+                        </span>
+                    </a>`;
+                }).join('');
+                suggestionsContainer.innerHTML = list;
+                suggestionsContainer.classList.remove('hidden');
+
+                // Re-bind click events for new suggestions
+                suggestionsContainer.querySelectorAll('a').forEach(el => {
+                    el.addEventListener('click', (ev) => {
+                        ev.preventDefault();
+                        const p = JSON.parse(el.dataset.product);
+                        addItemToCart(p);
+                        suggestionsContainer.innerHTML = '';
+                        suggestionsContainer.classList.add('hidden');
+                        searchProdukInput.value = '';
+                    });
+                });
+            } else {
+                suggestionsContainer.innerHTML = '<div class="p-3 text-gray-500 text-center">Produk tidak ditemukan.</div>';
+                suggestionsContainer.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error fetching search results:', error);
         }
-    });
+    };
+
+    searchProdukInput.addEventListener('keyup', debounce(handleProductSearch, 400));
 
     // Tambahkan event listener untuk tombol Enter pada pencarian produk
     // dan navigasi atas/bawah
-    searchProdukInput.addEventListener('keydown', (e) => {
+    searchProdukInput.addEventListener('keydown', async (e) => {
         const suggestionsContainer = document.getElementById('product-suggestions');
         const suggestions = Array.from(suggestionsContainer.querySelectorAll('a'));
         const activeSuggestion = suggestionsContainer.querySelector('.active-suggestion');
@@ -455,8 +496,57 @@ function initPenjualanPage() {
 
             case 'Enter':
                 e.preventDefault();
-                const targetSuggestion = activeSuggestion || suggestions[0];
-                if (targetSuggestion) targetSuggestion.click();
+                const term = e.target.value.trim();
+                if (term === '') {
+                    // Jika tekan Enter saat input kosong, pindah ke kolom bayar
+                    if (cart.length > 0) {
+                        document.getElementById('bayar').focus();
+                    } else {
+                        showToast('Keranjang masih kosong.', 'warning');
+                    }
+                    return;
+                }
+
+                // Coba cari kecocokan eksak dari hasil yang sudah ada atau trigger pencarian cepat
+                const suggestions = Array.from(suggestionsContainer.querySelectorAll('a'));
+                let targetProduct = null;
+
+                // 1. Cek apakah ada yang di-highlight (navigasi keyboard)
+                const activeSuggestion = suggestionsContainer.querySelector('.active-suggestion');
+                if (activeSuggestion) {
+                    targetProduct = JSON.parse(activeSuggestion.dataset.product);
+                } 
+                // 2. Cek apakah input pas dengan salah satu SKU (Barcode match)
+                else if (suggestions.length > 0) {
+                    const exactMatch = suggestions.find(s => {
+                        const p = JSON.parse(s.dataset.product);
+                        return (p.barcode && p.barcode === term) || (p.sku && p.sku.toLowerCase() === term.toLowerCase());
+                    });
+                    if (exactMatch) {
+                        targetProduct = JSON.parse(exactMatch.dataset.product);
+                    } else if (suggestions.length === 1) {
+                        // Jika hanya ada 1 hasil, anggap itu yang dimaksud
+                        targetProduct = JSON.parse(suggestions[0].dataset.product);
+                    } else {
+                        // Default: Pilih yang pertama jika banyak hasil
+                        targetProduct = JSON.parse(suggestions[0].dataset.product);
+                    }
+                }
+
+                if (targetProduct) {
+                    addItemToCart(targetProduct);
+                } else if (term.length >= 2) {
+                    // Jika belum ada hasil (mungkin delay network), coba fetch sekali lagi secara sinkron/cepat
+                    const response = await fetch(`${basePath}/api/penjualan?action=search_produk&term=${term}`);
+                    const products = await response.json();
+                    if (products && products.length > 0) {
+                        // Prioritaskan yang Barcode atau SKU-nya pas
+                        const match = products.find(p => (p.barcode && p.barcode === term) || (p.sku && p.sku.toLowerCase() === term.toLowerCase())) || products[0];
+                        addItemToCart(match);
+                    } else {
+                        showToast('Barang tidak ditemukan.', 'warning');
+                    }
+                }
                 break;
         }
     });
@@ -591,17 +681,8 @@ function initPenjualanPage() {
     bayarWbInput?.addEventListener('input', updateSummary);
 
     // --- Navigasi Keyboard (Enter) untuk UX yang lebih cepat ---
-    searchProdukInput.addEventListener('keydown', (e) => {
-        // Jika tekan Enter saat input kosong, pindah ke kolom bayar
-        if (e.key === 'Enter' && searchProdukInput.value.trim() === '') {
-            e.preventDefault();
-            if (cart.length > 0) {
-                document.getElementById('bayar').focus();
-            } else {
-                showToast('Keranjang masih kosong.', 'warning');
-            }
-        }
-    });
+    // Diatur di dalam event listener keydown di atas untuk searchProdukInput
+    // -----------------------------------------------------------
 
     document.getElementById('discount_total').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -691,6 +772,7 @@ function initPenjualanPage() {
                 harga_beli: parseFloat(item.harga_beli || 0), // Penting untuk jurnal HPP agar balance
                 qty: parseInt(item.qty),
                 discount: parseFloat(item.discount) || 0,
+                item_type: item.item_type || 'normal',
                 subtotal: (parseFloat(item.harga_jual) * parseInt(item.qty)) - (parseFloat(item.discount) || 0)
             }))
         };

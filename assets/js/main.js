@@ -324,6 +324,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/konsinyasi.js`)
             .then(() => initKonsinyasiPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/pelunasan-konsinyasi') {
+        loadScript(`${basePath}/assets/js/pelunasan_konsinyasi.js`)
+            .then(() => initPelunasanKonsinyasiPage())
+            .catch(err => console.error(err));
     } else if (cleanPath === '/transaksi-berulang') {
         loadScript(`${basePath}/assets/js/transaksi_berulang.js`)
             .then(() => initTransaksiBerulangPage())
@@ -407,6 +411,10 @@ function runPageScripts(path) {
     } else if (cleanPath === '/laporan-piutang') {
         loadScript(`${basePath}/assets/js/laporan_piutang.js`)
             .then(() => initLaporanPiutangPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/audit-saldo') {
+        loadScript(`${basePath}/assets/js/audit_saldo.js`)
+            .then(() => initAuditSaldoPage())
             .catch(err => console.error(err));
     } else if (cleanPath === '/penjualan') {
         loadScript(`${basePath}/assets/js/penjualan.js`)

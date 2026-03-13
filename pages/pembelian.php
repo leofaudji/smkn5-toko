@@ -104,7 +104,7 @@ check_permission('pembelian', 'menu');
                         <textarea class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="keterangan" name="keterangan" rows="2" required></textarea>
                     </div>
 
-                    <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-md">
+                    <div class="overflow-visible border border-gray-200 dark:border-gray-700 rounded-md">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>

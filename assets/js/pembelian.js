@@ -245,15 +245,22 @@ function addPembelianLine(data = {}) {
             itemIdInput.value = item.id;
             priceInput.value = item.harga_beli || 0;
             suggestionsContainer.classList.add('hidden');
+            searchInput.closest('td').classList.remove('z-50'); // Reset z-index
             calculateSubtotal();
             qtyInput.focus(); // Pindah fokus ke qty
         }
+    });
+
+    // Event listener untuk focus - tingkatkan z-index
+    searchInput.addEventListener('focus', () => {
+        searchInput.closest('td').classList.add('z-50');
     });
 
     // Sembunyikan saran jika klik di luar
     document.addEventListener('click', (e) => {
         if (!newRow.contains(e.target)) {
             suggestionsContainer.classList.add('hidden');
+            searchInput.closest('td').classList.remove('z-50'); // Reset z-index
         }
     });
 

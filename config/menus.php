@@ -21,6 +21,16 @@ return [
             ['key' => 'entri_jurnal', 'label' => 'Entri Jurnal', 'url' => '/entri-jurnal'],
         ]
     ],
+    [
+        'type' => 'collapse',
+        'key' => 'konsinyasi_menu',
+        'label' => 'Konsinyasi',
+        'icon' => 'bi bi-shop',
+        'children' => [
+            ['key' => 'konsinyasi', 'label' => 'Daftar Barang', 'url' => '/konsinyasi'],
+            ['key' => 'pelunasan_konsinyasi', 'label' => 'Pelunasan', 'url' => '/pelunasan-konsinyasi'],
+        ]
+    ],
 
     [
         'type' => 'collapse',
@@ -97,6 +107,7 @@ return [
             ['key' => 'perubahan_laba', 'label' => 'Perubahan Laba', 'url' => '/laporan-laba-ditahan'],
             ['key' => 'pertumbuhan_laba', 'label' => 'Pertumbuhan Laba', 'url' => '/laporan-pertumbuhan-laba'],
             ['key' => 'analisis_rasio', 'label' => 'Analisis Rasio', 'url' => '/analisis-rasio'],
+            ['key' => 'audit_saldo', 'label' => 'Audit Saldo', 'url' => '/audit-saldo'],
         ]
     ],
 

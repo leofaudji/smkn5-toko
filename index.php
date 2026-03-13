@@ -72,6 +72,7 @@ $router->get('/stok', 'pages/stok.php', ['auth']);
 $router->get('/stok-opname', 'pages/stok_opname.php', ['auth']);
 $router->get('/daftar-jurnal', 'pages/daftar_jurnal.php', ['auth']);
 $router->get('/konsinyasi', 'pages/konsinyasi.php', ['auth']);
+$router->get('/pelunasan-konsinyasi', 'pages/pelunasan_konsinyasi.php', ['auth']);
 $router->get('/transaksi-berulang', 'pages/transaksi_berulang.php', ['auth']);
 $router->get('/rekonsiliasi-bank', 'pages/rekonsiliasi_bank.php', ['auth']);
 $router->get('/histori-rekonsiliasi', 'pages/histori_rekonsiliasi.php', ['auth']);
@@ -97,6 +98,8 @@ $router->get('/laporan-pertumbuhan-laba', 'pages/laporan_pertumbuhan_laba.php', 
 $router->get('/analisis-rasio', 'pages/laporan_analisis_rasio.php', ['auth']); // Nama file halaman sudah benar
 $router->get('/activity-log', 'pages/activity_log.php', ['auth', 'admin']);
 $router->get('/laporan-harian', 'pages/laporan_harian.php', ['auth']);
+$router->get('/audit-saldo', 'pages/audit_saldo.php', ['auth']);
+
 $router->get('/buku-besar', 'pages/buku_besar.php', ['auth']);
 $router->get('/settings', 'pages/settings.php', ['auth']);
 $router->get('/users', 'pages/users.php', ['auth', 'admin']); // Halaman manajemen pengguna

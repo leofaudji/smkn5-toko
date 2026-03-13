@@ -23,10 +23,13 @@ function initLaporanPenjualanPage() {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
     };
 
+    const viewTypeSelect = document.getElementById('penjualan-view-type');
+    
     async function loadReport(page = 1) {
         const startDate = startDateInput.value.split('-').reverse().join('-');
         const endDate = endDateInput.value.split('-').reverse().join('-');
         const search = searchInput.value;
+        const viewType = viewTypeSelect.value;
 
         if (!startDate || !endDate) {
             showToast('Harap pilih rentang tanggal.', 'error');
@@ -42,7 +45,8 @@ function initLaporanPenjualanPage() {
                 limit: 15,
                 start_date: startDate,
                 end_date: endDate,
-                search: search
+                search: search,
+                view_type: viewType
             });
             const response = await fetch(`${basePath}/api/laporan-penjualan?${params.toString()}`);
             const result = await response.json();
@@ -79,6 +83,7 @@ function initLaporanPenjualanPage() {
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Kasir</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">HPP</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Profit</th>
                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
                     </tr>
@@ -98,6 +103,7 @@ function initLaporanPenjualanPage() {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${item.customer_name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.username}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">${formatRupiah(item.total)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-right">${formatRupiah(item.total_hpp)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${profitClass}">${profitValue}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">${statusBadge}</td>
                 </tr>
@@ -113,21 +119,61 @@ function initLaporanPenjualanPage() {
             return;
         }
 
-        const profitClass = summary.total_profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+        const profitClass = (val) => val >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
 
         summaryContainer.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white dark:bg-gray-700 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-600 text-center">
-                    <h6 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Penjualan</h6>
-                    <h4 class="text-xl font-bold text-gray-900 dark:text-white">${formatRupiah(summary.total_penjualan)}</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Total Section -->
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700 text-center col-span-1 md:col-span-3">
+                    <h6 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Total Seluruh Transaksi</h6>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <p class="text-xs text-gray-500">Penjualan</p>
+                            <p class="font-bold text-gray-900 dark:text-white">${formatRupiah(summary.total_penjualan)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">HPP</p>
+                            <p class="font-bold text-gray-900 dark:text-white">${formatRupiah(summary.total_hpp)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Profit</p>
+                            <p class="font-bold ${profitClass(summary.total_profit)}">${formatRupiah(summary.total_profit)}</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-white dark:bg-gray-700 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-600 text-center">
-                    <h6 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total HPP</h6>
-                    <h4 class="text-xl font-bold text-gray-900 dark:text-white">${formatRupiah(summary.total_hpp)}</h4>
+
+                <!-- Shop Section -->
+                <div class="bg-blue-50/50 dark:bg-blue-900/20 rounded-lg shadow p-4 border border-blue-100 dark:border-blue-900/50">
+                    <h6 class="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-3 flex items-center">
+                        <i class="bi bi-shop me-2"></i> Barang Toko
+                    </h6>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Penjualan:</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">${formatRupiah(summary.shop.sales)}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Profit:</span>
+                            <span class="font-bold ${profitClass(summary.shop.profit)}">${formatRupiah(summary.shop.profit)}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-white dark:bg-gray-700 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-600 text-center">
-                    <h6 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Estimasi Profit</h6>
-                    <h4 class="text-xl font-bold ${profitClass}">${formatRupiah(summary.total_profit)}</h4>
+
+                <!-- Consignment Section -->
+                <div class="bg-purple-50/50 dark:bg-purple-900/20 rounded-lg shadow p-4 border border-purple-100 dark:border-purple-900/50">
+                    <h6 class="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider mb-3 flex items-center">
+                        <i class="bi bi-box-seam me-2"></i> Barang Konsinyasi
+                    </h6>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Penjualan:</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">${formatRupiah(summary.consignment.sales)}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Profit:</span>
+                            <span class="font-bold ${profitClass(summary.consignment.profit)}">${formatRupiah(summary.consignment.profit)}</span>
+                        </div>
+                    </div>
                 </div>
             </div>`;
     }
@@ -179,16 +225,12 @@ function initLaporanPenjualanPage() {
         });
     }
 
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        loadReport(1);
-    });
-
     exportPdfBtn.addEventListener('click', (e) => {
         e.preventDefault();
         const startDate = startDateInput.value.split('-').reverse().join('-');
         const endDate = endDateInput.value.split('-').reverse().join('-');
         const search = searchInput.value;
+        const viewType = viewTypeSelect.value;
 
         if (!startDate || !endDate) {
             showToast('Harap pilih rentang tanggal untuk export.', 'error');
@@ -199,7 +241,8 @@ function initLaporanPenjualanPage() {
             report: 'laporan-penjualan',
             start_date: startDate,
             end_date: endDate,
-            search: search
+            search: search,
+            view_type: viewType
         });
 
         const url = `${basePath}/api/pdf?${params.toString()}`;
@@ -207,4 +250,4 @@ function initLaporanPenjualanPage() {
     });
 
     loadReport();
-}
+}

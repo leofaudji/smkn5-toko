@@ -4,6 +4,7 @@ function initDaftarJurnalPage() {
     const startDateFilter = document.getElementById('filter-jurnal-mulai');
     const endDateFilter = document.getElementById('filter-jurnal-akhir');
     const limitSelect = document.getElementById('filter-jurnal-limit');
+    const sortSelect = document.getElementById('filter-jurnal-sort');
     const paginationContainer = document.getElementById('daftar-jurnal-pagination');
     const exportPdfBtn = document.getElementById('export-dj-pdf');
     const exportCsvBtn = document.getElementById('export-dj-csv');
@@ -22,6 +23,7 @@ function initDaftarJurnalPage() {
         const params = new URLSearchParams({
             page,
             limit: limitSelect.value,
+            sort_by: sortSelect.value,
             search: searchInput.value,
             start_date: startDateFilter.value.split('-').reverse().join('-'),
             end_date: endDateFilter.value.split('-').reverse().join('-'),
@@ -188,8 +190,9 @@ function initDaftarJurnalPage() {
         localStorage.setItem('daftar_jurnal_limit', limitSelect.value);
         localStorage.setItem('daftar_jurnal_start_date', startDateFilter.value);
         localStorage.setItem('daftar_jurnal_end_date', endDateFilter.value);
+        localStorage.setItem('daftar_jurnal_sort', sortSelect.value);
     };
-    [searchInput, startDateFilter, endDateFilter, limitSelect].forEach(el => el.addEventListener('change', combinedFilterHandler));
+    [searchInput, startDateFilter, endDateFilter, limitSelect, sortSelect].forEach(el => el.addEventListener('change', combinedFilterHandler));
     searchInput.addEventListener('input', combinedFilterHandler);
 
     // Muat filter yang tersimpan dari localStorage sebelum memuat data awal
@@ -200,6 +203,11 @@ function initDaftarJurnalPage() {
 
     const savedStartDate = localStorage.getItem('daftar_jurnal_start_date');
     const savedEndDate = localStorage.getItem('daftar_jurnal_end_date');
+    const savedSort = localStorage.getItem('daftar_jurnal_sort');
+
+    if (savedSort) {
+        sortSelect.value = savedSort;
+    }
 
     if (savedStartDate && savedEndDate) {
         startDatePicker.setDate(savedStartDate, true);

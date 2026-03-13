@@ -84,7 +84,24 @@ function initKonsinyasiPage() {
         itemTableBody.innerHTML = '';
         if (result.status === 'success' && result.data.length > 0) {
             result.data.forEach(i => {
-                itemTableBody.innerHTML += `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm"><td class="px-6 py-4">${i.nama_barang}</td><td class="px-6 py-4">${i.nama_pemasok}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(i.harga_jual)}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(i.harga_beli)}</td><td class="px-6 py-4 text-right">${i.stok_saat_ini} / ${i.stok_awal}</td><td class="px-6 py-4 text-right"><div class="flex justify-end gap-4"><button class="text-blue-600 hover:text-blue-900 edit-item-btn" data-id="${i.id}"><i class="bi bi-pencil-fill"></i></button> <button class="text-red-600 hover:text-red-900 delete-item-btn" data-id="${i.id}"><i class="bi bi-trash-fill"></i></button></div></td></tr>`;
+                itemTableBody.innerHTML += `
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
+                        <td class="px-6 py-4 font-mono">
+                            <div>${i.sku || '-'}</div>
+                            <div class="text-[10px] text-gray-400">${i.barcode || ''}</div>
+                        </td>
+                        <td class="px-6 py-4">${i.nama_barang}</td>
+                        <td class="px-6 py-4 text-xs">${i.nama_pemasok}</td>
+                        <td class="px-6 py-4 text-right">${currencyFormatter.format(i.harga_jual)}</td>
+                        <td class="px-6 py-4 text-right">${currencyFormatter.format(i.harga_beli)}</td>
+                        <td class="px-6 py-4 text-right">${i.stok_saat_ini} / ${i.stok_awal}</td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-4">
+                                <button class="text-blue-600 hover:text-blue-900 edit-item-btn" data-id="${i.id}"><i class="bi bi-pencil-fill"></i></button> 
+                                <button class="text-red-600 hover:text-red-900 delete-item-btn" data-id="${i.id}"><i class="bi bi-trash-fill"></i></button>
+                            </div>
+                        </td>
+                    </tr>`;
             });
         } else {
             itemTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500">Belum ada barang konsinyasi.</td></tr>';
@@ -180,6 +197,14 @@ function initKonsinyasiPage() {
         const form = document.getElementById('item-form');
         const formData = new FormData(form);
         formData.set('action', document.getElementById('item-action').value);
+        
+        // Ensure date is YYYY-MM-DD
+        const rawDate = document.getElementById('tanggal_terima').value;
+        if (rawDate && rawDate.includes('-')) {
+            const formattedDate = rawDate.split('-').reverse().join('-');
+            formData.set('tanggal_terima', formattedDate);
+        }
+
         const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
         const result = await response.json();
         showToast(result.message, result.status === 'success' ? 'success' : 'error');
@@ -382,6 +407,8 @@ function initKonsinyasiPage() {
                 document.getElementById('item-action').value = 'save_item';
                 document.getElementById('item-id').value = item.id;
                 document.getElementById('supplier_id').value = item.supplier_id;
+                document.getElementById('sku').value = item.sku || '';
+                document.getElementById('barcode').value = item.barcode || '';
                 document.getElementById('nama_barang').value = item.nama_barang;
                 document.getElementById('harga_jual').value = item.harga_jual;
                 document.getElementById('harga_beli').value = item.harga_beli;

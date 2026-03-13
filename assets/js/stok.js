@@ -169,7 +169,10 @@ async function loadItemsList(page = 1) {
                 const row = `
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nama_barang}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${item.sku || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono">
+                            <div>${item.sku || '-'}</div>
+                            <div class="text-[10px] text-gray-400">${item.barcode || ''}</div>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">${item.nama_kategori || 'Tanpa Kategori'}</span></td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatCurrencyAccounting(item.harga_beli)}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatCurrencyAccounting(item.harga_jual)}</td>

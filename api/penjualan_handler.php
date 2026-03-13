@@ -174,192 +174,178 @@ function store_penjualan($db) {
 
         // 3. Insert ke tabel 'penjualan_detail' dan update stok
         $detailStmt = $db->prepare(
-            "INSERT INTO penjualan_details (penjualan_id, item_id, deskripsi_item, price, quantity, discount, subtotal) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO penjualan_details (penjualan_id, item_id, deskripsi_item, price, quantity, discount, subtotal, item_type) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $updateStokStmt = $db->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
         $kartuStokStmt = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, 0, ?, ?, ?, 'penjualan', ?)");
  
+        // Akun-akun konsinyasi (ambil sekali saja)
+        $consignment_settings = [
+            'kas_acc_id' => get_setting('consignment_cash_account', null, $db),
+            'revenue_acc_id' => get_setting('consignment_revenue_account', null, $db),
+            'cogs_acc_id' => get_setting('consignment_cogs_account', null, $db),
+            'payable_acc_id' => get_setting('consignment_payable_account', null, $db),
+            'inventory_acc_id' => get_setting('consignment_inventory_account', null, $db)
+        ];
+
+        // Define default account IDs for normal items
+        $default_revenue_acc_id = get_setting('default_sales_revenue_account_id', null, $db);
+        $default_cogs_acc_id = get_setting('default_cogs_account_id', null, $db);
+        $default_inventory_acc_id = get_setting('default_inventory_account_id', null, $db);
+
+        $revenue_totals = [];
+        $normal_cogs_totals = [];
+        $normal_inventory_totals = [];
+        $consignment_journal_entries = []; // Untuk entri HPP/Inventory konsinyasi individual
+
         foreach ($data['items'] as $item) {
-            // Cek stok sebelum mengurangi
-            $stokCheckStmt = $db->prepare("SELECT stok FROM items WHERE id = ? FOR UPDATE");
-            $stokCheckStmt->bind_param('i', $item['id']);
-            $stokCheckStmt->execute();
-            $currentStok = $stokCheckStmt->get_result()->fetch_assoc()['stok'];
-            $stokCheckStmt->close();
+            $item_type = $item['item_type'] ?? 'normal';
+            
+            if ($item_type === 'normal') {
+                // 1. Logika Barang Normal
+                $stokCheckStmt = $db->prepare("SELECT stok, harga_beli, revenue_account_id, inventory_account_id, cogs_account_id FROM items WHERE id = ? FOR UPDATE");
+                $stokCheckStmt->bind_param('i', $item['id']);
+                $stokCheckStmt->execute();
+                $item_db = $stokCheckStmt->get_result()->fetch_assoc();
+                $stokCheckStmt->close();
 
-            if ($currentStok < $item['qty']) {
-                throw new Exception("Stok untuk barang '{$item['nama']}' tidak mencukupi.");
+                if (!$item_db) throw new Exception("Barang '{$item['nama']}' tidak ditemukan.");
+                if ($item_db['stok'] < $item['qty']) throw new Exception("Stok untuk '{$item['nama']}' tidak mencukupi.");
+
+                // Update Stok & Kartu Stok
+                $updateStokStmt->bind_param('iii', $item['qty'], $item['id'], $user_id);
+                $updateStokStmt->execute();
+                $ksKeterangan = "Penjualan #{$nomor_referensi}";
+                $kartuStokStmt->bind_param('siisii', $tanggal, $item['id'], $item['qty'], $ksKeterangan, $penjualanId, $user_id);
+                $kartuStokStmt->execute();
+
+                // Group Accounting Totals
+                $rev_acc = $item_db['revenue_account_id'] ?? $default_revenue_acc_id;
+                $inv_acc = $item_db['inventory_account_id'] ?? $default_inventory_acc_id;
+                $cogs_acc = $item_db['cogs_account_id'] ?? $default_cogs_acc_id;
+
+                if (!$rev_acc || !$inv_acc || !$cogs_acc) throw new Exception("Akun default akuntansi belum lengkap.");
+
+                if (!isset($revenue_totals[$rev_acc])) $revenue_totals[$rev_acc] = 0;
+                $revenue_totals[$rev_acc] += $item['subtotal'];
+
+                $hpp_val = $item['qty'] * (float)$item_db['harga_beli'];
+                if (!isset($normal_cogs_totals[$cogs_acc])) $normal_cogs_totals[$cogs_acc] = 0;
+                $normal_cogs_totals[$cogs_acc] += $hpp_val;
+
+                if (!isset($normal_inventory_totals[$inv_acc])) $normal_inventory_totals[$inv_acc] = 0;
+                $normal_inventory_totals[$inv_acc] += $hpp_val;
+
+            } else {
+                // 2. Logika Barang Konsinyasi
+                $stmt_cons = $db->prepare("SELECT ci.*, s.nama_pemasok FROM consignment_items ci JOIN suppliers s ON ci.supplier_id = s.id WHERE ci.id = ?");
+                $stmt_cons->bind_param('i', $item['id']);
+                $stmt_cons->execute();
+                $item_cons = $stmt_cons->get_result()->fetch_assoc();
+                $stmt_cons->close();
+
+                if (!$item_cons) throw new Exception("Barang konsinyasi '{$item['nama']}' tidak ditemukan.");
+                
+                foreach ($consignment_settings as $key => $val) {
+                    if (empty($val)) throw new Exception("Pengaturan akun konsinyasi ($key) belum diatur.");
+                }
+
+                // NEW LOGIC: Separate Commission from Purchase Price
+                $total_harga_beli = $item['qty'] * (float)$item_cons['harga_beli'];
+                $komisi = $item['subtotal'] - $total_harga_beli;
+
+                // Group Commission Revenue
+                $cons_rev_acc = $consignment_settings['revenue_acc_id'];
+                if (!isset($revenue_totals[$cons_rev_acc])) $revenue_totals[$cons_rev_acc] = 0;
+                $revenue_totals[$cons_rev_acc] += $komisi;
+
+                // Individual Entries for Payable (Utang Titipan)
+                $consignment_journal_entries[] = [
+                    'consignment_item_id' => $item['id'],
+                    'qty' => $item['qty'],
+                    'payable_acc_id' => $consignment_settings['payable_acc_id'],
+                    'amount' => $total_harga_beli,
+                    'desc' => "Penjualan Konsinyasi: {$item['qty']} x {$item['nama']} ({$item_cons['nama_pemasok']})"
+                ];
             }
- 
-            $detailStmt->bind_param('iisidid', $penjualanId, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal']);
+
+            // Simpan Detail Transaksi
+            $detailStmt->bind_param('iisidids', $penjualanId, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal'], $item_type);
             $detailStmt->execute();
-
-            $updateStokStmt->bind_param('iii', $item['qty'], $item['id'], $user_id);
-            $updateStokStmt->execute();
-
-            // Catat ke Kartu Stok (Barang Keluar)
-            $ksKeterangan = "Penjualan #{$nomor_referensi}";
-            $kartuStokStmt->bind_param('siisii', $tanggal, $item['id'], $item['qty'], $ksKeterangan, $penjualanId, $user_id);
-            $kartuStokStmt->execute();
         }
         $detailStmt->close();
         $updateStokStmt->close();
         $kartuStokStmt->close();
 
-        // 4. Log aktivitas
-        $keterangan_log = "Membuat transaksi penjualan baru #{$nomor_referensi} dengan total " . number_format($total);
-        log_activity($_SESSION['username'], 'Buat Penjualan', $keterangan_log);
-
-        // 5. Integrasi Akuntansi ke General Ledger
-        // Tentukan akun debit (Kas/Bank)
-        $debit_acc_id = null;
-        $piutang_acc_id = null;
-
-        if ($is_hutang) {
-            $piutang_acc_id = get_setting('sales_receivable_account_id', null, $db);
-            if (!$piutang_acc_id) throw new Exception("Akun Piutang Penjualan Toko belum diatur di Pengaturan.");
-            // Jika hutang, debit_acc_id (kas) hanya digunakan jika ada DP (bayar > 0)
-            $debit_acc_id = get_setting('default_sales_cash_account_id', null, $db); 
-        } elseif ($payment_method !== 'cash' && !empty($payment_account_id)) {
-            $debit_acc_id = $payment_account_id; // Gunakan akun pilihan user (Bank/QRIS)
-        } else {
-            $debit_acc_id = get_setting('default_sales_cash_account_id', null, $db); // Gunakan default tunai
-        }
-
-        if (!$debit_acc_id && !$is_hutang) {
-            throw new Exception("Akun penerimaan pembayaran (Kas/Bank) belum ditentukan.");
-        }
-
-        $stmt_gl = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?)");
-        if (!$stmt_gl) {
-            throw new Exception("Gagal prepare statement GL: " . $db->error);
-        }
+        // Integrasi Keuangan
+        $stmt_gl = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, consignment_item_id, qty, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?, ?, ?)");
         $zero = 0.00;
+        $null_val = null;
 
-        // Jurnal 1: (Dr) Kas, (Cr) Pendapatan Penjualan
-        // Kita akan mengelompokkan pendapatan berdasarkan akun yang di-set di tiap barang
-        $revenue_totals = [];
-        $cogs_totals = [];
-        $inventory_totals = [];
-
-        $item_details_stmt = $db->prepare("SELECT harga_beli, revenue_account_id, cogs_account_id, inventory_account_id FROM items WHERE id = ?");
-        foreach ($data['items'] as $item) {
-            $item_details_stmt->bind_param('i', $item['id']);
-            $item_details_stmt->execute();
-            $item_acc_details = $item_details_stmt->get_result()->fetch_assoc();
-
-            $null_var = null; // Variabel untuk dilewatkan sebagai referensi
-            $revenue_acc = $item_acc_details['revenue_account_id'] ?? get_setting('default_sales_revenue_account_id', $null_var, $db);
-            $cogs_acc = $item_acc_details['cogs_account_id'] ?? get_setting('default_cogs_account_id', $null_var, $db);
-            $inv_acc = $item_acc_details['inventory_account_id'] ?? get_setting('default_inventory_account_id', $null_var, $db);
-
-            if (!$revenue_acc || !$cogs_acc || !$inv_acc) {
-                throw new Exception("Akun default untuk Pendapatan/HPP/Persediaan belum diatur di Pengaturan > Akuntansi.");
-            }
-
-            if (!isset($revenue_totals[$revenue_acc])) $revenue_totals[$revenue_acc] = 0;
-            $revenue_totals[$revenue_acc] += $item['subtotal'];
-            
-            $hpp_amount = $item['qty'] * (float)$item_acc_details['harga_beli'];
-            if (!isset($cogs_totals[$cogs_acc])) $cogs_totals[$cogs_acc] = 0;
-            $cogs_totals[$cogs_acc] += $hpp_amount;
-
-            if (!isset($inventory_totals[$inv_acc])) $inventory_totals[$inv_acc] = 0;
-            $inventory_totals[$inv_acc] += $hpp_amount;
-        }
-        $item_details_stmt->close();
-
-        // Handle Pembayaran dengan Saldo WB
+        // A. Handle WB Payment
         if ($bayar_wb > 0) {
-            // Kurangi Saldo Anggota
             $stmt_upd_wb = $db->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja - ? WHERE id = ?");
             $stmt_upd_wb->bind_param('di', $bayar_wb, $anggota_id);
             $stmt_upd_wb->execute();
             $stmt_upd_wb->close();
 
-            // Catat Log Transaksi WB (Jenis: Belanja)
             $ket_wb = "Pembayaran Belanja #$nomor_referensi";
             $stmt_log_wb = $db->prepare("INSERT INTO transaksi_wajib_belanja (user_id, anggota_id, tanggal, jenis, jumlah, metode_pembayaran, keterangan, nomor_referensi, created_by) VALUES (?, ?, ?, 'belanja', ?, 'potong_saldo', ?, ?, ?)");
             $stmt_log_wb->bind_param('iisdssi', $user_id, $anggota_id, $tanggal, $bayar_wb, $ket_wb, $nomor_referensi, $logged_in_user_id);
             $stmt_log_wb->execute();
             $stmt_log_wb->close();
 
-            // Jurnal: Debit Utang WB (Liabilitas Berkurang)
             $akun_utang_wb = get_setting('wajib_belanja_liability_account_id', null, $db);
             if ($akun_utang_wb) {
-                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $akun_utang_wb, $bayar_wb, $zero, $penjualanId, $logged_in_user_id);
+                $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $ket_wb, $nomor_referensi, $akun_utang_wb, $bayar_wb, $zero, $penjualanId, $null_val, $null_val, $logged_in_user_id);
                 $stmt_gl->execute();
             }
         }
 
-        // Hitung porsi Kas dan Piutang
-        $cash_portion = 0;
-        $piutang_portion = 0;
+        // B. Debit Kas / Piutang
+        $debit_acc_id = $is_hutang ? get_setting('default_sales_cash_account_id', null, $db) : ($payment_account_id ?: get_setting('default_sales_cash_account_id', null, $db));
+        $cash_portion = $is_hutang ? $bayar : max(0, $total - $bayar_wb);
+        $piutang_portion = $is_hutang ? max(0, $total - $bayar - $bayar_wb) : 0;
 
-        if ($is_hutang) {
-            // Jika hutang, yang masuk kas adalah DP (bayar), sisanya piutang
-            $cash_portion = $bayar; 
-            $piutang_portion = max(0, $total - $bayar - $bayar_wb);
-        } else {
-            // Jika tunai/transfer, seluruh tagihan (minus WB) masuk kas
-            $cash_portion = max(0, $total - $bayar_wb);
-        }
-
-        // (Dr) Kas
         if ($cash_portion > 0) {
-            if (!$debit_acc_id) throw new Exception("Akun Kas belum ditentukan untuk penerimaan uang.");
-            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $cash_portion, $zero, $penjualanId, $logged_in_user_id);
-            if (!$stmt_gl->execute()) {
-                throw new Exception("Gagal insert GL (Kas): " . $stmt_gl->error);
-            }
+            $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $cash_portion, $zero, $penjualanId, $null_val, $null_val, $logged_in_user_id);
+            $stmt_gl->execute();
         }
-
-        // (Dr) Piutang (Jika Hutang)
         if ($piutang_portion > 0) {
+            $piutang_acc_id = get_setting('sales_receivable_account_id', null, $db);
             $ket_piutang = "Piutang Anggota: " . $customer_name;
-            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $ket_piutang, $nomor_referensi, $piutang_acc_id, $piutang_portion, $zero, $penjualanId, $logged_in_user_id);
-            if (!$stmt_gl->execute()) {
-                throw new Exception("Gagal insert GL (Piutang): " . $stmt_gl->error);
-            }
+            $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $ket_piutang, $nomor_referensi, $piutang_acc_id, $piutang_portion, $zero, $penjualanId, $null_val, $null_val, $logged_in_user_id);
+            $stmt_gl->execute();
         }
 
-        // (Cr) Pendapatan (bisa lebih dari satu akun)
-        foreach ($revenue_totals as $acc_id => $sub_total) {
-            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $acc_id, $zero, $sub_total, $penjualanId, $logged_in_user_id);
-            if (!$stmt_gl->execute()) {
-                throw new Exception("Gagal insert GL (Pendapatan): " . $stmt_gl->error);
-            }
+        // C. Credit Revenue (Aggregated)
+        foreach ($revenue_totals as $acc_id => $amount) {
+            $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $acc_id, $zero, $amount, $penjualanId, $null_val, $null_val, $logged_in_user_id);
+            $stmt_gl->execute();
         }
 
-        // Jurnal 2: (Dr) HPP, (Cr) Persediaan
-        $hpp_keterangan = "HPP untuk {$nomor_referensi}";
-        
-        // (Dr) Beban Pokok Penjualan (HPP)
-        foreach ($cogs_totals as $acc_id => $amount) {
-            if ($amount > 0) {
-                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $acc_id, $amount, $zero, $penjualanId, $logged_in_user_id);
-                if (!$stmt_gl->execute()) {
-                    throw new Exception("Gagal insert GL (HPP): " . $stmt_gl->error);
-                }
-            }
+        // D. Jurnal Stok - Normal (Aggregated)
+        $hpp_ket = "HPP Penjualan #{$nomor_referensi}";
+        foreach ($normal_cogs_totals as $acc_id => $amount) {
+            $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $hpp_ket, $nomor_referensi, $acc_id, $amount, $zero, $penjualanId, $null_val, $null_val, $logged_in_user_id);
+            $stmt_gl->execute();
+        }
+        foreach ($normal_inventory_totals as $acc_id => $amount) {
+            $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $hpp_ket, $nomor_referensi, $acc_id, $zero, $amount, $penjualanId, $null_val, $null_val, $logged_in_user_id);
+            $stmt_gl->execute();
         }
 
-        // (Cr) Persediaan Barang
-        foreach ($inventory_totals as $acc_id => $amount) {
-            if ($amount > 0) {
-                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $hpp_keterangan, $nomor_referensi, $acc_id, $zero, $amount, $penjualanId, $logged_in_user_id);
-                if (!$stmt_gl->execute()) {
-                    throw new Exception("Gagal insert GL (Persediaan): " . $stmt_gl->error);
-                }
-            }
+        // E. Jurnal Stok - Konsinyasi (Individual per Item)
+        foreach ($consignment_journal_entries as $ent) {
+            // (Cr) Utang Konsinyasi (Utang Titipan)
+            $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $ent['desc'], $nomor_referensi, $ent['payable_acc_id'], $zero, $ent['amount'], $penjualanId, $ent['consignment_item_id'], $ent['qty'], $logged_in_user_id);
+            $stmt_gl->execute();
         }
-        
+
         $stmt_gl->close();
-
         $db->commit();
         echo json_encode(['success' => true, 'message' => 'Transaksi penjualan berhasil disimpan.', 'id' => $penjualanId]);
-
     } catch (Exception $e) {
         $db->rollback();
         http_response_code(500);
@@ -402,18 +388,21 @@ function void_penjualan($db) {
         $details = $stmt_details->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt_details->close();
 
-        // 3. Kembalikan stok barang
+        // 3. Kembalikan stok barang (Hanya untuk tipe NORMAL)
         $stmt_update_stok = $db->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
         $stmt_ks_void = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, ?, 0, ?, ?, 'void_penjualan', ?)");
 
         foreach ($details as $item) {
-            $stmt_update_stok->bind_param('iii', $item['quantity'], $item['item_id'], $user_id);
-            $stmt_update_stok->execute();
+            $item_type = $item['item_type'] ?? 'normal';
+            if ($item_type === 'normal') {
+                $stmt_update_stok->bind_param('iii', $item['quantity'], $item['item_id'], $user_id);
+                $stmt_update_stok->execute();
 
-            // Catat ke Kartu Stok (Barang Masuk Kembali / Reversal)
-            $ksKeterangan = "Batal Penjualan #{$penjualan['nomor_referensi']}";
-            $stmt_ks_void->bind_param('iisii', $item['item_id'], $item['quantity'], $ksKeterangan, $id, $user_id);
-            $stmt_ks_void->execute();
+                // Catat ke Kartu Stok (Barang Masuk Kembali / Reversal)
+                $ksKeterangan = "Batal Penjualan #{$penjualan['nomor_referensi']}";
+                $stmt_ks_void->bind_param('iisii', $item['item_id'], $item['quantity'], $ksKeterangan, $id, $user_id);
+                $stmt_ks_void->execute();
+            }
         }
         $stmt_update_stok->close();
         $stmt_ks_void->close();
@@ -430,7 +419,7 @@ function void_penjualan($db) {
             throw new Exception("Jurnal akuntansi asli untuk transaksi ini tidak ditemukan.");
         }
 
-        $stmt_gl_reverse = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?)");
+        $stmt_gl_reverse = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, consignment_item_id, qty, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?, ?, ?)");
         
         $reversal_date = date('Y-m-d'); // Tanggal pembatalan adalah hari ini
         $reversal_keterangan = "PEMBATALAN: " . $penjualan['keterangan'];
@@ -448,7 +437,7 @@ function void_penjualan($db) {
                 ? "PEMBATALAN: " . $entry['keterangan'] 
                 : $reversal_keterangan;
 
-            $stmt_gl_reverse->bind_param('isssiddii', $user_id, $reversal_date, $entry_keterangan, $penjualan['nomor_referensi'], $entry['account_id'], $new_debit, $new_kredit, $id, $logged_in_user_id);
+            $stmt_gl_reverse->bind_param('isssiddiiii', $user_id, $reversal_date, $entry_keterangan, $penjualan['nomor_referensi'], $entry['account_id'], $new_debit, $new_kredit, $id, $entry['consignment_item_id'], $entry['qty'], $logged_in_user_id);
             $stmt_gl_reverse->execute();
         }
         $stmt_gl_reverse->close();
@@ -513,8 +502,36 @@ function search_produk($db) {
     $user_id = 1; // ID Pemilik Data (Toko)
     $term = $_GET['term'] ?? '';
     $search = "%{$term}%";
-    $stmt = $db->prepare("SELECT id, sku, nama_barang, harga_jual, stok FROM items WHERE user_id = ? AND (nama_barang LIKE ? OR sku LIKE ?) AND stok > 0 LIMIT 10");
-    $stmt->bind_param('iss', $user_id, $search, $search);
+    
+    // Query untuk barang reguler
+    $sql_normal = "
+        SELECT id, sku, barcode, nama_barang, harga_jual, stok, 'normal' as item_type 
+        FROM items 
+        WHERE user_id = ? AND (nama_barang LIKE ? OR sku LIKE ? OR barcode LIKE ?) AND stok > 0";
+    
+    // Query untuk barang konsinyasi
+    // Hitung stok = stok_awal - total terjual di ledger
+    $sql_consignment = "
+        SELECT 
+            ci.id, ci.sku, ci.barcode, ci.nama_barang, ci.harga_jual,
+            (ci.stok_awal - COALESCE(sales.qty_terjual, 0)) as stok,
+            'consignment' as item_type
+        FROM consignment_items ci
+        LEFT JOIN (
+            SELECT consignment_item_id, SUM(IF(debit > 0, qty, -qty)) as qty_terjual 
+            FROM general_ledger 
+            WHERE ref_type IN ('jurnal', 'penjualan') 
+            AND account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_cogs_account')
+            GROUP BY consignment_item_id
+        ) sales ON ci.id = sales.consignment_item_id
+        WHERE ci.user_id = ? AND (ci.nama_barang LIKE ? OR ci.sku LIKE ? OR ci.barcode LIKE ?)
+        HAVING stok > 0";
+
+    $query = "($sql_normal) UNION ($sql_consignment) LIMIT 15";
+    
+    $stmt = $db->prepare($query);
+    // binding params: 4 for normal, 4 for consignment
+    $stmt->bind_param('isssisss', $user_id, $search, $search, $search, $user_id, $search, $search, $search);
     $stmt->execute();
     $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();

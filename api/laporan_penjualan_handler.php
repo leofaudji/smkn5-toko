@@ -46,21 +46,51 @@ try {
     $summary_where_sql = 'WHERE ' . implode(' AND ', $where_clauses) . " AND p.status = 'completed'";
     $summary_stmt = $conn->prepare("
         SELECT
-            COALESCE(SUM(p.total), 0) as total_penjualan,
-            COALESCE(SUM(pd.quantity * i.harga_beli), 0) as total_hpp
-        FROM penjualan p
-        LEFT JOIN penjualan_details pd ON p.id = pd.penjualan_id
-        LEFT JOIN items i ON pd.item_id = i.id
+            pd.item_type,
+            SUM(pd.subtotal) as total_penjualan,
+            SUM(CASE 
+                WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
+                WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
+                ELSE 0 
+            END) as total_hpp
+        FROM penjualan_details pd
+        JOIN penjualan p ON pd.penjualan_id = p.id
+        LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
+        LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
         LEFT JOIN users u ON p.created_by = u.id
         $summary_where_sql
+        GROUP BY pd.item_type
     ");
     $bind_params_summary = [&$params[0]];
     for ($i = 1; $i < count($params); $i++) { $bind_params_summary[] = &$params[$i]; }
     call_user_func_array([$summary_stmt, 'bind_param'], $bind_params_summary);
     $summary_stmt->execute();
-    $summary_data = $summary_stmt->get_result()->fetch_assoc();
-    $summary_data['total_profit'] = $summary_data['total_penjualan'] - $summary_data['total_hpp'];
+    $summary_rows = $summary_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $summary_stmt->close();
+
+    $summary_data = [
+        'total_penjualan' => 0,
+        'total_hpp' => 0,
+        'total_profit' => 0,
+        'shop' => ['sales' => 0, 'hpp' => 0, 'profit' => 0],
+        'consignment' => ['sales' => 0, 'hpp' => 0, 'profit' => 0]
+    ];
+
+    foreach ($summary_rows as $row) {
+        $sales = (float)$row['total_penjualan'];
+        $hpp = (float)$row['total_hpp'];
+        $profit = $sales - $hpp;
+
+        $summary_data['total_penjualan'] += $sales;
+        $summary_data['total_hpp'] += $hpp;
+        $summary_data['total_profit'] += $profit;
+
+        if ($row['item_type'] === 'normal') {
+            $summary_data['shop'] = ['sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
+        } elseif ($row['item_type'] === 'consignment') {
+            $summary_data['consignment'] = ['sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
+        }
+    }
 
     // Get total count for pagination
     $total_stmt = $conn->prepare("SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id $where_sql");
@@ -81,13 +111,22 @@ try {
             p.total, 
             p.status, 
             u.username,
+            COALESCE(cogs.total_hpp, 0) as total_hpp,
             (p.total - COALESCE(cogs.total_hpp, 0)) as profit
         FROM penjualan p
         LEFT JOIN users u ON p.created_by = u.id
         LEFT JOIN (
-            SELECT pd.penjualan_id, SUM(pd.quantity * i.harga_beli) as total_hpp
+            SELECT 
+                pd.penjualan_id, 
+                SUM(CASE 
+                    WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
+                    WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
+                    ELSE 0 
+                END) as total_hpp
             FROM penjualan_details pd
-            JOIN items i ON pd.item_id = i.id GROUP BY pd.penjualan_id
+            LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
+            LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
+            GROUP BY pd.penjualan_id
         ) as cogs ON p.id = cogs.penjualan_id
         $where_sql 
         ORDER BY p.tanggal_penjualan DESC, p.id DESC 
