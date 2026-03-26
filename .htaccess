@@ -2,7 +2,8 @@
     RewriteEngine On
 
     # Atur RewriteBase sesuai dengan subdirektori aplikasi Anda
-    # RewriteBase /smkn5-toko
+    # Gunakan / jika diletakkan di root subdomain
+    # RewriteBase /
 
     # Arahkan semua permintaan ke index.php jika file atau direktori yang diminta tidak ada
     RewriteCond %{REQUEST_FILENAME} !-f
@@ -13,7 +14,7 @@
 Options -Indexes
 
 # Arahkan error 403 (Forbidden) ke halaman kustom
-ErrorDocument 403 /smkn5-toko/403.php
+# ErrorDocument 403 /403.php
 
 # Blokir akses ke semua file yang diawali dengan titik (seperti .env, .git, .htaccess)
 <FilesMatch "^\.">

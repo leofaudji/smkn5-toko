@@ -141,7 +141,14 @@ if (!defined('BASE_PATH')) {
 
     $basePath = str_replace($docRoot, '', $projectRoot);
 
-    define('BASE_PATH', rtrim($basePath, '/')); // Should correctly resolve to "/app-rt"
+    define('BASE_PATH', rtrim($basePath, '/')); 
+}
+
+// Enable error reporting for debugging if needed (set APP_DEBUG=true in environment)
+if (Config::get('APP_DEBUG') === 'true') {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
 }
 
 // Load environment variables from the root directory
