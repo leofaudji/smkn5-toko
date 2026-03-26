@@ -145,11 +145,7 @@ if (!defined('BASE_PATH')) {
 }
 
 // Load environment variables from the root directory
-try {
-    Config::load(PROJECT_ROOT . '/.env');
-} catch (\Exception $e) {
-    die('Error: Could not load configuration. Make sure a .env file exists in the root directory. Details: ' . $e->getMessage());
-}
+Config::load(PROJECT_ROOT . '/.env');
 
 // --- Terapkan Rate Limiting untuk API ---
 // Cek apakah permintaan saat ini adalah permintaan API

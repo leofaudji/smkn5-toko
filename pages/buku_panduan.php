@@ -17,21 +17,21 @@ if (!$is_spa_request) {
 <div class="space-y-4" id="panduanAccordion">
 
     <!-- Panduan 0: Workflow -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
+    <div class="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
         <h2 class="mb-0" id="headingZero">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>Alur Kerja Aplikasi (Workflow)</strong>
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-diagram-3 text-slate-500"></i> Alur Kerja Aplikasi (Workflow)
+                </span>
                 <i class="bi bi-chevron-down transform transition-transform duration-200 rotate-180"></i>
             </button>
         </h2>
-        <div id="collapseZero" class="block p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingZero">
-            <div>
-                <p class="mb-4">Berikut adalah gambaran alur kerja yang direkomendasikan untuk menggunakan aplikasi ini secara efektif dari awal hingga akhir periode akuntansi.</p>
-                <div class="mermaid-container overflow-x-auto">
+        <div id="collapseZero" class="p-4 border-t border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300" aria-labelledby="headingZero">
+            <div class="max-w-4xl mx-auto">
+                <p class="mb-6 text-center text-sm">Gunakan diagram di bawah ini sebagai panduan langkah demi langkah dalam mengoperasikan sistem akuntansi koperasi Anda.</p>
+                <div class="mermaid-container overflow-x-auto bg-white dark:bg-gray-900 p-4 rounded-xl shadow-inner border border-slate-100 dark:border-slate-800">
                     <pre class="mermaid text-center" style="font-size: 1.1em;">
                     graph TD
-                        %% Define Styles
-                        %% Menambahkan font-size ke dalam style
                         classDef setup fill:#e0f7fa,stroke:#0097a7,stroke-width:2px,color:#004d40
                         classDef daily fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
                         classDef periodic fill:#fffde7,stroke:#fbc02d,stroke-width:2px,color:#f57f17
@@ -75,309 +75,427 @@ if (!$is_spa_request) {
                             end
                         end
 
-                        A --> B --> C --> D --> E
+                        A1 --> B1 --> C1 --> D1 --> E1
 
-                        %% Define Clickable Links
-                        click A1 "<?= base_url('/settings') ?>" "Buka Pengaturan" _blank
-                        click A2 "<?= base_url('/coa') ?>" "Buka Bagan Akun" _blank
-                        click A3 "<?= base_url('/saldo-awal-neraca') ?>" "Buka Saldo Awal" _blank
-                        click B1 "<?= base_url('/transaksi') ?>" "Buka Transaksi" _blank
-                        click B2 "<?= base_url('/entri-jurnal') ?>" "Buka Entri Jurnal" _blank
-                        click B3 "<?= base_url('/konsinyasi') ?>" "Buka Konsinyasi" _blank
-                        click B4 "<?= base_url('/aset-tetap') ?>" "Buka Aset Tetap" _blank
-                        click C1 "<?= base_url('/aset-tetap') ?>" "Buka Aset Tetap" _blank
-                        click C2 "<?= base_url('/rekonsiliasi-bank') ?>" "Buka Rekonsiliasi" _blank
-                        click D1 "<?= base_url('/laporan') ?>" "Buka Laporan" _blank
-                        click D2 "<?= base_url('/buku-besar') ?>" "Buka Buku Besar" _blank
-                        click D3 "<?= base_url('/analisis-rasio') ?>" "Buka Analisis Rasio" _blank
-                        click E1 "<?= base_url('/tutup-buku') ?>" "Buka Tutup Buku" _blank
+                        click A1 "<?= base_url('/settings') ?>" "_blank"
+                        click A2 "<?= base_url('/coa') ?>" "_blank"
+                        click A3 "<?= base_url('/saldo-awal-neraca') ?>" "_blank"
+                        click B1 "<?= base_url('/transaksi') ?>" "_blank"
+                        click B2 "<?= base_url('/entri-jurnal') ?>" "_blank"
+                        click B3 "<?= base_url('/konsinyasi') ?>" "_blank"
+                        click B4 "<?= base_url('/aset-tetap') ?>" "_blank"
+                        click C1 "<?= base_url('/aset-tetap') ?>" "_blank"
+                        click C2 "<?= base_url('/rekonsiliasi-bank') ?>" "_blank"
+                        click D1 "<?= base_url('/laporan') ?>" "_blank"
+                        click D2 "<?= base_url('/buku-besar') ?>" "_blank"
+                        click D3 "<?= base_url('/analisis-rasio') ?>" "_blank"
+                        click E1 "<?= base_url('/tutup-buku') ?>" "_blank"
                     </pre>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Panduan 1: Pengaturan Awal -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingOne">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>1. Pengaturan Awal (Penting!)</strong>
+    <!-- Panduan 1: Persiapan Sistem -->
+    <div class="border border-cyan-200 dark:border-cyan-900/50 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-cyan-800 dark:text-cyan-100 bg-cyan-50 dark:bg-cyan-900/30 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-gear-wide-connected text-cyan-500"></i> 1. Persiapan Sistem & Master Data
+                </span>
                 <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseOne" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingOne">
-            <div>
-                <p>Sebelum memulai pencatatan, ada dua langkah krusial yang harus dilakukan untuk memastikan data akurat.</p>
-                <h5>Langkah 1.1: Menyiapkan Bagan Akun (COA)</h5>
-                <ol>
-                    <li>Buka menu <strong>Master Data &raquo; Bagan Akun (COA)</strong>.</li>
-                    <li>Sistem sudah menyediakan akun-akun standar. Anda bisa menambah, mengubah, atau menghapus akun sesuai kebutuhan.</li>
-                    <li>Saat menambah akun, pastikan Anda memilih <strong>Tipe Akun</strong> yang benar (Aset, Liabilitas, Ekuitas, Pendapatan, atau Beban).</li>
-                    <li>Centang kotak <strong>"Ini adalah akun Kas/Bank"</strong> untuk akun-akun yang berfungsi sebagai tempat penyimpanan uang (Kas, Bank BCA, dll.). Akun ini akan muncul di form transaksi.</li>
-                </ol>
-                <hr>
-                <h5>Langkah 1.2: Mengisi Saldo Awal</h5>
-                <ol>
-                    <li>Buka menu <strong>Master Data &raquo; Saldo Awal Neraca</strong>.</li>
-                    <li>Masukkan saldo akhir dari periode sebelumnya ke dalam kolom Debit atau Kredit sesuai dengan saldo normal akun.
-                        <ul>
-                            <li><strong>Aset:</strong> Saldo normalnya di <strong>Debit</strong>.</li>
-                            <li><strong>Liabilitas & Ekuitas:</strong> Saldo normalnya di <strong>Kredit</strong>.</li>
+        <div class="hidden p-4 border-t border-cyan-100 dark:border-cyan-900/50 text-gray-700 dark:text-gray-300">
+            <div class="space-y-6">
+                <!-- Step 1.1 -->
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/50 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold shadow-sm">1</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-cyan-900 dark:text-cyan-100 mb-1">Bagan Akun (COA)</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Fondasi utama akuntansi. Siapkan daftar akun (Kas, Hutang, Piutang, Pendapatan, Beban) sesuai kebutuhan koperasi.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/coa') ?>" class="inline-flex items-center px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
+                                <i class="bi bi-list-ul mr-2"></i> Buka Bagan Akun
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1.2 -->
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/50 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold shadow-sm">2</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-cyan-900 dark:text-cyan-100 mb-1">Saldo Awal Neraca</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Masukkan saldo terakhir dari pembukuan manual atau sistem lama Anda.</p>
+                        <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 rounded text-xs text-amber-800 dark:text-amber-200 mb-3">
+                            <i class="bi bi-exclamation-triangle-fill mr-1"></i> <strong>Peringatan:</strong> Total Debit harus SAMA dengan Total Kredit agar laporan keuangan balance.
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/saldo-awal-neraca') ?>" class="inline-flex items-center px-3 py-1.5 border border-cyan-600 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 text-xs font-medium rounded-lg transition-colors">
+                                <i class="bi bi-plus-square mr-2"></i> Input Saldo Awal
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1.3 -->
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/50 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold shadow-sm">3</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-cyan-900 dark:text-cyan-100 mb-1">Mapping Akun Otomatis</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Atur pemetaan akun untuk transaksi otomatis seperti Penjualan, HPP, dan Persediaan.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/settings') ?>" class="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
+                                <i class="bi bi-sliders mr-2"></i> Buka Pengaturan
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panduan 2: Manajemen Kas & Bank -->
+    <div class="border border-green-200 dark:border-green-900/50 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-green-800 dark:text-green-100 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-bank text-green-500"></i> 2. Operasional Kas, Bank & Rekonsiliasi
+                </span>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
+            </button>
+        </h2>
+        <div class="hidden p-4 border-t border-green-100 dark:border-green-900/50 text-gray-700 dark:text-gray-300">
+            <div class="space-y-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 flex items-center justify-center font-bold shadow-sm">1</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-green-900 dark:text-green-100 mb-1">Transaksi Kas Non-Dagang</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Catat pengeluaran rutin (Gaji, Listrik) atau penerimaan lain di luar transaksi dagang.</p>
+                        <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-800 text-xs mb-3">
+                            <span class="font-bold">Info Jurnal:</span><br>
+                            Bayar Listrik Rp 500k: (D) Beban Listrik | (K) Kas Toko
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/transaksi') ?>" class="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
+                                <i class="bi bi-cash-stack mr-2"></i> Buat Transaksi Kas
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-green-100 dark:bg-cyan-900/50 text-green-600 dark:text-green-400 flex items-center justify-center font-bold shadow-sm">2</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-green-900 dark:text-green-100 mb-1">Rekonsiliasi Bank</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Lakukan pencocokan saldo bank di aplikasi dengan rekening koran secara periodik.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/rekonsiliasi-bank') ?>" class="inline-flex items-center px-3 py-1.5 border border-green-600 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-xs font-medium rounded-lg transition-colors">
+                                <i class="bi bi-check-all mr-2"></i> Rekonsiliasi Bank
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panduan 3: Siklus Penjualan & Wajib Belanja -->
+    <div class="border border-indigo-200 dark:border-indigo-900/50 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-indigo-800 dark:text-indigo-100 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-cart-check text-indigo-500"></i> 3. Siklus Penjualan & Wajib Belanja (WB)
+                </span>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
+            </button>
+        </h2>
+        <div class="hidden p-4 border-t border-indigo-100 dark:border-indigo-900/50 text-gray-700 dark:text-gray-300">
+            <div class="space-y-6">
+                <section>
+                    <div class="flex items-center gap-2 mb-3 text-indigo-900 dark:text-indigo-100 font-bold">
+                        <i class="bi bi-1-circle-fill"></i> Jurnal Penjualan (Perpetual)
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Sistem mencatat Pendapatan sekaligus mengurangi stok (HPP) secara otomatis setiap transaksi selesai.</p>
+                    
+                    <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-indigo-500 rounded-lg text-sm mb-4 transition-all hover:shadow-md">
+                        <div class="font-bold flex items-center gap-2 mb-2"><i class="bi bi-lightbulb-fill text-amber-500"></i> Contoh Transaksi:</div>
+                        Beras Premium terjual: Jual <strong>Rp 100.000</strong> | Modal <strong>Rp 80.000</strong>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-indigo-100 dark:border-indigo-800 shadow-sm mb-4">
+                        <table class="min-w-full text-xs">
+                            <thead class="bg-indigo-100/50 dark:bg-indigo-900/50 text-indigo-900 dark:text-indigo-200 font-bold">
+                                <tr><th class="p-3 text-left">Deskripsi Akun</th><th class="p-3 text-right">Debit</th><th class="p-3 text-right">Kredit</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-indigo-50 dark:divide-indigo-900/30">
+                                <tr><td class="p-3">Kas Toko / Piutang Anggota</td><td class="p-3 text-right font-bold text-green-600">100.000</td><td class="p-3 text-right text-gray-400">-</td></tr>
+                                <tr><td class="p-3 ps-6 text-gray-500">Pendapatan Penjualan</td><td class="p-3 text-right text-gray-400">-</td><td class="p-3 text-right font-bold text-blue-600">100.000</td></tr>
+                                <tr><td class="p-3 bg-gray-50/50 dark:bg-gray-800/50">Harga Pokok Penjualan (HPP)</td><td class="p-3 text-right font-bold text-red-600 bg-gray-50/50 dark:bg-gray-800/50">80.000</td><td class="p-3 text-right text-gray-400 bg-gray-50/50 dark:bg-gray-800/50">-</td></tr>
+                                <tr><td class="p-3 ps-6 text-gray-500 bg-gray-50/50 dark:bg-gray-800/50">Persediaan Barang</td><td class="p-3 text-right text-gray-400 bg-gray-50/50 dark:bg-gray-800/50">-</td><td class="p-3 text-right font-bold text-amber-600 bg-gray-50/50 dark:bg-gray-800/50">80.000</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <hr class="border-indigo-100 dark:border-indigo-900/50">
+
+                <section>
+                    <div class="flex items-center gap-2 mb-3 text-indigo-900 dark:text-indigo-100 font-bold">
+                        <i class="bi bi-2-circle-fill"></i> Mekanisme Wajib Belanja (WB)
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="group p-4 bg-white dark:bg-gray-900 rounded-xl border border-green-100 dark:border-green-900/50 shadow-sm transition-all hover:border-green-300">
+                            <div class="text-xs font-black text-green-600 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                Setoran WB (Top-up) <i class="bi bi-arrow-up-circle"></i>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mb-2">Uang masuk, kewajiban koperasi bertambah.</p>
+                            <table class="w-full text-xs font-mono">
+                                <tr class="text-green-600"><td>(D) Kas</td><td class="text-right">100k</td></tr>
+                                <tr class="text-slate-500"><td>(K) Hutang WB</td><td class="text-right">100k</td></tr>
+                            </table>
+                        </div>
+                        <div class="group p-4 bg-white dark:bg-gray-900 rounded-xl border border-red-100 dark:border-red-900/50 shadow-sm transition-all hover:border-red-300">
+                            <div class="text-xs font-black text-red-600 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                Belanja via WB <i class="bi bi-arrow-down-circle"></i>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mb-2">Hutang WB ke anggota berkurang.</p>
+                            <table class="w-full text-xs font-mono">
+                                <tr class="text-red-600"><td>(D) Hutang WB</td><td class="text-right">40k</td></tr>
+                                <tr class="text-slate-500"><td>(K) Pendapatan</td><td class="text-right">40k</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <a href="<?= base_url('/penjualan') ?>" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30">
+                        <i class="bi bi-shop mr-2"></i> Menu Penjualan
+                    </a>
+                    <a href="<?= base_url('/wajib-belanja') ?>" class="inline-flex items-center px-4 py-2 border-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm font-bold rounded-xl transition-all">
+                        <i class="bi bi-piggy-bank mr-2"></i> Menu Wajib Belanja
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panduan 4: Siklus Pembelian & Stok -->
+    <div class="border border-amber-200 dark:border-amber-900/50 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-amber-800 dark:text-amber-100 bg-amber-50 dark:bg-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-box-seam text-amber-500"></i> 4. Siklus Pembelian Stok & Persediaan
+                </span>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
+            </button>
+        </h2>
+        <div class="hidden p-4 border-t border-amber-100 dark:border-amber-900/50 text-gray-700 dark:text-gray-300">
+            <div class="space-y-6">
+                <!-- Step 4.1 -->
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold shadow-sm">1</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-amber-900 dark:text-amber-100 mb-1">Pencatatan Pembelian</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Masukkan transaksi pembelian dari supplier. Stok akan bertambah dan sistem akan mencatat hutang dagang.</p>
+                        
+                        <div class="p-3 bg-white dark:bg-gray-900 rounded-lg border border-amber-100 dark:border-amber-800 text-[11px] mb-3">
+                            <span class="font-bold text-amber-600">Jurnal Preview:</span><br>
+                            (D) Persediaan Barang Dagang <span class="float-right text-green-600 font-bold">+Rp 400.000</span><br>
+                            (K) Utang Usaha / Kas Toko <span class="float-right text-red-500 font-bold">-Rp 400.000</span>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/pembelian') ?>" class="inline-flex items-center px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
+                                <i class="bi bi-plus-circle mr-2"></i> Buat Pembelian
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4.2 -->
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold shadow-sm">2</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-amber-900 dark:text-amber-100 mb-1">Kontrol Stok (Inventory)</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Pantau kartu stok dan lakukan opname jika terdapat selisih fisik barang.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/stok') ?>" class="inline-flex items-center px-3 py-1.5 border border-amber-600 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-xs font-medium rounded-lg transition-colors">
+                                <i class="bi bi-card-list mr-2"></i> Lihat Kartu Stok
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panduan 5: Barang Titipan (Konsinyasi) -->
+    <div class="border border-purple-200 dark:border-purple-900/50 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-purple-800 dark:text-purple-100 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-tags text-purple-500"></i> 5. Barang Titipan (Konsinyasi)
+                </span>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
+            </button>
+        </h2>
+        <div class="hidden p-4 border-t border-purple-100 dark:border-purple-900/50 text-gray-700 dark:text-gray-300">
+            <div class="space-y-6">
+                <section>
+                    <div class="flex items-center gap-2 mb-3 text-purple-900 dark:text-purple-100 font-bold">
+                        <i class="bi bi-info-circle-fill"></i> Logika Akuntansi Konsinyasi
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Toko hanya bertindak sebagai agen. Pendapatan yang diakui hanya murni dari <strong>Selisih Harga (Komisi)</strong>.</p>
+                    
+                    <div class="p-4 bg-purple-50 dark:bg-purple-900/20 border-l-4 border-purple-500 rounded-lg text-xs mb-4">
+                        <div class="font-bold mb-1 italic">Contoh Alurnya:</div>
+                        Produk snack dititip harga <strong>Rp 8.500</strong>. Toko menjual seharga <strong>Rp 10.000</strong>.
+                        <ul class="mt-2 space-y-1">
+                            <li><i class="bi bi-check2 text-purple-500"></i> Toko menerima Kas Rp 10.000 (D)</li>
+                            <li><i class="bi bi-check2 text-purple-500"></i> Hutang ke Supplier Rp 8.500 (K)</li>
+                            <li><i class="bi bi-check2 text-green-500 font-bold"></i> Laba Komisi Rp 1.500 (K)</li>
                         </ul>
-                    </li>
-                    <li>Pastikan <strong>Total Debit dan Total Kredit seimbang (BALANCE)</strong> sebelum menyimpan.</li>
-                </ol>
-                <div class="flex gap-2 mt-3">
-                    <a href="<?= base_url('/coa') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" target="_blank">
-                        <i class="bi bi-box-arrow-up-right me-2"></i>Buka Bagan Akun
+                    </div>
+                </section>
+
+                <div class="flex flex-wrap gap-3">
+                    <a href="<?= base_url('/konsinyasi') ?>" class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-purple-500/30">
+                        <i class="bi bi-clipboard-plus mr-2"></i> Kelola Konsinyasi
                     </a>
-                    <a href="<?= base_url('/saldo-awal-neraca') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" target="_blank">
-                        <i class="bi bi-box-arrow-up-right me-2"></i>Buka Saldo Awal
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panduan 2: Transaksi Harian -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingTwo">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>2. Mencatat Transaksi Harian</strong>
-                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
-            </button>
-        </h2>
-        <div id="collapseTwo" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingTwo">
-            <div>
-                <p>Gunakan menu <strong>Transaksi</strong> untuk mencatat pemasukan dan pengeluaran kas harian yang sederhana.</p>
-                <ol>
-                    <li>Buka menu <strong>Kas & Bank &raquo; Transaksi</strong>.</li>
-                    <li>Klik tombol <strong>"Tambah Transaksi"</strong>.</li>
-                    <li>Pilih jenis transaksi: <strong>Pengeluaran</strong>, <strong>Pemasukan</strong>, atau <strong>Transfer</strong> antar akun kas.</li>
-                    <li>Isi tanggal, jumlah, dan keterangan.</li>
-                    <li>Pilih akun Kas/Bank yang digunakan dan akun lawan (misal: Akun Beban untuk pengeluaran, atau Akun Pendapatan untuk pemasukan).</li>
-                    <li>Klik <strong>"Simpan Transaksi"</strong>. Sistem akan otomatis membuat jurnal di belakang layar.</li>
-                </ol>
-                <a href="<?= base_url('/transaksi#add') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>Buka Form Tambah Transaksi
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panduan 3: Entri Jurnal Manual -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingThree">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>3. Entri Jurnal Manual (Untuk Transaksi Kompleks)</strong>
-                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
-            </button>
-        </h2>
-        <div id="collapseThree" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingThree">
-            <div>
-                <p>Gunakan fitur ini untuk transaksi yang melibatkan lebih dari dua akun (jurnal majemuk) atau transaksi non-kas (misalnya: penyusutan, penyesuaian).</p>
-                <ol>
-                    <li>Buka menu <strong>Akuntansi &raquo; Entri Jurnal</strong>.</li>
-                    <li>Isi tanggal dan keterangan jurnal.</li>
-                    <li>Klik <strong>"Tambah Baris"</strong> untuk menambahkan detail jurnal.</li>
-                    <li>Pilih akun dan isi kolom Debit atau Kredit.</li>
-                    <li>Pastikan <strong>Total Debit dan Total Kredit seimbang</strong> sebelum menyimpan.</li>
-                </ol>
-                <a href="<?= base_url('/entri-jurnal') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Entri Jurnal
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panduan 4: Rekonsiliasi Bank -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingFour">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>4. Mencocokkan Catatan: Rekonsiliasi Bank</strong>
-                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
-            </button>
-        </h2>
-        <div id="collapseFour" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingFour">
-            <div>
-                <p>Rekonsiliasi bank adalah proses membandingkan catatan transaksi kas/bank di aplikasi dengan laporan rekening koran dari bank untuk memastikan keduanya cocok.</p>
-                <ol>
-                    <li>Buka menu <strong>Kas & Bank &raquo; Rekonsiliasi Bank</strong>.</li>
-                    <li>Pilih <strong>Akun Kas/Bank</strong> yang ingin direkonsiliasi.</li>
-                    <li>Masukkan <strong>Tanggal Akhir</strong> dan <strong>Saldo Akhir</strong> sesuai yang tertera di rekening koran Anda.</li>
-                    <li>Klik <strong>"Mulai Rekonsiliasi"</strong>. Sistem akan menampilkan semua transaksi yang belum dicocokkan.</li>
-                    <li>Beri tanda centang pada setiap transaksi di aplikasi yang juga Anda temukan di rekening koran.</li>
-                    <li>Perhatikan kartu ringkasan <strong>"Selisih"</strong>. Tujuan Anda adalah membuat selisih menjadi <strong>Rp 0</strong>.</li>
-                    <li>Jika selisih sudah nol, tombol <strong>"Simpan Rekonsiliasi"</strong> akan aktif. Klik untuk menyelesaikan.</li>
-                </ol>
-                <div class="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 p-4 mt-3 text-sm text-blue-700 dark:text-blue-200">
-                    <strong>Tips:</strong> Jika ada selisih, kemungkinan ada transaksi yang belum Anda catat (misalnya biaya admin bank) atau ada kesalahan pencatatan. Anda bisa menambahkannya melalui menu Transaksi atau Entri Jurnal.
-                </div>
-                <a href="<?= base_url('/rekonsiliasi-bank') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Rekonsiliasi Bank
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panduan 5: Aset Tetap -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingFive">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>5. Mengelola Aset Tetap & Penyusutan</strong>
-                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
-            </button>
-        </h2>
-        <div id="collapseFive" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingFive">
-            <div>
-                <p>Fitur ini membantu Anda mencatat aset tetap (seperti peralatan, kendaraan) dan menghitung penyusutannya secara otomatis setiap bulan.</p>
-                <h5>Langkah 1: Menambah Aset Baru</h5>
-                <ol>
-                    <li>Buka menu <strong>Kas & Bank &raquo; Aset Tetap</strong>.</li>
-                    <li>Klik <strong>"Tambah Aset"</strong>.</li>
-                    <li>Isi detail aset seperti Nama, Tanggal Perolehan, Harga Perolehan, dan Masa Manfaat (dalam tahun).</li>
-                    <li><strong>Penting:</strong> Petakan akun-akun yang sesuai. Anda mungkin perlu membuat akun baru di Bagan Akun terlebih dahulu.
-                        <ul>
-                            <li><strong>Akun Aset:</strong> Akun untuk mencatat nilai aset itu sendiri (misal: 1-2100 Peralatan Kantor).</li>
-                            <li><strong>Akun Akumulasi Penyusutan:</strong> Akun kontra-aset untuk menampung total penyusutan (misal: 1-2101 Akum. Peny. - Peralatan). Tipe akunnya adalah 'Aset' dengan saldo normal 'Kredit'.</li>
-                            <li><strong>Akun Beban Penyusutan:</strong> Akun untuk mencatat beban penyusutan setiap bulan (misal: 6-1400 Beban Penyusutan). Tipe akunnya adalah 'Beban'.</li>
-                        </ul>
-                    </li>
-                    <li>Klik <strong>"Simpan"</strong>.</li>
-                </ol>
-                <hr>
-                <h5>Langkah 2: Memposting Jurnal Penyusutan</h5>
-                <ol>
-                    <li>Di halaman Aset Tetap, pilih Bulan dan Tahun pada bagian <strong>"Posting Penyusutan Periodik"</strong>.</li>
-                    <li>Klik tombol <strong>"Posting Jurnal Penyusutan"</strong>.</li>
-                    <li>Sistem akan otomatis menghitung penyusutan bulanan untuk semua aset yang aktif dan membuat jurnalnya. Jurnal yang sudah pernah dibuat untuk periode yang sama tidak akan dibuat ulang.</li>
-                </ol>
-                <a href="<?= base_url('/aset-tetap') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Aset Tetap
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panduan 6: Otomatisasi -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingSix">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>6. Otomatisasi dengan Transaksi Berulang</strong>
-                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
-            </button>
-        </h2>
-        <div id="collapseSix" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingSix">
-            <div>
-                <p>Fitur ini memungkinkan Anda membuat template untuk transaksi atau jurnal yang terjadi secara rutin (misal: bayar sewa, gaji) agar dibuat otomatis oleh sistem.</p>
-                <ol>
-                    <li>Buat draf jurnal yang ingin diotomatisasi di halaman <strong>Akuntansi &raquo; Entri Jurnal</strong>.</li>
-                    <li>Setelah draf siap, jangan klik "Simpan". Klik tombol <strong>"Jadikan Berulang"</strong>.</li>
-                    <li>Atur nama template, frekuensi (misal: setiap 1 bulan), dan tanggal mulai.</li>
-                    <li>Klik <strong>"Simpan Template"</strong>.</li>
-                    <li>Anda dapat melihat dan mengelola semua template di halaman <strong>Pengaturan & Master &raquo; Transaksi Berulang</strong>.</li>
-                </ol>
-                <div class="flex gap-2 mt-3">
-                    <a href="<?= base_url('/entri-jurnal') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" target="_blank">
-                        <i class="bi bi-box-arrow-up-right me-2"></i>Mulai dari Entri Jurnal
-                    </a>
-                    <a href="<?= base_url('/transaksi-berulang') ?>" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" target="_blank">
-                        <i class="bi bi-box-arrow-up-right me-2"></i>Lihat Halaman Template
+                    <a href="<?= base_url('/pelunasan-konsinyasi') ?>" class="inline-flex items-center px-4 py-2 border-2 border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm font-bold rounded-xl transition-all">
+                        <i class="bi bi-wallet2 mr-2"></i> Pelunasan Supplier
                     </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Panduan 7: Laporan & Analisis -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingSeven">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>7. Melihat Laporan & Analisis</strong>
+    <!-- Panduan 6: Penyesuaian & Aset Tetap -->
+    <div class="border border-rose-200 dark:border-rose-900/50 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-rose-800 dark:text-rose-100 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-pencil-square text-rose-500"></i> 6. Jurnal Penyesuaian, Aset Tetap & Recurring
+                </span>
                 <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseSeven" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingSeven">
-            <div>
-                <p>Semua hasil pencatatan Anda dapat dilihat dalam berbagai laporan di bawah menu <strong>Laporan & Analisis</strong>.</p>
-                <ul>
-                    <li><strong>Laporan Keuangan:</strong> Menampilkan Neraca, Laba Rugi, dan Arus Kas.</li>
-                    <li><strong>Perubahan Laba:</strong> Menunjukkan detail perubahan pada akun Laba Ditahan.</li>
-                    <li><strong>Laporan Harian:</strong> Ringkasan kas masuk dan keluar untuk tanggal tertentu.</li>
-                    <li><strong>Pertumbuhan Laba:</strong> Grafik dan tabel untuk menganalisis tren laba dari waktu ke waktu.</li>
-                    <li><strong>Analisis Rasio:</strong> Menghitung rasio keuangan penting (Profit Margin, ROE, dll) untuk mengukur kesehatan finansial.</li>
-                    <li><strong>Anggaran:</strong> Membandingkan anggaran belanja dengan realisasi.</li>
+        <div class="hidden p-4 border-t border-rose-100 dark:border-rose-900/50 text-gray-700 dark:text-gray-300">
+            <div class="space-y-6">
+                <!-- Step 6.1 -->
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold shadow-sm">1</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-rose-900 dark:text-rose-100 mb-1">Aset Tetap & Penyusutan</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Daftarkan aset koperasi (Gedung, Mobil, Alat) untuk menghitung penyusutan bulanan otomatis.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/aset-tetap') ?>" class="inline-flex items-center px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
+                                <i class="bi bi-building mr-2"></i> Kelola Aset Tetap
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6.2 -->
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold shadow-sm">2</div>
+                    <div class="flex-1">
+                        <h6 class="font-bold text-rose-900 dark:text-rose-100 mb-1">Entri Jurnal Manual</h6>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Gunakan untuk koreksi saldo atau transaksi yang tidak tersedia di menu otomatis.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="<?= base_url('/entri-jurnal') ?>" class="inline-flex items-center px-3 py-1.5 border border-rose-600 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs font-medium rounded-lg transition-colors">
+                                <i class="bi bi-journal-plus mr-2"></i> Buat Jurnal Manual
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panduan 7: Pelaporan & Laporan Keuangan -->
+    <div class="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-file-earmark-bar-graph text-slate-500"></i> 7. Pelaporan, Analisis & Arus Kas
+                </span>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
+            </button>
+        </h2>
+        <div class="hidden p-4 border-t border-slate-200 dark:border-slate-700 text-gray-700 dark:text-gray-300">
+            <div class="space-y-4">
+                <p class="text-sm leading-relaxed">Sistem menyediakan berbagai laporan akuntansi standar yang diperbarui secara real-time:</p>
+                <ul class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <li class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-800"><i class="bi bi-check2-circle text-green-500"></i> Neraca Saldo & Lajur</li>
+                    <li class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-800"><i class="bi bi-check2-circle text-green-500"></i> Laba Rugi (Komersial/Koperasi)</li>
+                    <li class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-800"><i class="bi bi-check2-circle text-green-500"></i> Buku Besar per Akun</li>
+                    <li class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-800"><i class="bi bi-check2-circle text-green-500"></i> Analisis Rasio Keuangan</li>
                 </ul>
-                <a href="<?= base_url('/laporan') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Laporan Utama
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panduan 8: Tutup Buku -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingEight">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>8. Proses Akhir Periode: Tutup Buku (Khusus Admin)</strong>
-                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
-            </button>
-        </h2>
-        <div id="collapseEight" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingEight">
-            <div>
-                <p>Proses Tutup Buku adalah langkah akuntansi yang dilakukan di akhir periode (biasanya akhir tahun) untuk menolkan saldo akun-akun sementara (Pendapatan dan Beban) dan memindahkan laba atau rugi bersih ke akun Laba Ditahan (Retained Earnings).</p>
-                <div class="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-4 mb-4 text-sm text-yellow-700 dark:text-yellow-200">
-                    <strong>Penting:</strong> Fitur ini hanya dapat diakses oleh <strong>Admin</strong>. Pastikan semua transaksi pada periode tersebut sudah final sebelum melakukan tutup buku.
+                <div class="pt-2">
+                    <a href="<?= base_url('/laporan') ?>" class="inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors shadow-md">
+                        <i class="bi bi-file-earmark-text mr-2"></i> Buka Pusat Laporan
+                    </a>
                 </div>
-                <ol>
-                    <li>Pastikan akun Laba Ditahan sudah diatur di menu <strong>Administrasi &raquo; Pengaturan &raquo; Akuntansi</strong>.</li>
-                    <li>Buka menu <strong>Administrasi &raquo; Tutup Buku</strong>.</li>
-                    <li>Pilih tanggal akhir periode yang akan ditutup (misalnya, 31 Desember 2023).</li>
-                    <li>Klik tombol <strong>"Proses Tutup Buku"</strong> dan konfirmasi.</li>
-                    <li>Sistem akan secara otomatis membuat Jurnal Penutup. Anda dapat melihat hasilnya di halaman <strong>Daftar Jurnal</strong>.</li>
-                    <li>Setelah proses ini, semua transaksi sebelum tanggal tutup buku akan dikunci dan tidak dapat diubah atau dihapus.</li>
-                </ol>
-                <a href="<?= base_url('/tutup-buku') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>Lihat Halaman Tutup Buku
-                </a>
             </div>
         </div>
     </div>
 
-    <!-- Panduan 9: Pengaturan Aplikasi -->
-    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800" data-controller="accordion-item">
-        <h2 class="mb-0" id="headingNine">
-            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none transition-colors" type="button" onclick="toggleAccordion(this)">
-                <strong>9. Konfigurasi Sistem: Pengaturan Aplikasi (Khusus Admin)</strong>
+    <!-- Panduan 8: Akhir Periode -->
+    <div class="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-gray-800 dark:text-gray-100 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-calendar-check text-gray-600 dark:text-gray-400"></i> 8. Akhir Periode: Tutup Buku
+                </span>
                 <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
             </button>
         </h2>
-        <div id="collapseNine" class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300" aria-labelledby="headingNine">
-            <div>
-                <p>Halaman ini adalah pusat kendali aplikasi, tempat Anda dapat menyesuaikan berbagai aspek sistem agar sesuai dengan kebutuhan Anda. Fitur ini hanya dapat diakses oleh <strong>Admin</strong>.</p>
-                <h5>Area Pengaturan:</h5>
-                <ul>
-                    <li><strong>Umum:</strong> Mengubah nama aplikasi, logo, dan detail header laporan PDF.</li>
-                    <li><strong>Transaksi:</strong> Mengatur prefix untuk nomor referensi otomatis dan memilih akun kas default.</li>
-                    <li><strong>Akuntansi:</strong> Menentukan akun Laba Ditahan yang krusial untuk proses Tutup Buku.</li>
-                    <li><strong>Arus Kas:</strong> Memetakan akun-akun ke dalam kategori Laporan Arus Kas (Operasi, Investasi, Pendanaan).</li>
-                    <li><strong>Konsinyasi:</strong> Memetakan akun-akun yang digunakan untuk transaksi barang titipan.</li>
-                </ul>
-                <h5>Langkah Penggunaan:</h5>
-                <ol>
-                    <li>Buka menu <strong>Administrasi &raquo; Pengaturan</strong>.</li>
-                    <li>Pilih tab pengaturan yang ingin Anda ubah (misalnya, "Umum").</li>
-                    <li>Lakukan perubahan yang diperlukan pada form.</li>
-                    <li>Klik tombol <strong>"Simpan Pengaturan"</strong> di bagian bawah setiap tab untuk menerapkan perubahan.</li>
-                </ol>
-                <a href="<?= base_url('/settings') ?>" class="inline-flex items-center px-3 py-1.5 border border-primary text-xs font-medium rounded text-primary bg-white hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-2" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>Buka Halaman Pengaturan
-                </a>
+        <div class="hidden p-4 border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+            <div class="space-y-4">
+                <div class="p-4 bg-gray-50 dark:bg-gray-900 border-l-4 border-gray-800 dark:border-gray-500 rounded text-sm text-gray-800 dark:text-gray-200">
+                    <i class="bi bi-info-circle-fill mr-1"></i> <strong>Penting:</strong> Tutup buku akan memindahkan Laba Tahun Berjalan ke Laba Ditahan dan mengunci transaksi di periode tersebut agar tidak bisa diedit.
+                </div>
+                <div>
+                   <a href="<?= base_url('/tutup-buku') ?>" class="inline-flex items-center px-4 py-2 bg-black hover:bg-gray-900 text-white text-xs dark:bg-gray-100 dark:text-black dark:hover:bg-white font-bold rounded-lg transition-colors shadow-md">
+                        <i class="bi bi-lock mr-2"></i> Buka Menu Tutup Buku
+                    </a>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Panduan 9: Pengaturan & Konfigurasi -->
+    <div class="border border-violet-200 dark:border-violet-900/50 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-sm" data-controller="accordion-item">
+        <h2 class="mb-0">
+            <button class="w-full flex items-center justify-between px-4 py-3 text-left font-bold text-violet-800 dark:text-violet-100 bg-violet-50 dark:bg-violet-900/30 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors" type="button" onclick="toggleAccordion(this)">
+                <span class="flex items-center gap-2">
+                    <i class="bi bi-sliders2-vertical text-violet-500"></i> 9. Konfigurasi Sistem (Admin)
+                </span>
+                <i class="bi bi-chevron-down transform transition-transform duration-200"></i>
+            </button>
+        </h2>
+        <div class="hidden p-4 border-t border-violet-100 dark:border-violet-900/50 text-gray-700 dark:text-gray-300">
+           <div class="space-y-4">
+               <p class="text-sm">Gunakan menu ini untuk kustomisasi identitas koperasi dan pengaturan teknis sistem:</p>
+               <ul class="space-y-2 text-xs">
+                   <li class="flex items-center gap-2"><i class="bi bi-check2 text-violet-500"></i> Ubah Nama Koperasi & Logo</li>
+                   <li class="flex items-center gap-2"><i class="bi bi-check2 text-violet-500"></i> Atur Prefix Nomor Bukti (Faktur, Jurnal, Kas)</li>
+                   <li class="flex items-center gap-2"><i class="bi bi-check2 text-violet-500"></i> Pemetaan Akun Otomatis</li>
+               </ul>
+                <div class="pt-2">
+                    <a href="<?= base_url('/settings') ?>" class="inline-flex items-center px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-lg transition-colors shadow-md">
+                        <i class="bi bi-gear-fill mr-2"></i> Buka Pengaturan Sistem
+                    </a>
+                </div>
+           </div>
         </div>
     </div>
 
 </div>
+
 
 <!-- Mermaid.js untuk merender diagram -->
 <script type="module">
@@ -388,7 +506,7 @@ if (!$is_spa_request) {
 <script>
     function toggleAccordion(button) {
         const item = button.closest('[data-controller="accordion-item"]');
-        const content = item.querySelector('div[id^="collapse"]');
+        const content = item.querySelector('.p-4');
         const icon = button.querySelector('.bi-chevron-down');
 
         if (content.classList.contains('hidden')) {

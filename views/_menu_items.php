@@ -40,7 +40,7 @@ if (!$is_admin) {
 }
 
 function render_menu_item($url, $icon, $text) {
-    echo '<a href="' . base_url($url) . '" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group">
+    echo '<a href="' . base_url($url) . '" class="flex items-center px-4 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group">
             <i class="' . $icon . ' mr-4 text-lg text-gray-500 dark:text-gray-400 group-hover:text-primary transition-colors"></i>
             <span>' . $text . '</span>
           </a>';
@@ -66,7 +66,7 @@ function render_collapsible_menu($id, $icon, $text, $items) {
                 <div class="relative">
                     <div class="absolute left-[3.25rem] top-0 ' . $n_vertical_line_height . ' w-px bg-gray-300 dark:bg-gray-600"></div>
                     <div class="absolute left-[3.25rem] top-1/2 w-4 h-px bg-gray-300 dark:bg-gray-600"></div>
-                    <a href="' . base_url($n_item['url']) . '" class="flex items-center ml-[4.5rem] px-3 py-2 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors">
+                    <a href="' . base_url($n_item['url']) . '" class="flex items-center ml-[4.5rem] px-3 py-1.5 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors">
                         ' . $n_item['label'] . '
                     </a>
                 </div>';
@@ -77,7 +77,7 @@ function render_collapsible_menu($id, $icon, $text, $items) {
                 <div class="absolute left-6 top-0 ' . $vertical_line_height . ' w-px bg-gray-300 dark:bg-gray-600"></div>
                 <div class="absolute left-6 top-3.5 w-5 h-px bg-gray-300 dark:bg-gray-600"></div>
                 <div data-controller="collapse">
-                    <button onclick="toggleCollapse(this)" class="w-full flex items-center justify-between ml-11 px-3 py-2 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors pr-4" style="width: calc(100% - 2.75rem);">
+                    <button onclick="toggleCollapse(this)" class="w-full flex items-center justify-between ml-11 px-3 py-1.5 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors pr-4" style="width: calc(100% - 2.75rem);">
                         <span>' . $item['label'] . '</span>
                         <i class="bi bi-chevron-down transform transition-transform duration-200 text-xs"></i>
                     </button>
@@ -89,7 +89,7 @@ function render_collapsible_menu($id, $icon, $text, $items) {
             <div class="relative">
                 <div class="absolute left-6 top-0 ' . $vertical_line_height . ' w-px bg-gray-300 dark:bg-gray-600"></div>
                 <div class="absolute left-6 top-1/2 w-5 h-px bg-gray-300 dark:bg-gray-600"></div>
-                <a href="' . base_url($item['url']) . '" class="flex items-center ml-11 px-3 py-2 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors">
+                <a href="' . base_url($item['url']) . '" class="flex items-center ml-11 px-3 py-1.5 text-sm font-normal rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-primary dark:hover:text-primary-400 transition-colors">
                     ' . $item['label'] . '
                 </a>
             </div>';
@@ -97,7 +97,7 @@ function render_collapsible_menu($id, $icon, $text, $items) {
     }
 
     echo '<div data-controller="collapse">
-            <button onclick="toggleCollapse(this)" class="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group">
+            <button onclick="toggleCollapse(this)" class="w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group">
                 <span class="flex items-center">
                     <i class="' . $icon . ' mr-4 text-lg text-gray-500 dark:text-gray-400 group-hover:text-primary transition-colors"></i>
                     <span>' . $text . '</span>

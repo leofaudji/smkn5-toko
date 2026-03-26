@@ -81,7 +81,7 @@ $log_cleanup_days = (int)($app_settings['log_cleanup_interval_days'] ?? 180);
         </div>
 
         <!-- Sidebar Menu -->
-        <nav class="flex-1 overflow-y-auto sidebar-scroll py-4 px-2 space-y-1">
+        <nav class="flex-1 overflow-y-auto sidebar-scroll py-4 px-2 space-y-0.5">
             <?php require_once __DIR__ . '/_menu_items.php'; ?>
         </nav>
     </aside>
@@ -136,7 +136,7 @@ $log_cleanup_days = (int)($app_settings['log_cleanup_interval_days'] ?? 180);
         </header>
 
         <!-- Main Scrollable Area -->
-        <main id="main-content" class="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main id="main-content" class="main-content flex-1 overflow-y-auto p-4 sm:p-6">
 
 <!-- Global Search Modal -->
 <div id="globalSearchModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">

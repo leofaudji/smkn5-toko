@@ -1,0 +1,18 @@
+# Environment variables
+.env
+
+# Dependencies
+vendor/
+
+# Temporary files & Logs
+error_log
+*.log
+tmp/
+
+# Uploads & Storage (if they should be persistent)
+uploads/
+storage/
+
+# System files
+.DS_Store
+Thumbs.db

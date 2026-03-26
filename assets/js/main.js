@@ -183,7 +183,7 @@ async function navigate(url, pushState = true) {
 
     // 1. Mulai animasi fade-out
     mainContent.classList.add('is-transitioning');
-    mainContent.style.opacity = '0';
+
     // 2. Tunggu animasi fade-out selesai (durasi harus cocok dengan CSS)
     await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -216,7 +216,8 @@ async function navigate(url, pushState = true) {
         updateActiveSidebarLink(new URL(url).pathname);
         
         // 4. Mulai animasi fade-in
-        mainContent.style.opacity = '1';
+        mainContent.classList.remove('is-transitioning');
+
 
         runPageScripts(new URL(url).pathname); // Run scripts for the new page
 
@@ -244,7 +245,7 @@ async function navigate(url, pushState = true) {
         }
         mainContent.innerHTML = `<div class="alert alert-danger m-3">${errorMessage}</div>`;
         // Tampilkan juga pesan error dengan fade-in
-        mainContent.style.opacity = '1';
+        mainContent.classList.remove('is-transitioning');
     } finally {
         // Hide the loading bar after a short delay to let the 'finished' animation complete
         if (loadingBar) {
