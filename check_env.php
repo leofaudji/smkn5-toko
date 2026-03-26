@@ -7,6 +7,7 @@ echo "--- Environment Check ---\n";
 echo "PHP Version: " . PHP_VERSION . "\n";
 echo "mysqlnd enabled: " . (extension_loaded('mysqlnd') ? 'YES' : 'NO') . "\n";
 echo "mysqli_fetch_all exists: " . (function_exists('mysqli_fetch_all') ? 'YES' : 'NO') . "\n";
+echo "mysqli_stmt_get_result exists: " . (function_exists('mysqli_stmt_get_result') ? 'YES' : 'NO') . "\n";
 echo "DOCUMENT_ROOT: " . $_SERVER['DOCUMENT_ROOT'] . "\n";
 echo "PROJECT_ROOT: " . PROJECT_ROOT . "\n";
 echo "BASE_PATH: " . BASE_PATH . "\n";
