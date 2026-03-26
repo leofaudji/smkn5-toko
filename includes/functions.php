@@ -11,6 +11,67 @@ function base_url(string $uri = ''): string {
 }
 
 /**
+ * Pengganti mysqli_stmt::get_result()->fetch_assoc() untuk server tanpa mysqlnd.
+ */
+function stmt_fetch_assoc($stmt) {
+    if (method_exists($stmt, 'get_result')) {
+        $result = $stmt->get_result();
+        return $result ? $result->fetch_assoc() : null;
+    }
+    
+    $meta = $stmt->result_metadata();
+    if (!$meta) return null;
+    
+    $data = [];
+    $fields = [];
+    while ($field = $meta->fetch_field()) {
+        $fields[] = &$data[$field->name];
+    }
+    
+    call_user_func_array([$stmt, 'bind_result'], $fields);
+    
+    if ($stmt->fetch()) {
+        $row = [];
+        foreach ($data as $key => $val) {
+            $row[$key] = $val;
+        }
+        return $row;
+    }
+    return null;
+}
+
+/**
+ * Pengganti mysqli_stmt::get_result()->fetch_all(MYSQLI_ASSOC) untuk server tanpa mysqlnd.
+ */
+function stmt_fetch_all($stmt) {
+    if (method_exists($stmt, 'get_result')) {
+        $result = $stmt->get_result();
+        return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+    }
+    
+    $meta = $stmt->result_metadata();
+    if (!$meta) return [];
+    
+    $data = [];
+    $fields = [];
+    while ($field = $meta->fetch_field()) {
+        $fields[] = &$data[$field->name];
+    }
+    
+    call_user_func_array([$stmt, 'bind_result'], $fields);
+    
+    $results = [];
+    while ($stmt->fetch()) {
+        $row = [];
+        foreach ($data as $key => $val) {
+            $row[$key] = $val;
+        }
+        $results[] = $row;
+    }
+    return $results;
+}
+
+/**
  * Extracts the base domain from a Traefik rule string.
  * e.g., "Host(`sub.domain.co.uk`)" returns "domain.co.uk"
  * e.g., "Host(`domain.com`)" returns "domain.com"

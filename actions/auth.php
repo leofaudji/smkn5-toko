@@ -2,11 +2,6 @@
 // bootstrap.php sudah di-require oleh index.php, jadi kita tidak perlu me-require-nya lagi.
 // session_start() juga sudah dipanggil di index.php.
 
-// TEMPORARY: Enable error reporting for debugging production 500 error
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . base_url('/login'));
     exit;
@@ -31,8 +26,9 @@ try {
         WHERE u.username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
+    
+    // Gunakan helper stmt_fetch_assoc untuk kompatibilitas server tanpa mysqlnd
+    $user = stmt_fetch_assoc($stmt);
     $stmt->close();
 
     if ($user && password_verify($password, $user['password'])) {

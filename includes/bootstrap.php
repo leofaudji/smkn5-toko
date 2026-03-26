@@ -25,7 +25,9 @@ function attempt_login_with_cookie($selector, $validator) {
     $stmt = $conn->prepare("SELECT id, username, role, nama_lengkap, remember_validator_hash FROM users WHERE remember_selector = ?");
     $stmt->bind_param("s", $selector);
     $stmt->execute();
-    $user = $stmt->get_result()->fetch_assoc();
+    
+    // Gunakan helper stmt_fetch_assoc untuk kompatibilitas
+    $user = stmt_fetch_assoc($stmt);
     $stmt->close();
 
     if ($user) {
