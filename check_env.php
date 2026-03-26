@@ -27,6 +27,11 @@ try {
         $result = $conn->query("SHOW TABLES LIKE '$table'");
         if ($result->num_rows > 0) {
             echo "Table '$table': EXISTS\n";
+            // Check columns for certain tables
+            if ($table === 'users' || $table === 'roles' || $table === 'activity_log') {
+                $cols = $conn->query("DESCRIBE `$table`")->fetch_all(MYSQLI_ASSOC);
+                echo "  Columns: " . implode(', ', array_column($cols, 'Field')) . "\n";
+            }
         } else {
             echo "Table '$table': MISSING\n";
         }
