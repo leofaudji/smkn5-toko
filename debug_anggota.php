@@ -28,21 +28,42 @@ try {
     }
     
     // Test the Get All Query
-    echo "<h3>3. Test Get All Query:</h3>";
-    $user_id = 1;
+    echo "<h3>3. Test Get All Query (Anggota):</h3>";
+    $user_id = $_SESSION['user_id'] ?? 1;
+    echo "Session User ID: $user_id<br>";
     $sql = "SELECT id, nomor_anggota, nama_lengkap, nik, no_telepon, status, tanggal_daftar FROM anggota WHERE user_id = ?";
     $stmt = $db->prepare($sql);
     if (!$stmt) {
         echo "Prepare failed: " . $db->error . "<br>";
     } else {
-        echo "Prepare successful.<br>";
         $stmt->bind_param("i", $user_id);
         if ($stmt->execute()) {
-             echo "Execute successful.<br>";
+             $res = stmt_fetch_all($stmt);
+             echo "Total rows fetched: " . count($res) . "<br>";
         } else {
              echo "Execute failed: " . $stmt->error . "<br>";
         }
     }
+
+    // Check Wajib Belanja Tables
+    echo "<h3>4. Wajib Belanja Data Check:</h3>";
+    $tables = ['transaksi_wajib_belanja', 'anggota', 'accounts'];
+    foreach ($tables as $t) {
+        $countRes = $db->query("SELECT COUNT(*) as total FROM $t");
+        if ($countRes) {
+            $total = $countRes->fetch_assoc()['total'];
+            echo "Table <b>$t</b> has $total records.<br>";
+        } else {
+            echo "Table <b>$t</b> check failed: " . $db->error . "<br>";
+        }
+    }
+    
+    // Check specific conditions for init_data
+    echo "<h3>5. Init Data Conditions:</h3>";
+    $active_anggota = $db->query("SELECT COUNT(*) as total FROM anggota WHERE user_id = $user_id AND status = 'aktif'")->fetch_assoc()['total'];
+    $kas_accounts = $db->query("SELECT COUNT(*) as total FROM accounts WHERE user_id = $user_id AND is_kas = 1")->fetch_assoc()['total'];
+    echo "Active Members for User $user_id: $active_anggota<br>";
+    echo "Cash Accounts for User $user_id: $kas_accounts<br>";
 
 } catch (Exception $e) {
     echo "Fatal Error: " . $e->getMessage();
