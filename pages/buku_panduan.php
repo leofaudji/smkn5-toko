@@ -41,85 +41,85 @@ if (!$is_spa_request) {
                 <div
                     class="mermaid-container overflow-x-auto bg-white dark:bg-gray-900 p-4 rounded-xl shadow-inner border border-slate-100 dark:border-slate-800">
                     <pre class="mermaid text-center" style="font-size: 1.1em;">
-                    graph TD
-                        classDef setup fill:#e0f7fa,stroke:#0097a7,stroke-width:2px,color:#004d40
-                        classDef daily fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
-                        classDef periodic fill:#fffde7,stroke:#fbc02d,stroke-width:2px,color:#f57f17
-                        classDef report fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#0d47a1
-                        classDef final fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#880e4f
+                    flowchart TD
+                        %% Definisi Gaya (Styles)
+                        classDef master fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+                        classDef operational fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#064e3b
+                        classDef finance fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
+                        classDef final fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337
+                        classDef report fill:#fefce8,stroke:#eab308,stroke-width:2px,color:#713f12
 
-                        subgraph " "
+                        subgraph SYTEM_SETUP ["1. Persiapan Awal (Master Data)"]
+                            A1{"Pengaturan Toko"}:::master
+                            A2["Bagan Akun (COA)"]:::master
+                            A3["Saldo Awal Neraca"]:::master
+                            A4["Master Barang & Stok"]:::master
+                            A1 --> A2 --> A3
+                        end
+
+                        subgraph DAILY_OPS ["2. Operasional Harian (Transaksi Toko)"]
                             direction LR
-                            subgraph "Tahap 1: Setup Awal"
-                                direction TB
-                                A1{"Konfigurasi Pengaturan"}:::setup
-                                A2["Siapkan Bagan Akun (COA)"]:::setup
-                                A3["Isi Saldo Awal"]:::setup
-                                A4["Input Master Produk/Stok"]:::setup
-                                A1 --> A2 --> A3 --> A4
+                            subgraph PROCUREMENT ["Pembelian Stok"]
+                                B1("Input Pembelian"):::operational
+                                B2("Update Stok In"):::operational
+                                B3("Jurnal Hutang/Kas"):::operational
+                                B1 --> B2 --> B3
                             end
-    
-                            subgraph "Tahap 2: Operasional Harian"
-                                direction TB
-                                B1("Transaksi Kas & Bank"):::daily
-                                B2("Pembelian Stok"):::daily
-                                B3("Penjualan & Kasir"):::daily
-                                B4("Kelola Konsinyasi"):::daily
-                                B5("Pelunasan Konsinyasi"):::daily
-                                B6("Jurnal Manual"):::daily
-                                B7("Pencatatan Aset"):::daily
+                            subgraph POS_FLOW ["Penjualan (Kasir)"]
+                                S1("Transaksi POS"):::operational
+                                S2("Update Stok Out"):::operational
+                                S3("Jurnal Pendapatan & HPP"):::operational
+                                S1 --> S2 --> S3
                             end
-    
-                            subgraph "Tahap 3: Proses Periodik (Bulanan)"
-                                direction TB
-                                C1("Posting Penyusutan"):::periodic
-                                C2("Rekonsiliasi Bank"):::periodic
-                                C3("Stok Opname"):::periodic
-                            end
-    
-                            subgraph "Tahap 4: Pelaporan & Analisis"
-                                direction TB
-                                D1>Laporan Keuangan]:::report
-                                D2>Buku Besar]:::report
-                                D3>Laporan Penjualan]:::report
-                                D4>Rekap WB Tahunan]:::report
-                                D5>Pertumbuhan Laba]:::report
-                                D6>Audit Saldo]:::report
-                            end
-    
-                            subgraph "Tahap 5: Akhir Periode (Tahunan)"
-                                direction TB
-                                E1([Proses Tutup Buku]):::final
+                            subgraph OTH_TRANS ["Lainnya"]
+                                O1("Biaya-Biaya"):::finance
+                                O2("Wajib Belanja"):::finance
+                                O3("Konsinyasi"):::finance
                             end
                         end
 
-                        A1 --> B1 --> C1 --> D1 --> E1
-                        A4 --> B2 --> C3
-                        B3 --> D3
-                        D1 --> D5
-                        D5 --> E1
-                        
-                        click A1 "<?= base_url('/settings') ?>" "_blank"
-                        click A2 "<?= base_url('/coa') ?>" "_blank"
-                        click A3 "<?= base_url('/saldo-awal') ?>" "_blank"
-                        click A4 "<?= base_url('/stok') ?>" "_blank"
-                        click B1 "<?= base_url('/transaksi') ?>" "_blank"
-                        click B2 "<?= base_url('/pembelian') ?>" "_blank"
-                        click B3 "<?= base_url('/penjualan') ?>" "_blank"
-                        click B4 "<?= base_url('/konsinyasi') ?>" "_blank"
-                        click B5 "<?= base_url('/pelunasan-konsinyasi') ?>" "_blank"
-                        click B6 "<?= base_url('/entri-jurnal') ?>" "_blank"
-                        click B7 "<?= base_url('/aset-tetap') ?>" "_blank"
-                        click C1 "<?= base_url('/aset-tetap') ?>" "_blank"
-                        click C2 "<?= base_url('/rekonsiliasi-bank') ?>" "_blank"
-                        click C3 "<?= base_url('/stok') ?>" "_blank"
-                        click D1 "<?= base_url('/laporan') ?>" "_blank"
-                        click D2 "<?= base_url('/buku-besar') ?>" "_blank"
-                        click D3 "<?= base_url('/laporan-penjualan') ?>" "_blank"
-                        click D4 "<?= base_url('/laporan-wb-tahunan') ?>" "_blank"
-                        click D5 "<?= base_url('/laporan-pertumbuhan-laba') ?>" "_blank"
-                        click D6 "<?= base_url('/audit-saldo') ?>" "_blank"
-                        click E1 "<?= base_url('/tutup-buku') ?>" "_blank"
+                        subgraph MONTHLY_PROCESS ["3. Proses Periodik & Penyesuaian"]
+                            M1("Penyusutan Aset"):::finance
+                            M2("Stock Opname"):::finance
+                            M3("Rekonsiliasi Bank"):::finance
+                        end
+
+                        subgraph REPORTING ["4. Pelaporan & Analisis Laporan"]
+                            R1>Buku Besar]:::report
+                            R2>Neraca]:::report
+                            R3>Laba Rugi]:::report
+                            R4>Laporan Penjualan]:::report
+                            R1 --> R2 & R3
+                        end
+
+                        subgraph CLOSING ["5. Akhir Periode"]
+                            Z1([Proses Tutup Buku]):::final
+                        end
+
+                        %% Alur Utama (Main Flow)
+                        A3 & A4 --> DAILY_OPS
+                        B3 & S3 & O1 & O2 & O3 --> M1
+                        M1 & M2 & M3 --> R1
+                        R2 & R3 --> Z1
+
+                        %% Hyperlinks
+                        click A1 "<?= base_url('/settings') ?>"
+                        click A2 "<?= base_url('/coa') ?>"
+                        click A3 "<?= base_url('/saldo-awal') ?>"
+                        click A4 "<?= base_url('/stok') ?>"
+                        click B1 "<?= base_url('/pembelian') ?>"
+                        click S1 "<?= base_url('/penjualan') ?>"
+                        click O1 "<?= base_url('/transaksi') ?>"
+                        click O2 "<?= base_url('/wajib-belanja') ?>"
+                        click O3 "<?= base_url('/konsinyasi') ?>"
+                        click M1 "<?= base_url('/aset-tetap') ?>"
+                        click M2 "<?= base_url('/stok') ?>"
+                        click M3 "<?= base_url('/rekonsiliasi-bank') ?>"
+                        click R1 "<?= base_url('/buku-besar') ?>"
+                        click R2 "<?= base_url('/laporan') ?>"
+                        click R3 "<?= base_url('/laporan') ?>"
+                        click R4 "<?= base_url('/laporan-penjualan') ?>"
+                        click Z1 "<?= base_url('/tutup-buku') ?>"
                     </pre>
                 </div>
             </div>
