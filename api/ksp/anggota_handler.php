@@ -69,7 +69,9 @@ function get_all_anggota($db)
 
     // Hitung total data
     $stmt = $db->prepare($countSql);
-    $stmt->bind_param($types, ...$params);
+    if (!empty($types)) {
+        $stmt->bind_param($types, ...$params);
+    }
     $stmt->execute();
     $total = stmt_fetch_assoc($stmt)['total'];
     $stmt->close();
