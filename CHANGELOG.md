@@ -2,6 +2,13 @@
 
 Seluruh pembaruan dan perbaikan pada aplikasi akan dicatat di sini untuk memudahkan Anda mengetahui fitur terbaru.
 
+## [1.3.0] - 2026-03-27
+### FITUR BARU
+- **Sinkronasi Anggota (Sync SP)**: Kini Anda dapat mengimpor data anggota secara otomatis dari aplikasi Simpan Pinjam (SP) tanpa perlu input manual satu per satu.
+- **Dukungan NIK**: Menambahkan kolom NIK (Nomor Induk Kependudukan) pada data anggota untuk identitas yang lebih akurat, lengkap dengan kolom di tabel dan formulir pendaftaran.
+- **Import Cerdas (New Data Only)**: Sistem sinkronasi kini otomatis mendeteksi data yang sudah ada dan hanya akan memasukkan data baru saja. Hal ini mencegah data lokal yang sudah Anda ubah tertimpa oleh data dari SP App.
+- **Pencarian NIK**: Anda sekarang dapat mencari anggota dengan mengetikkan nomor NIK pada kotak pencarian di daftar anggota.
+
 ## [1.2.0] - 2026-03-27
 ### FITUR BARU
 - Menambahkan menu **Catatan Perubahan** ini agar Anda bisa melihat riwayat pembaruan aplikasi.
