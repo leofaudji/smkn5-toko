@@ -43,7 +43,7 @@ class StrukAngsuranReportBuilder implements ReportBuilderInterface
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("s", $ref);
         $stmt->execute();
-        $data = $stmt->get_result()->fetch_assoc();
+        $data = stmt_fetch_assoc($stmt);
 
         if (!$data) {
             throw new Exception("Data pembayaran tidak ditemukan.");

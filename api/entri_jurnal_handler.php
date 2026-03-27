@@ -24,7 +24,7 @@ try {
             $stmt_header = $conn->prepare("SELECT id, tanggal, keterangan FROM jurnal_entries WHERE id = ? AND user_id = ?");
             $stmt_header->bind_param('ii', $id, $user_id);
             $stmt_header->execute();
-            $header = $stmt_header->get_result()->fetch_assoc();
+            $header = stmt_fetch_assoc($stmt_header);
             $stmt_header->close();
             if (!$header) throw new Exception("Entri Jurnal tidak ditemukan.");
 
@@ -37,7 +37,7 @@ try {
             ");
             $stmt_details->bind_param('i', $id);
             $stmt_details->execute();
-            $details = $stmt_details->get_result()->fetch_all(MYSQLI_ASSOC);
+            $details = stmt_fetch_all($stmt_details);
             $stmt_details->close();
 
             echo json_encode(['status' => 'success', 'data' => ['header' => $header, 'details' => $details]]);
@@ -72,7 +72,8 @@ try {
         }
         call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
         $total_stmt->execute();
-        $total_records = (int)$total_stmt->get_result()->fetch_assoc()['total'];
+        $tr_res = stmt_fetch_assoc($total_stmt);
+        $total_records = (int)($tr_res ? $tr_res['total'] : 0);
         $total_stmt->close();
 
         // Get data
@@ -131,7 +132,7 @@ try {
         call_user_func_array([$stmt, 'bind_param'], $bind_params_main);
 
         $stmt->execute();
-        $entries = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $entries = stmt_fetch_all($stmt);
         $stmt->close();
 
         $total_pages = 0;
@@ -225,7 +226,9 @@ try {
             $stmt_old_date = $conn->prepare("SELECT tanggal FROM jurnal_entries WHERE id = ?");
             $stmt_old_date->bind_param('i', $id);
             $stmt_old_date->execute();
-            check_period_lock($stmt_old_date->get_result()->fetch_assoc()['tanggal'], $conn);
+            $od_res = stmt_fetch_assoc($stmt_old_date);
+            check_period_lock($od_res ? $od_res['tanggal'] : null, $conn);
+            $stmt_old_date->close();
 
             $total_debit = 0;
             $total_kredit = 0;
@@ -292,8 +295,10 @@ try {
             $stmt_old_date = $conn->prepare("SELECT tanggal FROM jurnal_entries WHERE id = ?");
             $stmt_old_date->bind_param('i', $id);
             $stmt_old_date->execute();
-            $old_date = $stmt_old_date->get_result()->fetch_assoc()['tanggal'];
+            $od_res_del = stmt_fetch_assoc($stmt_old_date);
+            $old_date = $od_res_del ? $od_res_del['tanggal'] : null;
             check_period_lock($old_date, $conn);
+            $stmt_old_date->close();
 
             $conn->begin_transaction();
 

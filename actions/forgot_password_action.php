@@ -25,7 +25,7 @@ $conn = Database::getInstance()->getConnection();
 $stmt = $conn->prepare("SELECT id, username FROM users WHERE email = ?");
 $stmt->bind_param("s", $email);
 $stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+$user = stmt_fetch_assoc($stmt);
 $stmt->close();
 
 if (!$user) {

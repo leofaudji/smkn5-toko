@@ -40,7 +40,7 @@ try {
             ");
             $stmt->bind_param('iii', $user_id, $tahun, $user_id);
             $stmt->execute();
-            $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $data = stmt_fetch_all($stmt);
             $stmt->close();
             echo json_encode(['status' => 'success', 'data' => $data]);
             break;
@@ -77,14 +77,14 @@ try {
             $stmt_anggaran = $conn->prepare("SELECT SUM(jumlah_anggaran) as total FROM anggaran WHERE user_id = ? AND periode_tahun = ?");
             $stmt_anggaran->bind_param('ii', $user_id, $tahun);
             $stmt_anggaran->execute();
-            $total_anggaran_tahunan = (float)$stmt_anggaran->get_result()->fetch_assoc()['total'];
+            $total_anggaran_tahunan = (float)stmt_fetch_assoc($stmt_anggaran)['total'];
             $anggaran_bulanan = array_fill(1, 12, $total_anggaran_tahunan / 12);
 
             $stmt_realisasi = $conn->prepare("SELECT MONTH(tanggal) as bulan, SUM(debit - kredit) as total FROM general_ledger gl JOIN accounts a ON gl.account_id = a.id WHERE gl.user_id = ? AND YEAR(tanggal) = ? AND a.tipe_akun = 'Beban' GROUP BY bulan");
             $stmt_realisasi->bind_param('ii', $user_id, $tahun);
             $stmt_realisasi->execute();
-            $result = $stmt_realisasi->get_result();
-            while ($row = $result->fetch_assoc()) {
+            $res_rows = stmt_fetch_all($stmt_realisasi);
+            foreach ($res_rows as $row) {
                 $realisasi_bulanan[(int)$row['bulan']] = (float)$row['total'];
             }
 

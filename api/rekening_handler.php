@@ -31,8 +31,7 @@ try {
         ");
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
-        $result = $stmt->get_result();
-        $rekening = $result->fetch_all(MYSQLI_ASSOC);
+        $rekening = stmt_fetch_all($stmt);
         $stmt->close();
 
         echo json_encode(['status' => 'success', 'data' => $rekening]);
@@ -64,7 +63,7 @@ try {
                 $stmt = $conn->prepare("SELECT id, nama_rekening, saldo_awal FROM rekening WHERE id = ? AND user_id = ?");
                 $stmt->bind_param('ii', $id, $user_id);
                 $stmt->execute();
-                $rekening = $stmt->get_result()->fetch_assoc();
+                $rekening = stmt_fetch_assoc($stmt);
                 $stmt->close();
                 if (!$rekening) {
                     throw new Exception("Rekening tidak ditemukan.");
@@ -97,7 +96,7 @@ try {
                 $stmt_check = $conn->prepare("SELECT COUNT(*) as count FROM transaksi WHERE rekening_id = ? OR rekening_tujuan_id = ?");
                 $stmt_check->bind_param('ii', $id, $id);
                 $stmt_check->execute();
-                $count = $stmt_check->get_result()->fetch_assoc()['count'];
+                $count = stmt_fetch_assoc($stmt_check)['count'];
                 $stmt_check->close();
 
                 if ($count > 0) {

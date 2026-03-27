@@ -63,7 +63,8 @@ try {
             for ($i = 1; $i < count($params); $i++) { $bind_params_total[] = &$params[$i]; }
             call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
             $total_stmt->execute();
-            $total_records = $total_stmt->get_result()->fetch_assoc()['total'];
+            $tr_res = stmt_fetch_assoc($total_stmt);
+            $total_records = $tr_res ? $tr_res['total'] : 0;
             $total_stmt->close();
 
             // Get data for the current page
@@ -77,7 +78,7 @@ try {
             for ($i = 1; $i < count($params); $i++) { $bind_params_main[] = &$params[$i]; }
             call_user_func_array([$stmt, 'bind_param'], $bind_params_main);
             $stmt->execute();
-            $pembelian_list = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $pembelian_list = stmt_fetch_all($stmt);
             $stmt->close();
  
             $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records, 'limit' => $limit];
@@ -90,7 +91,7 @@ try {
             $stmt_header = $conn->prepare("SELECT * FROM pembelian WHERE id = ? AND user_id = ?");
             $stmt_header->bind_param('ii', $id, $user_id);
             $stmt_header->execute();
-            $header = $stmt_header->get_result()->fetch_assoc();
+            $header = stmt_fetch_assoc($stmt_header);
             $stmt_header->close();
             if (!$header) throw new Exception("Pembelian tidak ditemukan.");
             
@@ -109,7 +110,7 @@ try {
             );
             $stmt_details->bind_param('i', $id);
             $stmt_details->execute();
-            $details = $stmt_details->get_result()->fetch_all(MYSQLI_ASSOC);
+            $details = stmt_fetch_all($stmt_details);
             $stmt_details->close();
 
             echo json_encode(['status' => 'success', 'data' => ['header' => $header, 'details' => $details]]);
@@ -144,7 +145,9 @@ try {
                     $stmt_old_date = $conn->prepare("SELECT tanggal_pembelian FROM pembelian WHERE id = ?");
                     $stmt_old_date->bind_param('i', $id);
                     $stmt_old_date->execute();
-                    check_period_lock($stmt_old_date->get_result()->fetch_assoc()['tanggal_pembelian'], $conn);
+                    $od_res = stmt_fetch_assoc($stmt_old_date);
+                    check_period_lock($od_res ? $od_res['tanggal_pembelian'] : null, $conn);
+                    $stmt_old_date->close();
                 }
 
                 // 2. Tentukan Akun Kredit
@@ -180,7 +183,7 @@ try {
                     $stmt_item_acc = $conn->prepare("SELECT inventory_account_id FROM items WHERE id = ? AND user_id = ?");
                     $stmt_item_acc->bind_param('ii', $line['item_id'], $user_id);
                     $stmt_item_acc->execute();
-                    $item_account = $stmt_item_acc->get_result()->fetch_assoc();
+                    $item_account = stmt_fetch_assoc($stmt_item_acc);
                     $stmt_item_acc->close();
 
                     $inventory_account_id = null;
@@ -214,7 +217,7 @@ try {
                     $stmt_old_details = $conn->prepare("SELECT item_id, quantity FROM pembelian_details WHERE pembelian_id = ?");
                     $stmt_old_details->bind_param('i', $id);
                     $stmt_old_details->execute();
-                    $old_items = $stmt_old_details->get_result()->fetch_all(MYSQLI_ASSOC);
+                    $old_items = stmt_fetch_all($stmt_old_details);
                     $stmt_old_details->close();
 
                     $stmt_delete_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'pembelian' AND user_id = ?");
@@ -266,7 +269,8 @@ try {
                     $stmt_get_ref = $conn->prepare("SELECT nomor_referensi FROM pembelian WHERE id = ?");
                     $stmt_get_ref->bind_param('i', $pembelian_id);
                     $stmt_get_ref->execute();
-                    $nomor_referensi = $stmt_get_ref->get_result()->fetch_assoc()['nomor_referensi'];
+                    $nr_res = stmt_fetch_assoc($stmt_get_ref);
+                    $nomor_referensi = $nr_res ? $nr_res['nomor_referensi'] : "PEM-{$pembelian_id}";
                     $stmt_get_ref->close();
                 }
                 $stmt_pembelian->close();
@@ -340,20 +344,23 @@ try {
                 $stmt_old_date = $conn->prepare("SELECT tanggal_pembelian FROM pembelian WHERE id = ?");
                 $stmt_old_date->bind_param('i', $id);
                 $stmt_old_date->execute();
-                check_period_lock($stmt_old_date->get_result()->fetch_assoc()['tanggal_pembelian'], $conn);
+                $od_res_del = stmt_fetch_assoc($stmt_old_date);
+                check_period_lock($od_res_del ? $od_res_del['tanggal_pembelian'] : null, $conn);
+                $stmt_old_date->close();
 
                 // Ambil detail item yang akan dihapus untuk mengembalikan stok
                 $stmt_old_details = $conn->prepare("SELECT item_id, quantity FROM pembelian_details WHERE pembelian_id = ?");
                 $stmt_old_details->bind_param('i', $id);
                 $stmt_old_details->execute();
-                $items_to_revert = $stmt_old_details->get_result()->fetch_all(MYSQLI_ASSOC);
+                $items_to_revert = stmt_fetch_all($stmt_old_details);
                 $stmt_old_details->close();
 
                 // Ambil nomor referensi sebelum dihapus untuk log kartu stok
                 $stmt_get_ref = $conn->prepare("SELECT nomor_referensi FROM pembelian WHERE id = ?");
                 $stmt_get_ref->bind_param('i', $id);
                 $stmt_get_ref->execute();
-                $nomor_referensi_void = $stmt_get_ref->get_result()->fetch_assoc()['nomor_referensi'] ?? "PEM-{$id}";
+                $nrv_res = stmt_fetch_assoc($stmt_get_ref);
+                $nomor_referensi_void = ($nrv_res && !empty($nrv_res['nomor_referensi'])) ? $nrv_res['nomor_referensi'] : "PEM-{$id}";
                 $stmt_get_ref->close();
 
                 $conn->begin_transaction();

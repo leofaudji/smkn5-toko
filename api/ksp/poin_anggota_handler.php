@@ -35,7 +35,7 @@ try {
             $stmtCount = $db->prepare("SELECT COUNT(*) as total FROM anggota $where");
             if (!empty($params)) $stmtCount->bind_param($types, ...$params);
             $stmtCount->execute();
-            $total = $stmtCount->get_result()->fetch_assoc()['total'];
+            $total = stmt_fetch_assoc($stmtCount)['total'];
 
             // Get data
             $sql = "SELECT id, nomor_anggota, nama_lengkap, gamification_points 
@@ -49,7 +49,7 @@ try {
             
             $stmt->bind_param($types, ...$params);
             $stmt->execute();
-            $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $data = stmt_fetch_all($stmt);
 
             // Calculate rank based on offset
             foreach ($data as $index => &$row) {
@@ -73,7 +73,7 @@ try {
             $stmt = $db->prepare("SELECT * FROM ksp_gamification_log WHERE anggota_id = ? ORDER BY created_at DESC LIMIT 50");
             $stmt->bind_param("i", $memberId);
             $stmt->execute();
-            $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $data = stmt_fetch_all($stmt);
             echo json_encode(['success' => true, 'data' => $data]);
             break;
 

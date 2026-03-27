@@ -35,14 +35,14 @@ try {
         ");
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
-        $assets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $assets = stmt_fetch_all($stmt);
         echo json_encode(['status' => 'success', 'data' => $assets]);
 
     } elseif ($action === 'get_accounts') {
         $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? AND tipe_akun IN ('Aset', 'Beban', 'Pendapatan') ORDER BY kode_akun");
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
-        $all_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $all_accounts = stmt_fetch_all($stmt);
         $accounts = [
             'aset' => array_values(array_filter($all_accounts, fn($acc) => $acc['tipe_akun'] == 'Aset')),
             'beban' => array_values(array_filter($all_accounts, fn($acc) => $acc['tipe_akun'] == 'Beban')),
@@ -82,7 +82,7 @@ try {
         $stmt = $conn->prepare("SELECT * FROM fixed_assets WHERE id = ? AND user_id = ?");
         $stmt->bind_param('ii', $id, $user_id);
         $stmt->execute();
-        $asset = $stmt->get_result()->fetch_assoc();
+        $asset = stmt_fetch_assoc($stmt);
         if (!$asset) throw new Exception("Aset tidak ditemukan.");
         echo json_encode(['status' => 'success', 'data' => $asset]);
 
@@ -93,7 +93,7 @@ try {
         $like_pattern = "%Aset ID: $id%";
         $stmt_check->bind_param('s', $like_pattern);
         $stmt_check->execute();
-        if ($stmt_check->get_result()->fetch_assoc()['count'] > 0) {
+        if (stmt_fetch_assoc($stmt_check)['count'] > 0) {
             throw new Exception("Tidak dapat menghapus aset karena sudah ada jurnal penyusutan terkait.");
         }
         $stmt_check->close();
@@ -113,7 +113,7 @@ try {
         $stmt_assets = $conn->prepare("SELECT * FROM fixed_assets WHERE user_id = ? AND tanggal_akuisisi <= ? AND status = 'Aktif'");
         $stmt_assets->bind_param('is', $user_id, $posting_date);
         $stmt_assets->execute();
-        $assets = $stmt_assets->get_result()->fetch_all(MYSQLI_ASSOC);
+        $assets = stmt_fetch_all($stmt_assets);
         $stmt_assets->close();
 
         $conn->begin_transaction();
@@ -140,7 +140,7 @@ try {
             $like_pattern = "%(Aset ID: $asset_id)%";
             $stmt_check->bind_param('iiis', $user_id, $month, $year, $like_pattern);
             $stmt_check->execute();
-            $is_posted = $stmt_check->get_result()->fetch_assoc();
+            $is_posted = stmt_fetch_assoc($stmt_check);
             $stmt_check->close();
 
             if ($is_posted) continue; // Lewati jika sudah diposting
@@ -149,7 +149,7 @@ try {
             $stmt_total_dep = $conn->prepare("SELECT COALESCE(SUM(kredit), 0) as total FROM general_ledger WHERE keterangan LIKE ?");
             $stmt_total_dep->bind_param('s', $like_pattern);
             $stmt_total_dep->execute();
-            $total_depreciated = $stmt_total_dep->get_result()->fetch_assoc()['total'];
+            $total_depreciated = stmt_fetch_assoc($stmt_total_dep)['total'];
             $stmt_total_dep->close();
 
             if ($total_depreciated >= $dasar_penyusutan) continue; // Lewati jika sudah lunas
@@ -206,7 +206,7 @@ try {
         $stmt_asset = $conn->prepare("SELECT * FROM fixed_assets WHERE id = ? AND user_id = ?");
         $stmt_asset->bind_param('ii', $asset_id, $user_id);
         $stmt_asset->execute();
-        $asset = $stmt_asset->get_result()->fetch_assoc();
+        $asset = stmt_fetch_assoc($stmt_asset);
         $stmt_asset->close();
         if (!$asset || $asset['status'] === 'Dilepas') {
             throw new Exception("Aset tidak ditemukan atau sudah dilepas.");
@@ -217,7 +217,7 @@ try {
         $like_pattern = "%(Aset ID: $asset_id)%";
         $stmt_dep->bind_param('ss', $like_pattern, $tanggal_pelepasan);
         $stmt_dep->execute();
-        $akumulasi_penyusutan = (float)$stmt_dep->get_result()->fetch_assoc()['total'];
+        $akumulasi_penyusutan = (float)stmt_fetch_assoc($stmt_dep)['total'];
         $stmt_dep->close();
 
         // 3. Hitung nilai buku dan laba/rugi

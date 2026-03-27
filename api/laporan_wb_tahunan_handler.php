@@ -25,7 +25,7 @@ try {
         $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE anggota_id = ? AND YEAR(tanggal) = ? ORDER BY tanggal DESC");
         $stmt->bind_param('ii', $anggota_id, $tahun);
         $stmt->execute();
-        $history = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $history = stmt_fetch_all($stmt);
         $stmt->close();
 
         echo json_encode(['status' => 'success', 'data' => $history]);
@@ -39,7 +39,7 @@ try {
     $stmt_members = $conn->prepare($sql_members);
     $stmt_members->bind_param('i', $user_id);
     $stmt_members->execute();
-    $members = $stmt_members->get_result()->fetch_all(MYSQLI_ASSOC);
+    $members = stmt_fetch_all($stmt_members);
     $stmt_members->close();
 
     // 2. Ambil transaksi WB (SETOR) untuk tahun yang dipilih
@@ -50,11 +50,9 @@ try {
     $stmt_trans = $conn->prepare($sql_trans);
     $stmt_trans->bind_param('ii', $user_id, $tahun);
     $stmt_trans->execute();
-    $transactions_result = $stmt_trans->get_result();
-    
-    // Mapping transaksi ke array [anggota_id][bulan] = jumlah
     $transactions = [];
-    while($row = $transactions_result->fetch_assoc()) {
+    $rows_trans = stmt_fetch_all($stmt_trans);
+    foreach ($rows_trans as $row) {
         $transactions[$row['anggota_id']][$row['bulan']] = (float)$row['total_bulan'];
     }
     $stmt_trans->close();
@@ -68,18 +66,18 @@ try {
     $stmt_belanja = $conn->prepare($sql_belanja);
     $stmt_belanja->bind_param('ii', $user_id, $tahun);
     $stmt_belanja->execute();
-    $res_belanja = $stmt_belanja->get_result();
     $belanja_data = [];
-    while($row = $res_belanja->fetch_assoc()) $belanja_data[$row['anggota_id']] = $row['total_belanja'];
+    $rows_belanja = stmt_fetch_all($stmt_belanja);
+    foreach ($rows_belanja as $row) $belanja_data[$row['anggota_id']] = $row['total_belanja'];
     $stmt_belanja->close();
 
     // Ambil Saldo Akhir Real-time dari tabel anggota
     $stmt_saldo = $conn->prepare("SELECT id, saldo_wajib_belanja FROM anggota WHERE user_id = ?");
     $stmt_saldo->bind_param('i', $user_id);
     $stmt_saldo->execute();
-    $res_saldo = $stmt_saldo->get_result();
     $saldo_map = [];
-    while($row = $res_saldo->fetch_assoc()) $saldo_map[$row['id']] = $row['saldo_wajib_belanja'];
+    $rows_saldo = stmt_fetch_all($stmt_saldo);
+    foreach ($rows_saldo as $row) $saldo_map[$row['id']] = $row['saldo_wajib_belanja'];
 
     // 3. Gabungkan data anggota dengan data transaksi
     $report_data = [];

@@ -47,7 +47,7 @@ try {
                 $stmt->bind_param($types, ...$params);
             }
             $stmt->execute();
-            $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $data = stmt_fetch_all($stmt);
             echo json_encode(['success' => true, 'data' => $data]);
             break;
 
@@ -65,7 +65,7 @@ try {
             $stmt = $db->prepare("SELECT * FROM ksp_penarikan_simpanan WHERE id = ? AND status = 'pending' FOR UPDATE");
             $stmt->bind_param("i", $id);
             $stmt->execute();
-            $penarikan = $stmt->get_result()->fetch_assoc();
+            $penarikan = stmt_fetch_assoc($stmt);
             if (!$penarikan) {
                 throw new Exception("Pengajuan tidak ditemukan atau sudah diproses.");
             }
@@ -74,7 +74,7 @@ try {
             $stmt_jenis = $db->prepare("SELECT akun_id, nama FROM ksp_jenis_simpanan WHERE id = ?");
             $stmt_jenis->bind_param("i", $penarikan['jenis_simpanan_id']);
             $stmt_jenis->execute();
-            $jenis_simpanan = $stmt_jenis->get_result()->fetch_assoc();
+            $jenis_simpanan = stmt_fetch_assoc($stmt_jenis);
             $akun_simpanan_id = $jenis_simpanan['akun_id'];
 
             // 3. Create a journal entry

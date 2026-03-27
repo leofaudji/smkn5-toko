@@ -61,7 +61,7 @@ function get_all_anggota($db) {
     $stmt = $db->prepare($countSql);
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
-    $total = $stmt->get_result()->fetch_assoc()['total'];
+    $total = stmt_fetch_assoc($stmt)['total'];
     $stmt->close();
 
     // Ambil data
@@ -73,7 +73,7 @@ function get_all_anggota($db) {
     $stmt = $db->prepare($sql);
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
-    $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $data = stmt_fetch_all($stmt);
     $stmt->close();
 
     echo json_encode([
@@ -92,7 +92,7 @@ function get_detail_anggota($db) {
     $stmt = $db->prepare("SELECT * FROM anggota WHERE id = ? AND user_id = ?");
     $stmt->bind_param("ii", $id, $user_id);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_assoc();
+    $result = stmt_fetch_assoc($stmt);
     
     if ($result) {
         echo json_encode(['success' => true, 'data' => $result]);
@@ -119,7 +119,7 @@ function store_anggota($db) {
     $searchPrefix = $prefix . "%";
     $stmt->bind_param("s", $searchPrefix);
     $stmt->execute();
-    $last = $stmt->get_result()->fetch_assoc();
+    $last = stmt_fetch_assoc($stmt);
     
     $seq = 1;
     if ($last) {

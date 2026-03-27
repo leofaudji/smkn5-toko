@@ -38,7 +38,7 @@ class LaporanRepository
         ");
         $stmt_entries->bind_param('is', $user_id, $tanggal);
         $stmt_entries->execute();
-        $all_transactions = $stmt_entries->get_result()->fetch_all(MYSQLI_ASSOC);
+        $all_transactions = stmt_fetch_all($stmt_entries);
         $stmt_entries->close();
         
         $total_pemasukan = array_sum(array_column($all_transactions, 'pemasukan'));
@@ -87,9 +87,9 @@ class LaporanRepository
         ");
         $stmt->bind_param('ssi', $tanggal_mulai, $tanggal_akhir, $user_id);
         $stmt->execute();
-        $result = $stmt->get_result();
         $accounts = [];
-        while ($row = $result->fetch_assoc()) {
+        $res_rows = stmt_fetch_all($stmt);
+        foreach ($res_rows as $row) {
             $row['total'] = (float)$row['total'];
             $accounts[] = $row;
         }
@@ -128,7 +128,7 @@ class LaporanRepository
         $stmt_last_lock = $this->conn->prepare("SELECT MAX(tanggal) as last_lock FROM general_ledger WHERE user_id = ? AND keterangan LIKE 'Jurnal Penutup Periode%' AND tanggal < ?");
         $stmt_last_lock->bind_param('is', $user_id, $tanggal);
         $stmt_last_lock->execute();
-        $last_lock_before_date = $stmt_last_lock->get_result()->fetch_assoc()['last_lock'];
+        $last_lock_before_date = stmt_fetch_assoc($stmt_last_lock)['last_lock'];
         $stmt_last_lock->close();
 
         // Tentukan awal periode mutasi (dan perhitungan laba/rugi).
@@ -168,9 +168,9 @@ class LaporanRepository
         // Bind parameters: saldo_awal_calc_until_date, mutasi_calc_from_date, $tanggal, user_id
         $stmt->bind_param('sssi', $saldo_awal_calc_until_date, $mutasi_calc_from_date, $tanggal, $user_id);
         $stmt->execute();
-        $result = $stmt->get_result();
         $data = [];
-        while ($row = $result->fetch_assoc()) {
+        $res_neraca = stmt_fetch_all($stmt);
+        foreach ($res_neraca as $row) {
             // Saldo akhir adalah saldo awal periode + mutasi selama periode
             $row['saldo_akhir'] = (float)$row['saldo_awal_periode'] + (float)$row['mutasi_periode'];
             $data[] = $row;
@@ -200,7 +200,7 @@ class LaporanRepository
         $stmt_last_lock = $this->conn->prepare("SELECT MAX(tanggal) as last_lock FROM general_ledger WHERE user_id = ? AND keterangan LIKE 'Jurnal Penutup Periode%' AND tanggal < ?");
         $stmt_last_lock->bind_param('is', $user_id, $tanggal);
         $stmt_last_lock->execute();
-        $last_lock_before_date = $stmt_last_lock->get_result()->fetch_assoc()['last_lock'];
+        $last_lock_before_date = stmt_fetch_assoc($stmt_last_lock)['last_lock'];
         $stmt_last_lock->close();
 
         $fiscal_year_start = $last_lock_before_date ? date('Y-m-d', strtotime($last_lock_before_date . ' + 1 day')) : date('Y-01-01', strtotime($tanggal));
@@ -251,7 +251,7 @@ class LaporanRepository
         ");
         $stmt->bind_param('iss', $user_id, $start_date, $end_date);
         $stmt->execute();
-        $transactions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $transactions = stmt_fetch_all($stmt);
         $stmt->close();
 
         // 3. Ambil saldo kas awal
@@ -280,7 +280,7 @@ class LaporanRepository
         $stmt_acc = $this->conn->prepare("SELECT nama_akun FROM accounts WHERE id = ? AND user_id = ?");
         $stmt_acc->bind_param('ii', $retained_earnings_acc_id, $user_id);
         $stmt_acc->execute();
-        $account_info = $stmt_acc->get_result()->fetch_assoc();
+        $account_info = stmt_fetch_assoc($stmt_acc);
         $stmt_acc->close();
         if (!$account_info) throw new Exception("Akun Laba Ditahan yang diatur tidak ditemukan.");
 
@@ -290,7 +290,7 @@ class LaporanRepository
         $stmt_transaksi = $this->conn->prepare("SELECT tanggal, keterangan, debit, kredit FROM general_ledger WHERE user_id = ? AND account_id = ? AND tanggal BETWEEN ? AND ? ORDER BY tanggal ASC, id ASC");
         $stmt_transaksi->bind_param('iiss', $user_id, $retained_earnings_acc_id, $start_date, $end_date);
         $stmt_transaksi->execute();
-        $transactions = $stmt_transaksi->get_result()->fetch_all(MYSQLI_ASSOC);
+        $transactions = stmt_fetch_all($stmt_transaksi);
         $stmt_transaksi->close();
 
         return compact('account_info', 'saldo_awal', 'transactions');
@@ -346,7 +346,7 @@ class LaporanRepository
         $bind_params = array_merge([$tahun, $tahun, $tahun_lalu, $tahun_lalu, $user_id], $years_to_query);
         $stmt->bind_param($bind_types, ...$bind_params);
         $stmt->execute();
-        $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $result = stmt_fetch_all($stmt);
         $stmt->close();
 
         $report_data = [];
@@ -452,7 +452,7 @@ class LaporanRepository
         ");
         $stmt->bind_param('iiiiiiiii', $user_id, $tahun, $user_id, $tahun, $bulan, $user_id, $tahun_lalu, $bulan, $user_id);
         $stmt->execute();
-        $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $data = stmt_fetch_all($stmt);
         $stmt->close();
 
         $total_anggaran = 0;
@@ -497,7 +497,7 @@ class LaporanRepository
         $stmt_acc = $this->conn->prepare("SELECT kode_akun, nama_akun, saldo_normal FROM accounts WHERE id = ? AND user_id = ?");
         $stmt_acc->bind_param('ii', $account_id, $user_id);
         $stmt_acc->execute();
-        $account_info = $stmt_acc->get_result()->fetch_assoc();
+        $account_info = stmt_fetch_assoc($stmt_acc);
         if (!$account_info) throw new Exception("Akun tidak ditemukan.");
         $stmt_acc->close();
 
@@ -513,7 +513,7 @@ class LaporanRepository
         $stmt_transaksi = $this->conn->prepare($query);
         $stmt_transaksi->bind_param('iiss', $user_id, $account_id, $start_date, $end_date);
         $stmt_transaksi->execute();
-        $transactions = $stmt_transaksi->get_result()->fetch_all(MYSQLI_ASSOC);
+        $transactions = stmt_fetch_all($stmt_transaksi);
         $stmt_transaksi->close();
 
         return compact('account_info', 'saldo_awal', 'transactions');
@@ -548,6 +548,6 @@ class LaporanRepository
         $stmt = $this->conn->prepare($query);
         $stmt->bind_param($params[0], ...array_slice($params, 1));
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        return stmt_fetch_all($stmt);
     }
 }

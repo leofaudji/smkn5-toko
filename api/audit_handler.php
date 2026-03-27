@@ -26,7 +26,7 @@ function get_gl_balance($conn, $account_id, $user_id) {
     ");
     $stmt->bind_param('ii', $account_id, $user_id);
     $stmt->execute();
-    $res = $stmt->get_result()->fetch_assoc();
+    $res = stmt_fetch_assoc($stmt);
     $stmt->close();
 
     if (!$res) return 0;

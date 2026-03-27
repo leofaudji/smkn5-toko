@@ -48,7 +48,7 @@ class KartuAnggotaReportBuilder implements ReportBuilderInterface
             $stmt = $this->conn->prepare("SELECT * FROM anggota WHERE id = ?");
             $stmt->bind_param("i", $id);
             $stmt->execute();
-            $member = $stmt->get_result()->fetch_assoc();
+            $member = stmt_fetch_assoc($stmt);
 
             if (!$member) continue;
 

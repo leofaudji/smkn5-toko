@@ -23,7 +23,7 @@ trait BukuBesarDataTrait {
         $stmt_acc = $conn->prepare("SELECT kode_akun, nama_akun, saldo_awal, saldo_normal FROM accounts WHERE id = ? AND user_id = ?");
         $stmt_acc->bind_param('ii', $account_id, $user_id);
         $stmt_acc->execute();
-        $account_info = $stmt_acc->get_result()->fetch_assoc();
+        $account_info = stmt_fetch_assoc($stmt_acc);
         if (!$account_info) throw new Exception("Akun tidak ditemukan.");
         $stmt_acc->close();
 
@@ -36,7 +36,7 @@ trait BukuBesarDataTrait {
         $stmt_transaksi = $conn->prepare($query);
         $stmt_transaksi->bind_param('iiss', $user_id, $account_id, $start_date, $end_date);
         $stmt_transaksi->execute();
-        $transactions = $stmt_transaksi->get_result()->fetch_all(MYSQLI_ASSOC);
+        $transactions = stmt_fetch_all($stmt_transaksi);
         $stmt_transaksi->close();
 
         return compact('account_info', 'saldo_awal', 'transactions');

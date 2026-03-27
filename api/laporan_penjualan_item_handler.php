@@ -64,7 +64,7 @@ try {
     $total_stmt = $conn->prepare($count_query);
     $total_stmt->bind_param(...$params);
     $total_stmt->execute();
-    $total_records = $total_stmt->get_result()->fetch_assoc()['total'];
+    $total_records = stmt_fetch_assoc($total_stmt)['total'];
     $total_stmt->close();
 
     // Get data for the current page
@@ -76,7 +76,7 @@ try {
     $stmt = $conn->prepare($query);
     $stmt->bind_param(...$params);
     $stmt->execute();
-    $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $data = stmt_fetch_all($stmt);
     $stmt->close();
 
     $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records];

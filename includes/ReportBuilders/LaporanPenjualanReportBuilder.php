@@ -88,7 +88,7 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         $stmt = $this->conn->prepare($query);
         $stmt->bind_param(...$params);
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        return stmt_fetch_all($stmt);
     }
 
     private function renderSummary(array $data): void
@@ -222,7 +222,7 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         $stmt = $this->conn->prepare($query);
         $stmt->bind_param(...$params);
         $stmt->execute();
-        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $rows = stmt_fetch_all($stmt);
 
         $summary = [
             'total_penjualan' => 0, 'total_hpp' => 0, 'total_profit' => 0,

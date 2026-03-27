@@ -30,7 +30,7 @@ try {
         ");
         $stmt_sim->bind_param("i", $member_id);
         $stmt_sim->execute();
-        $simpanan_per_jenis = $stmt_sim->get_result()->fetch_all(MYSQLI_ASSOC);
+        $simpanan_per_jenis = stmt_fetch_all($stmt_sim);
         
         // Pastikan saldo dikirim sebagai angka (float) bukan string
         foreach ($simpanan_per_jenis as &$item) {
@@ -51,7 +51,7 @@ try {
         ");
         $stmt_pinj->bind_param("i", $member_id);
         $stmt_pinj->execute();
-        $sisa_pinjaman = $stmt_pinj->get_result()->fetch_assoc()['sisa_pokok'] ?? 0;
+        $sisa_pinjaman = stmt_fetch_assoc($stmt_pinj)['sisa_pokok'] ?? 0;
 
         // Cek Tagihan Jatuh Tempo (H-7)
         $stmt_due = $db->prepare("
@@ -67,25 +67,25 @@ try {
         ");
         $stmt_due->bind_param("i", $member_id);
         $stmt_due->execute();
-        $upcoming_payments = $stmt_due->get_result()->fetch_all(MYSQLI_ASSOC);
+        $upcoming_payments = stmt_fetch_all($stmt_due);
 
         // Ambil Pengumuman Aktif (Terbaru 3)
         $stmt_news = $db->prepare("SELECT judul, isi, tanggal_posting FROM ksp_pengumuman WHERE is_active = 1 ORDER BY tanggal_posting DESC LIMIT 3");
         $stmt_news->execute();
-        $news = $stmt_news->get_result()->fetch_all(MYSQLI_ASSOC);
+        $news = stmt_fetch_all($stmt_news);
 
         // Ambil Target Tabungan (Dummy logic: ambil dari tabel jika ada, atau return kosong)
         // Di implementasi nyata, ini ambil dari tabel ksp_target_tabungan
         $stmt_target = $db->prepare("SELECT * FROM ksp_target_tabungan WHERE anggota_id = ? ORDER BY tanggal_target ASC");
         $stmt_target->bind_param("i", $member_id);
         $stmt_target->execute();
-        $targets = $stmt_target->get_result()->fetch_all(MYSQLI_ASSOC);
+        $targets = stmt_fetch_all($stmt_target);
 
         // Ambil Data Anggota Lengkap
         $stmt_m = $db->prepare("SELECT nama_lengkap, nomor_anggota, tanggal_daftar, gamification_points, default_payment_savings_id FROM anggota WHERE id = ?");
         $stmt_m->bind_param("i", $member_id);
         $stmt_m->execute();
-        $member_info = $stmt_m->get_result()->fetch_assoc();
+        $member_info = stmt_fetch_assoc($stmt_m);
 
         // Gamifikasi: Tentukan Level berdasarkan poin
         $points = (int)($member_info['gamification_points'] ?? 0);
@@ -110,14 +110,14 @@ try {
         ");
         $stmt_month_save->bind_param("iii", $member_id, $current_month, $current_year);
         $stmt_month_save->execute();
-        $saved_this_month = (float)$stmt_month_save->get_result()->fetch_assoc()['saved'];
+        $saved_this_month = (float)stmt_fetch_assoc($stmt_month_save)['saved'];
 
         // 2. Belanja Toko Bulan Ini (Berdasarkan referensi INV/MBR/...)
         $ref_pattern = "%/" . $member_id . "-%";
         $stmt_month_spend = $db->prepare("SELECT COALESCE(SUM(total), 0) as spent FROM penjualan WHERE nomor_referensi LIKE ? AND MONTH(tanggal_penjualan) = ? AND YEAR(tanggal_penjualan) = ?");
         $stmt_month_spend->bind_param("sii", $ref_pattern, $current_month, $current_year);
         $stmt_month_spend->execute();
-        $spent_this_month = (float)$stmt_month_spend->get_result()->fetch_assoc()['spent'];
+        $spent_this_month = (float)stmt_fetch_assoc($stmt_month_spend)['spent'];
 
 
         echo json_encode([
@@ -176,7 +176,7 @@ try {
         $stmt = $db->prepare($sql);
         $stmt->bind_param($types, ...$params);
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'list_pinjaman') {
         $status = $_GET['status'] ?? 'all';
         
@@ -212,7 +212,7 @@ try {
         $stmt = $db->prepare($sql);
         $stmt->bind_param($types, ...$params);
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'get_loan_detail') {
         $pinjaman_id = $_GET['id'] ?? 0;
         
@@ -220,14 +220,14 @@ try {
         $stmt = $db->prepare("SELECT * FROM ksp_pinjaman WHERE id = ? AND anggota_id = ?");
         $stmt->bind_param("ii", $pinjaman_id, $member_id);
         $stmt->execute();
-        $pinjaman = $stmt->get_result()->fetch_assoc();
+        $pinjaman = stmt_fetch_assoc($stmt);
 
         if ($pinjaman) {
             // Get Schedule
             $stmt_sch = $db->prepare("SELECT * FROM ksp_angsuran WHERE pinjaman_id = ? ORDER BY angsuran_ke ASC");
             $stmt_sch->bind_param("i", $pinjaman_id);
             $stmt_sch->execute();
-            $schedule = $stmt_sch->get_result()->fetch_all(MYSQLI_ASSOC);
+            $schedule = stmt_fetch_all($stmt_sch);
             echo json_encode(['success' => true, 'data' => $pinjaman, 'schedule' => $schedule]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Data tidak ditemukan']);
@@ -243,7 +243,7 @@ try {
         ");
         $stmt->bind_param("ii", $member_id, $jenis_id);
         $stmt->execute();
-        $transactions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $transactions = stmt_fetch_all($stmt);
 
         $running_balance = 0;
         $history = [];
@@ -258,7 +258,7 @@ try {
     } elseif ($action === 'get_loan_types') {
         $stmt = $db->prepare("SELECT id, nama, bunga_per_tahun FROM ksp_jenis_pinjaman");
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'savings_growth') {
         // Ambil data 6 bulan terakhir
         $months = [];
@@ -278,7 +278,7 @@ try {
         $stmt_init = $db->prepare("SELECT SUM(kredit - debit) as total FROM ksp_transaksi_simpanan WHERE anggota_id = ? AND tanggal < ?");
         $stmt_init->bind_param("is", $member_id, $start_date);
         $stmt_init->execute();
-        $current_balance = (float)($stmt_init->get_result()->fetch_assoc()['total'] ?? 0);
+        $current_balance = (float)(stmt_fetch_assoc($stmt_init)['total'] ?? 0);
 
         // 2. Ambil perubahan saldo per bulan selama 6 bulan terakhir
         $stmt_monthly = $db->prepare("
@@ -290,10 +290,9 @@ try {
         ");
         $stmt_monthly->bind_param("is", $member_id, $start_date);
         $stmt_monthly->execute();
-        $result = $stmt_monthly->get_result();
-        
         $monthly_data = [];
-        while($row = $result->fetch_assoc()) {
+        $res_rows = stmt_fetch_all($stmt_monthly);
+        foreach ($res_rows as $row) {
             $monthly_data[$row['periode']] = (float)$row['net_change'];
         }
 
@@ -308,7 +307,7 @@ try {
     } elseif ($action === 'get_item_categories') {
         $stmt = $db->prepare("SELECT id, nama_kategori FROM item_categories WHERE user_id = 1 ORDER BY nama_kategori ASC");
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'search_store_items') {
         $q = $_GET['q'] ?? '';
         $category_id = $_GET['category_id'] ?? '';
@@ -347,7 +346,7 @@ try {
             $stmt->bind_param($types, ...$params);
         }
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'toggle_wishlist' && $request_method === 'POST') {
         $item_id = (int)($_POST['item_id'] ?? 0);
         if ($item_id <= 0) throw new Exception("Item ID tidak valid");
@@ -356,7 +355,7 @@ try {
         $stmt_check = $db->prepare("SELECT id FROM ksp_wishlist WHERE anggota_id = ? AND item_id = ?");
         $stmt_check->bind_param("ii", $member_id, $item_id);
         $stmt_check->execute();
-        $exists = $stmt_check->get_result()->fetch_assoc();
+        $exists = stmt_fetch_assoc($stmt_check);
 
         if ($exists) {
             // Hapus
@@ -379,7 +378,7 @@ try {
             WHERE w.anggota_id = ? AND i.stok > 0");
         $stmt->bind_param("i", $member_id);
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'search_members') {
         $q = $_GET['q'] ?? '';
         if (strlen($q) < 2) {
@@ -395,7 +394,7 @@ try {
         ");
         $stmt->bind_param("ssi", $searchTerm, $searchTerm, $member_id);
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'get_gamification_log') {
         $stmt = $db->prepare("
             SELECT * FROM ksp_gamification_log 
@@ -404,7 +403,7 @@ try {
         ");
         $stmt->bind_param("i", $member_id);
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'get_withdrawal_history') {
         $stmt = $db->prepare("
             SELECT p.id, p.jumlah, p.tanggal_pengajuan, p.status, p.keterangan, j.nama as jenis_simpanan
@@ -416,7 +415,7 @@ try {
         ");
         $stmt->bind_param("i", $member_id);
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'get_qr_payment_history') {
         $stmt = $db->prepare("
             SELECT tanggal, keterangan, jumlah
@@ -427,7 +426,7 @@ try {
         ");
         $stmt->bind_param("i", $member_id);
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'update_payment_settings' && $request_method === 'POST') {
         $savings_id = isset($_POST['default_savings_id']) && $_POST['default_savings_id'] !== '' ? (int)$_POST['default_savings_id'] : null;
         
@@ -490,7 +489,7 @@ try {
         $stmt_jenis = $db->prepare("SELECT tipe FROM ksp_jenis_simpanan WHERE id = ?");
         $stmt_jenis->bind_param("i", $jenis_simpanan_id);
         $stmt_jenis->execute();
-        $jenis = $stmt_jenis->get_result()->fetch_assoc();
+        $jenis = stmt_fetch_assoc($stmt_jenis);
         if (!$jenis || $jenis['tipe'] !== 'sukarela') {
             throw new Exception("Penarikan hanya diizinkan untuk Simpanan Sukarela.");
         }
@@ -499,7 +498,7 @@ try {
         $stmt_saldo = $db->prepare("SELECT COALESCE(SUM(kredit - debit), 0) as saldo FROM ksp_transaksi_simpanan WHERE anggota_id = ? AND jenis_simpanan_id = ?");
         $stmt_saldo->bind_param("ii", $member_id, $jenis_simpanan_id);
         $stmt_saldo->execute();
-        $saldo = (float)$stmt_saldo->get_result()->fetch_assoc()['saldo'];
+        $saldo = (float)stmt_fetch_assoc($stmt_saldo)['saldo'];
 
         if ($jumlah > $saldo) {
             throw new Exception("Saldo tidak mencukupi. Saldo Anda saat ini: " . number_format($saldo));
@@ -525,7 +524,7 @@ try {
         ");
         $stmt->bind_param("s", $search_ref);
         $stmt->execute();
-        echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
     } elseif ($action === 'get_shopping_detail') {
         $penjualan_id = (int)($_GET['id'] ?? 0);
         $search_ref = "%/" . $member_id . "-%"; // Pastikan transaksi milik member ini
@@ -537,7 +536,7 @@ try {
         ");
         $stmt->bind_param("is", $penjualan_id, $search_ref);
         $stmt->execute();
-        $header = $stmt->get_result()->fetch_assoc();
+        $header = stmt_fetch_assoc($stmt);
 
         if ($header) {
             $stmt_items = $db->prepare("
@@ -548,7 +547,7 @@ try {
             ");
             $stmt_items->bind_param("i", $penjualan_id);
             $stmt_items->execute();
-            $items = $stmt_items->get_result()->fetch_all(MYSQLI_ASSOC);
+            $items = stmt_fetch_all($stmt_items);
             
             echo json_encode(['success' => true, 'data' => ['header' => $header, 'items' => $items]]);
         } else {
@@ -569,7 +568,7 @@ try {
             $stmt_pass = $db->prepare("SELECT password FROM anggota WHERE id = ?");
             $stmt_pass->bind_param("i", $member_id);
             $stmt_pass->execute();
-            $sender = $stmt_pass->get_result()->fetch_assoc();
+            $sender = stmt_fetch_assoc($stmt_pass);
             if (!$sender || !password_verify($password, $sender['password'])) {
                 throw new Exception("Password Anda salah. Transaksi dibatalkan.");
             }
@@ -581,9 +580,9 @@ try {
             $stmt_items = $db->prepare("SELECT id, nama_barang, harga_jual, harga_beli, stok, inventory_account_id, cogs_account_id, revenue_account_id FROM items WHERE id IN ($placeholders) FOR UPDATE");
             $stmt_items->bind_param(str_repeat('i', count($item_ids)), ...$item_ids);
             $stmt_items->execute();
-            $db_items_res = $stmt_items->get_result();
             $db_items = [];
-            while ($row = $db_items_res->fetch_assoc()) {
+            $res_items = stmt_fetch_all($stmt_items);
+            foreach ($res_items as $row) {
                 $db_items[$row['id']] = $row;
             }
 
@@ -597,7 +596,7 @@ try {
             // 3. Validasi Saldo Simpanan Sukarela
             $stmt_sukarela = $db->prepare("SELECT id, akun_id FROM ksp_jenis_simpanan WHERE tipe = 'sukarela' AND user_id = 1 LIMIT 1");
             $stmt_sukarela->execute();
-            $sukarela = $stmt_sukarela->get_result()->fetch_assoc();
+            $sukarela = stmt_fetch_assoc($stmt_sukarela);
             if (!$sukarela) throw new Exception("Jenis Simpanan Sukarela tidak ditemukan.");
             $sukarela_id = $sukarela['id'];
             $akun_simpanan_sukarela_id = $sukarela['akun_id'];
@@ -605,7 +604,7 @@ try {
             $stmt_saldo = $db->prepare("SELECT COALESCE(SUM(kredit - debit), 0) as saldo FROM ksp_transaksi_simpanan WHERE anggota_id = ? AND jenis_simpanan_id = ?");
             $stmt_saldo->bind_param("ii", $member_id, $sukarela_id);
             $stmt_saldo->execute();
-            $saldo = (float)$stmt_saldo->get_result()->fetch_assoc()['saldo'];
+            $saldo = (float)stmt_fetch_assoc($stmt_saldo)['saldo'];
             if ($total_belanja > $saldo) {
                 throw new Exception("Saldo Simpanan Sukarela tidak mencukupi. Saldo Anda: " . number_format($saldo));
             }
@@ -668,7 +667,7 @@ try {
             $stmt_akun_simpanan = $db->prepare("SELECT akun_id FROM ksp_jenis_simpanan WHERE id = ?");
             $stmt_akun_simpanan->bind_param("i", $source_savings_id);
             $stmt_akun_simpanan->execute();
-            $akun_simpanan_id = $stmt_akun_simpanan->get_result()->fetch_assoc()['akun_id'];
+            $akun_simpanan_id = stmt_fetch_assoc($stmt_akun_simpanan)['akun_id'];
 
             $stmt_gl->bind_param('sssiddi', $tanggal, $keterangan_jurnal, $nomor_referensi, $akun_simpanan_id, $total_belanja, $zero, $penjualan_id);
             $stmt_gl->execute();
@@ -712,7 +711,7 @@ try {
             $stmt_pass = $db->prepare("SELECT password FROM anggota WHERE id = ?");
             $stmt_pass->bind_param("i", $member_id);
             $stmt_pass->execute();
-            $sender = $stmt_pass->get_result()->fetch_assoc();
+            $sender = stmt_fetch_assoc($stmt_pass);
             if (!$sender || !password_verify($password, $sender['password'])) {
                 throw new Exception("Password Anda salah. Transfer dibatalkan.");
             }
@@ -721,7 +720,7 @@ try {
             $stmt_dest = $db->prepare("SELECT id, nama_lengkap FROM anggota WHERE id = ? AND status = 'aktif'");
             $stmt_dest->bind_param("i", $destination_member_id);
             $stmt_dest->execute();
-            $destination_member = $stmt_dest->get_result()->fetch_assoc();
+            $destination_member = stmt_fetch_assoc($stmt_dest);
             if (!$destination_member) {
                 throw new Exception("Anggota tujuan tidak ditemukan atau tidak aktif.");
             }
@@ -729,7 +728,7 @@ try {
             // 4. Validasi Saldo & Jenis Simpanan Sukarela
             $stmt_sukarela = $db->prepare("SELECT id FROM ksp_jenis_simpanan WHERE tipe = 'sukarela' AND user_id = 1 LIMIT 1");
             $stmt_sukarela->execute();
-            $sukarela = $stmt_sukarela->get_result()->fetch_assoc();
+            $sukarela = stmt_fetch_assoc($stmt_sukarela);
             if (!$sukarela) {
                 throw new Exception("Jenis Simpanan Sukarela tidak ditemukan. Hubungi admin.");
             }
@@ -738,7 +737,7 @@ try {
             $stmt_saldo = $db->prepare("SELECT COALESCE(SUM(kredit - debit), 0) as saldo FROM ksp_transaksi_simpanan WHERE anggota_id = ? AND jenis_simpanan_id = ?");
             $stmt_saldo->bind_param("ii", $member_id, $sukarela_id);
             $stmt_saldo->execute();
-            $saldo = (float)$stmt_saldo->get_result()->fetch_assoc()['saldo'];
+            $saldo = (float)stmt_fetch_assoc($stmt_saldo)['saldo'];
 
             if ($amount > $saldo) {
                 throw new Exception("Saldo Simpanan Sukarela tidak mencukupi. Saldo Anda: " . number_format($saldo));
@@ -795,7 +794,7 @@ try {
             $stmt_pass = $db->prepare("SELECT password FROM anggota WHERE id = ?");
             $stmt_pass->bind_param("i", $member_id);
             $stmt_pass->execute();
-            $sender = $stmt_pass->get_result()->fetch_assoc();
+            $sender = stmt_fetch_assoc($stmt_pass);
             if (!$sender || !password_verify($password, $sender['password'])) {
                 throw new Exception("Password Anda salah.");
             }
@@ -805,14 +804,14 @@ try {
             $stmt_member = $db->prepare("SELECT default_payment_savings_id FROM anggota WHERE id = ?");
             $stmt_member->bind_param("i", $member_id);
             $stmt_member->execute();
-            $member_data = $stmt_member->get_result()->fetch_assoc();
+            $member_data = stmt_fetch_assoc($stmt_member);
             $source_savings_id = $member_data['default_payment_savings_id'];
 
             // Jika tidak ada default, cari simpanan sukarela pertama sebagai fallback
             if (!$source_savings_id) {
                 $stmt_sukarela = $db->prepare("SELECT id FROM ksp_jenis_simpanan WHERE tipe = 'sukarela' AND user_id = 1 LIMIT 1");
                 $stmt_sukarela->execute();
-                $sukarela = $stmt_sukarela->get_result()->fetch_assoc();
+                $sukarela = stmt_fetch_assoc($stmt_sukarela);
                 if (!$sukarela) throw new Exception("Jenis Simpanan Sukarela tidak ditemukan.");
                 $source_savings_id = $sukarela['id'];
             }
@@ -827,7 +826,7 @@ try {
             ");
             $stmt_ang->bind_param("ii", $angsuran_id, $member_id);
             $stmt_ang->execute();
-            $angsuran = $stmt_ang->get_result()->fetch_assoc();
+            $angsuran = stmt_fetch_assoc($stmt_ang);
 
             if (!$angsuran) {
                 throw new Exception("Tagihan tidak ditemukan atau sudah lunas.");
@@ -839,7 +838,7 @@ try {
             $stmt_saldo = $db->prepare("SELECT COALESCE(SUM(kredit - debit), 0) as saldo FROM ksp_transaksi_simpanan WHERE anggota_id = ? AND jenis_simpanan_id = ?");
             $stmt_saldo->bind_param("ii", $member_id, $source_savings_id);
             $stmt_saldo->execute();
-            $saldo = (float)$stmt_saldo->get_result()->fetch_assoc()['saldo'];
+            $saldo = (float)stmt_fetch_assoc($stmt_saldo)['saldo'];
 
             if ($amount > $saldo) {
                 throw new Exception("Saldo simpanan yang dipilih tidak mencukupi. Saldo: " . number_format($saldo));
@@ -864,7 +863,7 @@ try {
             $stmt_check = $db->prepare("SELECT COUNT(*) as sisa FROM ksp_angsuran WHERE pinjaman_id = ? AND status != 'lunas'");
             $stmt_check->bind_param("i", $angsuran['pinjaman_id']);
             $stmt_check->execute();
-            if ($stmt_check->get_result()->fetch_assoc()['sisa'] == 0) {
+            if (stmt_fetch_assoc($stmt_check)['sisa'] == 0) {
                 $db->query("UPDATE ksp_pinjaman SET status = 'lunas' WHERE id = " . $angsuran['pinjaman_id']);
             }
 
@@ -902,7 +901,7 @@ try {
             $stmt_pass = $db->prepare("SELECT password FROM anggota WHERE id = ?");
             $stmt_pass->bind_param("i", $member_id);
             $stmt_pass->execute();
-            $sender = $stmt_pass->get_result()->fetch_assoc();
+            $sender = stmt_fetch_assoc($stmt_pass);
             if (!$sender || !password_verify($password, $sender['password'])) {
                 throw new Exception("Password Anda salah. Transaksi dibatalkan.");
             }
@@ -912,14 +911,14 @@ try {
             $stmt_member = $db->prepare("SELECT default_payment_savings_id FROM anggota WHERE id = ?");
             $stmt_member->bind_param("i", $member_id);
             $stmt_member->execute();
-            $member_data = $stmt_member->get_result()->fetch_assoc();
+            $member_data = stmt_fetch_assoc($stmt_member);
             $source_savings_id = $member_data['default_payment_savings_id'];
 
             // Jika tidak ada default, cari simpanan sukarela pertama
             if (!$source_savings_id) {
                 $stmt_sukarela = $db->prepare("SELECT id FROM ksp_jenis_simpanan WHERE tipe = 'sukarela' AND user_id = 1 LIMIT 1");
                 $stmt_sukarela->execute();
-                $sukarela = $stmt_sukarela->get_result()->fetch_assoc();
+                $sukarela = stmt_fetch_assoc($stmt_sukarela);
                 if (!$sukarela) throw new Exception("Jenis Simpanan Sukarela tidak ditemukan.");
                 $source_savings_id = $sukarela['id'];
             }
@@ -929,7 +928,7 @@ try {
             $stmt_saldo = $db->prepare("SELECT COALESCE(SUM(kredit - debit), 0) as saldo FROM ksp_transaksi_simpanan WHERE anggota_id = ? AND jenis_simpanan_id = ?");
             $stmt_saldo->bind_param("ii", $member_id, $source_savings_id);
             $stmt_saldo->execute();
-            $saldo = (float)$stmt_saldo->get_result()->fetch_assoc()['saldo'];
+            $saldo = (float)stmt_fetch_assoc($stmt_saldo)['saldo'];
             if ($amount > $saldo) {
                 throw new Exception("Saldo simpanan yang dipilih tidak mencukupi. Saldo Anda: " . number_format($saldo));
             }
@@ -961,9 +960,17 @@ try {
             $stmt_akun_simpanan = $db->prepare("SELECT akun_id FROM ksp_jenis_simpanan WHERE id = ?");
             $stmt_akun_simpanan->bind_param("i", $source_savings_id);
             $stmt_akun_simpanan->execute();
-            $akun_simpanan_id = $stmt_akun_simpanan->get_result()->fetch_assoc()['akun_id'];
+            $akun_simpanan_id = stmt_fetch_assoc($stmt_akun_simpanan)['akun_id'];
 
-            create_double_entry_journal(1, $tanggal, $keterangan_jurnal, $nomor_referensi, $akun_simpanan_id, $akun_kas_toko_id, $amount, 'transaksi', $trx_id, null);
+            $stmt_gl = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (1, ?, ?, ?, ?, ?, ?, ?, 'transaksi', NULL)");
+            $zero = 0.00;
+            // Debit Simpanan
+            $stmt_gl->bind_param('sssiddi', $tanggal, $keterangan_jurnal, $nomor_referensi, $akun_simpanan_id, $amount, $zero, $trx_id);
+            $stmt_gl->execute();
+            // Kredit Kas Toko
+            $stmt_gl->bind_param('sssiddi', $tanggal, $keterangan_jurnal, $nomor_referensi, $akun_kas_toko_id, $zero, $amount, $trx_id);
+            $stmt_gl->execute();
+
 
             $db->commit();
             echo json_encode(['success' => true, 'message' => 'Pembayaran sebesar ' . number_format($amount) . ' ke ' . $merchant_name . ' berhasil.']);
@@ -988,7 +995,7 @@ try {
         $stmt_jenis = $db->prepare("SELECT bunga_per_tahun FROM ksp_jenis_pinjaman WHERE id = ?");
         $stmt_jenis->bind_param("i", $jenis_pinjaman_id);
         $stmt_jenis->execute();
-        $jenis_info = $stmt_jenis->get_result()->fetch_assoc();
+        $jenis_info = stmt_fetch_assoc($stmt_jenis);
         
         if (!$jenis_info) {
             throw new Exception("Jenis pinjaman tidak valid.");

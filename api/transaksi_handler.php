@@ -20,7 +20,7 @@ try {
             $stmt = $conn->prepare("SELECT id, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $all_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $all_accounts = stmt_fetch_all($stmt);
             $stmt->close();
 
             $accounts = [
@@ -51,7 +51,7 @@ try {
             ");
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
-            $tx = $stmt->get_result()->fetch_assoc();
+            $tx = stmt_fetch_assoc($stmt);
             $stmt->close();
 
             if (!$tx) throw new Exception("Transaksi tidak ditemukan.");
@@ -121,7 +121,8 @@ try {
         }
         call_user_func_array([$total_stmt, 'bind_param'], $bind_params);
         $total_stmt->execute();
-        $total_records = $total_stmt->get_result()->fetch_assoc()['total'];
+        $total_res = stmt_fetch_assoc($total_stmt);
+        $total_records = $total_res ? $total_res['total'] : 0;
         $total_stmt->close();
 
         $query = "
@@ -156,7 +157,7 @@ try {
         }
         call_user_func_array([$stmt, 'bind_param'], $bind_params_main);
         $stmt->execute();
-        $transactions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $transactions = stmt_fetch_all($stmt);
         $stmt->close();
 
         $pagination = [
@@ -237,7 +238,7 @@ try {
                     );
                     $stmt_ref->bind_param('iiss', $user_id, $year, $month, $jenis);
                     $stmt_ref->execute();
-                    $last_ref = $stmt_ref->get_result()->fetch_assoc();
+                    $last_ref = stmt_fetch_assoc($stmt_ref);
                     $stmt_ref->close();
 
                     $sequence = 1;
@@ -294,7 +295,7 @@ try {
                 $stmt = $conn->prepare("SELECT * FROM transaksi WHERE id = ? AND user_id = ?");
                 $stmt->bind_param('ii', $id, $user_id);
                 $stmt->execute();
-                $transaction = $stmt->get_result()->fetch_assoc();
+                $transaction = stmt_fetch_assoc($stmt);
                 $stmt->close();
 
                 if (!$transaction) throw new Exception("Transaksi tidak ditemukan.");
@@ -319,7 +320,9 @@ try {
                 $stmt_old_date = $conn->prepare("SELECT tanggal FROM transaksi WHERE id = ?");
                 $stmt_old_date->bind_param('i', $id);
                 $stmt_old_date->execute();
-                check_period_lock($stmt_old_date->get_result()->fetch_assoc()['tanggal'], $conn);
+                $old_data = stmt_fetch_assoc($stmt_old_date);
+                check_period_lock($old_data ? $old_data['tanggal'] : null, $conn);
+                $stmt_old_date->close();
 
                 // Logika validasi akun yang sama dengan 'add'
                 $account_id = null;
@@ -391,7 +394,9 @@ try {
                 $stmt_old_date = $conn->prepare("SELECT tanggal FROM transaksi WHERE id = ?");
                 $stmt_old_date->bind_param('i', $id);
                 $stmt_old_date->execute();
-                check_period_lock($stmt_old_date->get_result()->fetch_assoc()['tanggal'], $conn);
+                $old_data_del = stmt_fetch_assoc($stmt_old_date);
+                check_period_lock($old_data_del ? $old_data_del['tanggal'] : null, $conn);
+                $stmt_old_date->close();
 
                 $conn->begin_transaction();
 

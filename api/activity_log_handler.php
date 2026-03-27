@@ -46,7 +46,7 @@ try {
     $total_stmt = $conn->prepare("SELECT COUNT(*) as total FROM activity_log $where_sql");
     if (!empty($types)) $total_stmt->bind_param($types, ...$params);
     $total_stmt->execute();
-    $total_records = (int)$total_stmt->get_result()->fetch_assoc()['total'];
+    $total_records = (int)stmt_fetch_assoc($total_stmt)['total'];
     $total_stmt->close();
 
     // Get data
@@ -56,7 +56,7 @@ try {
     $stmt = $conn->prepare($query);
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
-    $logs = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $logs = stmt_fetch_all($stmt);
     $stmt->close();
 
     $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records];

@@ -61,7 +61,7 @@ class LaporanPenjualanItemReportBuilder implements ReportBuilderInterface
         $stmt = $this->conn->prepare($query);
         $stmt->bind_param('iss', $user_id, $start_date, $end_date);
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        return stmt_fetch_all($stmt);
     }
 
     private function render(array $data): void

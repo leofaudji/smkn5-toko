@@ -29,7 +29,7 @@ try {
     ");
     $stmt->bind_param('si', $tanggal, $user_id);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $result = stmt_fetch_all($stmt);
     $stmt->close();
 
     $data = [];

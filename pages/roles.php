@@ -17,18 +17,15 @@ if (isset($_POST['action'])) {
             $stmt = $conn->prepare("SELECT * FROM roles WHERE id = ?");
             $stmt->bind_param("i", $id);
             $stmt->execute();
-            $role = $stmt->get_result()->fetch_assoc();
+            $role = stmt_fetch_assoc($stmt);
             
             if ($role) {
                 // Ambil permissions
                 $stmt_perm = $conn->prepare("SELECT permission_id FROM role_permissions WHERE role_id = ?");
                 $stmt_perm->bind_param("i", $id);
                 $stmt_perm->execute();
-                $res_perm = $stmt_perm->get_result();
-                $perms = [];
-                while($row = $res_perm->fetch_assoc()) {
-                    $perms[] = (int)$row['permission_id'];
-                }
+                $res_perm_rows = stmt_fetch_all($stmt_perm);
+                $perms = array_map(function($r) { return (int)$r['permission_id']; }, $res_perm_rows);
                 $role['permissions'] = $perms;
 
                 // Ambil menus
@@ -36,11 +33,8 @@ if (isset($_POST['action'])) {
                 if ($stmt_menu) {
                     $stmt_menu->bind_param("i", $id);
                     $stmt_menu->execute();
-                    $res_menu = $stmt_menu->get_result();
-                    $menus = [];
-                    while($row = $res_menu->fetch_assoc()) {
-                        $menus[] = $row['menu_key'];
-                    }
+                    $res_menu_rows = stmt_fetch_all($stmt_menu);
+                    $menus = array_column($res_menu_rows, 'menu_key');
                     
                     // FIX: Jika Role Admin (ID 1) dan belum ada data di role_menus, anggap semua menu aktif
                     if ($id == 1 && empty($menus)) {

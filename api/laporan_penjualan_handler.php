@@ -65,7 +65,7 @@ try {
     for ($i = 1; $i < count($params); $i++) { $bind_params_summary[] = &$params[$i]; }
     call_user_func_array([$summary_stmt, 'bind_param'], $bind_params_summary);
     $summary_stmt->execute();
-    $summary_rows = $summary_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $summary_rows = stmt_fetch_all($summary_stmt);
     $summary_stmt->close();
 
     $summary_data = [
@@ -98,7 +98,7 @@ try {
     for ($i = 1; $i < count($params); $i++) { $bind_params_total[] = &$params[$i]; }
     call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
     $total_stmt->execute();
-    $total_records = $total_stmt->get_result()->fetch_assoc()['total'];
+    $total_records = stmt_fetch_assoc($total_stmt)['total'];
     $total_stmt->close();
 
     // Get data for the current page
@@ -141,7 +141,7 @@ try {
     for ($i = 1; $i < count($params); $i++) { $bind_params_main[] = &$params[$i]; }
     call_user_func_array([$stmt, 'bind_param'], $bind_params_main);
     $stmt->execute();
-    $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $data = stmt_fetch_all($stmt);
     $stmt->close();
 
     $pagination = [

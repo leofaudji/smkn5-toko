@@ -24,7 +24,7 @@ class StrukPenjualanReportBuilder implements ReportBuilderInterface
         $stmt_header = $this->conn->prepare("SELECT p.*, u.nama_lengkap as kasir FROM penjualan p JOIN users u ON p.created_by = u.id WHERE p.id = ?");
         $stmt_header->bind_param('i', $id);
         $stmt_header->execute();
-        $header = $stmt_header->get_result()->fetch_assoc();
+        $header = stmt_fetch_assoc($stmt_header);
         $stmt_header->close();
 
         if (!$header) {
@@ -35,7 +35,7 @@ class StrukPenjualanReportBuilder implements ReportBuilderInterface
         $stmt_details = $this->conn->prepare("SELECT * FROM penjualan_details WHERE penjualan_id = ?");
         $stmt_details->bind_param('i', $id);
         $stmt_details->execute();
-        $details = $stmt_details->get_result()->fetch_all(MYSQLI_ASSOC);
+        $details = stmt_fetch_all($stmt_details);
         $stmt_details->close();
 
         $this->pdf->report_title = 'Struk Penjualan';

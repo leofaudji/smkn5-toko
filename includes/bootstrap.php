@@ -120,7 +120,7 @@ function get_fee_for_period($tahun, $bulan) {
     );
     $stmt->bind_param("ss", $date_for_period, $date_for_period);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_assoc();
+    $result = stmt_fetch_assoc($stmt);
     $stmt->close();
 
     // Jika ada histori, gunakan itu. Jika tidak, fallback ke pengaturan umum.

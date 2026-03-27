@@ -69,7 +69,7 @@ function get_transaksi($db) {
         $stmt->bind_param($types, ...$params);
     }
     $stmt->execute();
-    $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $data = stmt_fetch_all($stmt);
     
     // Hitung total untuk pagination (disederhanakan)
     $total = 100; // Idealnya query count terpisah
@@ -124,7 +124,7 @@ function store_transaksi($db) {
         $stmt_kat = $db->prepare("SELECT nama, tipe_aksi, posisi FROM ksp_kategori_transaksi WHERE id = ?");
         $stmt_kat->bind_param("i", $kategori_id);
         $stmt_kat->execute();
-        $kategori = $stmt_kat->get_result()->fetch_assoc();
+        $kategori = stmt_fetch_assoc($stmt_kat);
         $tipe_aksi = $kategori['tipe_aksi']; // 'setor' atau 'tarik'
         $posisi = $kategori['posisi']; // 'debit' atau 'kredit'
 
@@ -152,7 +152,7 @@ function store_transaksi($db) {
         $stmt_jenis = $db->prepare("SELECT akun_id, nama, tipe FROM ksp_jenis_simpanan WHERE id = ?");
         $stmt_jenis->bind_param("i", $data['jenis_simpanan_id']);
         $stmt_jenis->execute();
-        $jenis = $stmt_jenis->get_result()->fetch_assoc();
+        $jenis = stmt_fetch_assoc($stmt_jenis);
         $akun_simpanan = $jenis['akun_id'];
         $nama_simpanan = $jenis['nama'];
 

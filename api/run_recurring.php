@@ -14,7 +14,7 @@ echo "Memulai proses transaksi berulang untuk tanggal: $today\n";
 $stmt = $conn->prepare("SELECT * FROM recurring_templates WHERE is_active = 1 AND next_run_date <= ?");
 $stmt->bind_param('s', $today);
 $stmt->execute();
-$templates = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$templates = stmt_fetch_all($stmt);
 $stmt->close();
 
 if (empty($templates)) {

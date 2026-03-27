@@ -36,7 +36,7 @@ try {
         $user_id = 1; // ID Pemilik Data (Toko)
         $stmt->bind_param('ssi', $tanggal_akhir_bulan, $tanggal_akhir_bulan, $user_id);
         $stmt->execute();
-        $hasil = $stmt->get_result()->fetch_assoc();
+        $hasil = stmt_fetch_assoc($stmt);
         $stmt->close();
 
         $nilai_bulan_ini = (float)($hasil['total_nilai'] ?? 0);

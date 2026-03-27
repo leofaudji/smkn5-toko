@@ -38,7 +38,7 @@ try {
     $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_assoc();
+    $result = stmt_fetch_assoc($stmt);
     $stmt->close();
 
     if (!$result) {

@@ -64,12 +64,11 @@ function get_all_penjualan($db) {
         }
 
         $stmt->execute();
-        $result = $stmt->get_result();
-        $data = $result->fetch_all(MYSQLI_ASSOC);
+        $data = stmt_fetch_all($stmt);
         $stmt->close();
 
         $countStmt->execute();
-        $countResult = $countStmt->get_result()->fetch_assoc();
+        $countResult = stmt_fetch_assoc($countStmt);
         $total = $countResult['total'];
         $countStmt->close();
 
@@ -122,7 +121,8 @@ function store_penjualan($db) {
             $stmt_cek = $db->prepare("SELECT saldo_wajib_belanja FROM anggota WHERE id = ?");
             $stmt_cek->bind_param('i', $anggota_id);
             $stmt_cek->execute();
-            $saldo_wb = $stmt_cek->get_result()->fetch_assoc()['saldo_wajib_belanja'];
+            $stmt_cek_res = stmt_fetch_assoc($stmt_cek);
+            $saldo_wb = $stmt_cek_res ? $stmt_cek_res['saldo_wajib_belanja'] : 0;
             if ($saldo_wb < $bayar_wb) throw new Exception("Saldo Wajib Belanja tidak mencukupi.");
             $stmt_cek->close();
         }
@@ -142,7 +142,7 @@ function store_penjualan($db) {
         $like_prefix = $prefix . '%';
         $stmt_last_ref->bind_param('s', $like_prefix);
         $stmt_last_ref->execute();
-        $last_ref_result = $stmt_last_ref->get_result()->fetch_assoc();
+        $last_ref_result = stmt_fetch_assoc($stmt_last_ref);
         $stmt_last_ref->close();
 
         $sequence = 1;
@@ -207,7 +207,7 @@ function store_penjualan($db) {
                 $stokCheckStmt = $db->prepare("SELECT stok, harga_beli, revenue_account_id, inventory_account_id, cogs_account_id FROM items WHERE id = ? FOR UPDATE");
                 $stokCheckStmt->bind_param('i', $item['id']);
                 $stokCheckStmt->execute();
-                $item_db = $stokCheckStmt->get_result()->fetch_assoc();
+                $item_db = stmt_fetch_assoc($stokCheckStmt);
                 $stokCheckStmt->close();
 
                 if (!$item_db) throw new Exception("Barang '{$item['nama']}' tidak ditemukan.");
@@ -242,7 +242,7 @@ function store_penjualan($db) {
                 $stmt_cons = $db->prepare("SELECT ci.*, s.nama_pemasok FROM consignment_items ci JOIN suppliers s ON ci.supplier_id = s.id WHERE ci.id = ?");
                 $stmt_cons->bind_param('i', $item['id']);
                 $stmt_cons->execute();
-                $item_cons = $stmt_cons->get_result()->fetch_assoc();
+                $item_cons = stmt_fetch_assoc($stmt_cons);
                 $stmt_cons->close();
 
                 if (!$item_cons) throw new Exception("Barang konsinyasi '{$item['nama']}' tidak ditemukan.");
@@ -372,7 +372,7 @@ function void_penjualan($db) {
         $stmt = $db->prepare("SELECT * FROM penjualan WHERE id = ? AND user_id = ? FOR UPDATE");
         $stmt->bind_param('ii', $id, $user_id);
         $stmt->execute();
-        $penjualan = $stmt->get_result()->fetch_assoc();
+        $penjualan = stmt_fetch_assoc($stmt);
         $stmt->close();
 
         if (!$penjualan) throw new Exception("Transaksi tidak ditemukan.");
@@ -385,7 +385,7 @@ function void_penjualan($db) {
         $stmt_details = $db->prepare("SELECT * FROM penjualan_details WHERE penjualan_id = ?");
         $stmt_details->bind_param('i', $id);
         $stmt_details->execute();
-        $details = $stmt_details->get_result()->fetch_all(MYSQLI_ASSOC);
+        $details = stmt_fetch_all($stmt_details);
         $stmt_details->close();
 
         // 3. Kembalikan stok barang (Hanya untuk tipe NORMAL)
@@ -412,7 +412,7 @@ function void_penjualan($db) {
         $stmt_original_gl = $db->prepare("SELECT * FROM general_ledger WHERE ref_id = ? AND ref_type = 'penjualan'");
         $stmt_original_gl->bind_param('i', $id);
         $stmt_original_gl->execute();
-        $original_entries = $stmt_original_gl->get_result()->fetch_all(MYSQLI_ASSOC);
+        $original_entries = stmt_fetch_all($stmt_original_gl);
         $stmt_original_gl->close();
 
         if (empty($original_entries)) {
@@ -473,7 +473,7 @@ function get_penjualan_detail($db) {
         $stmt = $db->prepare("SELECT p.*, u.username as created_by_username FROM penjualan p JOIN users u ON p.created_by = u.id WHERE p.id = ?");
         $stmt->bind_param('i', $id);
         $stmt->execute();
-        $penjualan = $stmt->get_result()->fetch_assoc();
+        $penjualan = stmt_fetch_assoc($stmt);
         $stmt->close();
 
         if ($penjualan) {
@@ -485,7 +485,7 @@ function get_penjualan_detail($db) {
             );
             $stmt->bind_param('i', $id);
             $stmt->execute();
-            $penjualan['items'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $penjualan['items'] = stmt_fetch_all($stmt);
             $stmt->close();
             echo json_encode(['success' => true, 'data' => $penjualan]);
         } else {
@@ -533,7 +533,7 @@ function search_produk($db) {
     // binding params: 4 for normal, 4 for consignment
     $stmt->bind_param('isssisss', $user_id, $search, $search, $search, $user_id, $search, $search, $search);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $result = stmt_fetch_all($stmt);
     $stmt->close();
     echo json_encode($result);
 }
@@ -545,7 +545,7 @@ function search_member($db) {
     $stmt = $db->prepare("SELECT id, nomor_anggota, nama_lengkap, saldo_wajib_belanja FROM anggota WHERE user_id = ? AND status='aktif' AND (nama_lengkap LIKE ? OR nomor_anggota LIKE ?) LIMIT 10");
     $stmt->bind_param('iss', $user_id, $search, $search);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $result = stmt_fetch_all($stmt);
     $stmt->close();
     echo json_encode(['success' => true, 'data' => $result]);
 }

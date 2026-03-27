@@ -33,7 +33,7 @@ switch ($action) {
         $stmt_awal = $db->prepare("SELECT SUM(kredit - debit) as saldo_awal FROM ksp_transaksi_simpanan WHERE anggota_id = ? AND tanggal < ?");
         $stmt_awal->bind_param("is", $anggota_id, $start_date);
         $stmt_awal->execute();
-        $res_awal = $stmt_awal->get_result()->fetch_assoc();
+        $res_awal = stmt_fetch_assoc($stmt_awal);
         $saldo_awal = $res_awal['saldo_awal'] ?? 0;
 
         // 2. Ambil Transaksi Periode Ini
@@ -46,7 +46,7 @@ switch ($action) {
         $stmt = $db->prepare($sql);
         $stmt->bind_param("iss", $anggota_id, $start_date, $end_date);
         $stmt->execute();
-        $transactions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $transactions = stmt_fetch_all($stmt);
 
         // 3. Hitung Running Balance
         $data = [];

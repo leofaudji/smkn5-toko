@@ -32,7 +32,7 @@ class RekonsiliasiReportBuilder implements ReportBuilderInterface
         ");
         $stmt_header->bind_param('ii', $reconciliation_id, $user_id);
         $stmt_header->execute();
-        $header = $stmt_header->get_result()->fetch_assoc();
+        $header = stmt_fetch_assoc($stmt_header);
         $stmt_header->close();
         if (!$header) throw new Exception("Data rekonsiliasi tidak ditemukan.");
 
@@ -44,7 +44,7 @@ class RekonsiliasiReportBuilder implements ReportBuilderInterface
         ");
         $stmt_cleared->bind_param('i', $reconciliation_id);
         $stmt_cleared->execute();
-        $cleared_items = $stmt_cleared->get_result()->fetch_all(MYSQLI_ASSOC);
+        $cleared_items = stmt_fetch_all($stmt_cleared);
         $stmt_cleared->close();
 
         // Fetch uncleared items (outstanding)
@@ -56,7 +56,7 @@ class RekonsiliasiReportBuilder implements ReportBuilderInterface
         ");
         $stmt_uncleared->bind_param('is', $header['account_id'], $header['statement_date']);
         $stmt_uncleared->execute();
-        $uncleared_items = $stmt_uncleared->get_result()->fetch_all(MYSQLI_ASSOC);
+        $uncleared_items = stmt_fetch_all($stmt_uncleared);
         $stmt_uncleared->close();
 
         $this->pdf->SetTitle('Laporan Rekonsiliasi Bank');

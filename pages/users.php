@@ -20,7 +20,7 @@ if ($role_id_filter) {
     $stmt = $conn->prepare("SELECT name FROM roles WHERE id = ?");
     $stmt->bind_param('i', $role_id_filter);
     $stmt->execute();
-    if ($res = $stmt->get_result()->fetch_assoc()) {
+    if ($res = stmt_fetch_assoc($stmt)) {
         $role_name_filter = htmlspecialchars($res['name']);
     }
 }

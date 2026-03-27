@@ -94,7 +94,7 @@ function get_detail_pinjaman($db) {
     $stmt = $db->prepare($sql);
     $stmt->bind_param("i", $id);
     $stmt->execute();
-    $pinjaman = $stmt->get_result()->fetch_assoc();
+    $pinjaman = stmt_fetch_assoc($stmt);
 
     if (!$pinjaman) {
         echo json_encode(['success' => false, 'message' => 'Data tidak ditemukan']);
@@ -105,7 +105,7 @@ function get_detail_pinjaman($db) {
     $stmt_sch = $db->prepare("SELECT * FROM ksp_angsuran WHERE pinjaman_id = ? ORDER BY angsuran_ke ASC");
     $stmt_sch->bind_param("i", $id);
     $stmt_sch->execute();
-    $angsuran = $stmt_sch->get_result()->fetch_all(MYSQLI_ASSOC);
+    $angsuran = stmt_fetch_all($stmt_sch);
 
     echo json_encode(['success' => true, 'data' => $pinjaman, 'schedule' => $angsuran]);
 }
@@ -128,7 +128,7 @@ function store_pinjaman($db) {
         $stmt_jenis = $db->prepare("SELECT bunga_per_tahun FROM ksp_jenis_pinjaman WHERE id = ?");
         $stmt_jenis->bind_param("i", $data['jenis_pinjaman_id']);
         $stmt_jenis->execute();
-        $jenis = $stmt_jenis->get_result()->fetch_assoc();
+        $jenis = stmt_fetch_assoc($stmt_jenis);
         $bunga_persen = $jenis['bunga_per_tahun'];
 
         // 3. Simpan Header Pinjaman
@@ -186,7 +186,7 @@ function get_payoff_info($db) {
     ");
     $stmt->bind_param("i", $id);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_assoc();
+    $result = stmt_fetch_assoc($stmt);
     
     echo json_encode(['success' => true, 'data' => $result]);
 }
@@ -207,7 +207,7 @@ function pay_off($db) {
         $stmt = $db->prepare("SELECT * FROM ksp_pinjaman WHERE id = ?");
         $stmt->bind_param("i", $pinjaman_id);
         $stmt->execute();
-        $pinjaman = $stmt->get_result()->fetch_assoc();
+        $pinjaman = stmt_fetch_assoc($stmt);
 
         if ($pinjaman['status'] !== 'aktif') {
             throw new Exception("Pinjaman tidak aktif.");
@@ -223,7 +223,7 @@ function pay_off($db) {
         ");
         $stmt_rem->bind_param("i", $pinjaman_id);
         $stmt_rem->execute();
-        $rem = $stmt_rem->get_result()->fetch_assoc();
+        $rem = stmt_fetch_assoc($stmt_rem);
         
         $bayar_pokok = $rem['sisa_pokok'];
         // Bunga yang dibayar adalah sisa bunga dikurangi potongan (jika ada)
@@ -234,7 +234,7 @@ function pay_off($db) {
         $stmt_installments = $db->prepare("SELECT id, bunga, bunga_terbayar FROM ksp_angsuran WHERE pinjaman_id = ? AND status != 'lunas'");
         $stmt_installments->bind_param("i", $pinjaman_id);
         $stmt_installments->execute();
-        $installments = $stmt_installments->get_result()->fetch_all(MYSQLI_ASSOC);
+        $installments = stmt_fetch_all($stmt_installments);
 
         $sisa_potongan = $potongan_bunga;
         $stmt_upd = $db->prepare("UPDATE ksp_angsuran SET pokok_terbayar = pokok, bunga_terbayar = ?, status = 'lunas', tanggal_bayar = ? WHERE id = ?");
@@ -262,7 +262,7 @@ function pay_off($db) {
         $stmt_acc = $db->prepare("SELECT akun_piutang_id, akun_pendapatan_bunga_id FROM ksp_jenis_pinjaman WHERE id = ?");
         $stmt_acc->bind_param("i", $pinjaman['jenis_pinjaman_id']);
         $stmt_acc->execute();
-        $acc_ids = $stmt_acc->get_result()->fetch_assoc();
+        $acc_ids = stmt_fetch_assoc($stmt_acc);
 
         $ref = $pinjaman['nomor_pinjaman'] . "-LUNAS";
         
@@ -296,7 +296,7 @@ function update_pinjaman($db) {
         $stmt_check = $db->prepare("SELECT status FROM ksp_pinjaman WHERE id = ?");
         $stmt_check->bind_param("i", $id);
         $stmt_check->execute();
-        $existing = $stmt_check->get_result()->fetch_assoc();
+        $existing = stmt_fetch_assoc($stmt_check);
 
         if (!$existing || $existing['status'] !== 'pending') {
             throw new Exception("Hanya pinjaman dengan status 'Pending' yang dapat diedit.");
@@ -307,7 +307,7 @@ function update_pinjaman($db) {
         $stmt_jenis = $db->prepare("SELECT bunga_per_tahun FROM ksp_jenis_pinjaman WHERE id = ?");
         $stmt_jenis->bind_param("i", $data['jenis_pinjaman_id']);
         $stmt_jenis->execute();
-        $jenis = $stmt_jenis->get_result()->fetch_assoc();
+        $jenis = stmt_fetch_assoc($stmt_jenis);
         $bunga_persen = $jenis['bunga_per_tahun'];
 
         $stmt = $db->prepare("UPDATE ksp_pinjaman SET anggota_id=?, jenis_pinjaman_id=?, jumlah_pinjaman=?, bunga_per_tahun=?, tenor_bulan=?, tanggal_pengajuan=?, keterangan=?, updated_by=?, updated_at=NOW() WHERE id=?");
@@ -366,7 +366,7 @@ function delete_pinjaman($db) {
         $stmt_check = $db->prepare("SELECT status FROM ksp_pinjaman WHERE id = ?");
         $stmt_check->bind_param("i", $id);
         $stmt_check->execute();
-        $existing = $stmt_check->get_result()->fetch_assoc();
+        $existing = stmt_fetch_assoc($stmt_check);
 
         if (!$existing) {
             throw new Exception("Pinjaman tidak ditemukan.");
@@ -405,7 +405,7 @@ function approve_pinjaman($db) {
         $stmt = $db->prepare("SELECT p.*, j.akun_piutang_id, a.nama_lengkap FROM ksp_pinjaman p JOIN ksp_jenis_pinjaman j ON p.jenis_pinjaman_id = j.id JOIN anggota a ON p.anggota_id = a.id WHERE p.id = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
-        $pinjaman = $stmt->get_result()->fetch_assoc();
+        $pinjaman = stmt_fetch_assoc($stmt);
 
         if ($pinjaman['status'] !== 'pending') {
             throw new Exception("Pinjaman sudah diproses.");
@@ -468,7 +468,7 @@ function pay_installment($db) {
         $stmt_info = $db->prepare("SELECT p.id as pinjaman_id, p.anggota_id, p.nomor_pinjaman, m.nama_lengkap, j.akun_piutang_id, j.akun_pendapatan_bunga_id FROM ksp_angsuran a JOIN ksp_pinjaman p ON a.pinjaman_id = p.id JOIN anggota m ON p.anggota_id = m.id JOIN ksp_jenis_pinjaman j ON p.jenis_pinjaman_id = j.id WHERE a.id = ?");
         $stmt_info->bind_param("i", $initial_angsuran_id);
         $stmt_info->execute();
-        $pinjaman_info = $stmt_info->get_result()->fetch_assoc();
+        $pinjaman_info = stmt_fetch_assoc($stmt_info);
         if (!$pinjaman_info) throw new Exception("Data pinjaman tidak ditemukan.");
         $pinjaman_id = $pinjaman_info['pinjaman_id'];
         $stmt_info->close();
@@ -482,7 +482,7 @@ function pay_installment($db) {
             $stmt_angsuran = $db->prepare("SELECT * FROM ksp_angsuran WHERE pinjaman_id = ? AND status = 'belum_bayar' ORDER BY angsuran_ke ASC LIMIT 1");
             $stmt_angsuran->bind_param("i", $pinjaman_id);
             $stmt_angsuran->execute();
-            $angsuran = $stmt_angsuran->get_result()->fetch_assoc();
+            $angsuran = stmt_fetch_assoc($stmt_angsuran);
             $stmt_angsuran->close();
 
             if (!$angsuran) break; // No more installments to pay
@@ -565,7 +565,7 @@ function pay_installment($db) {
         $stmt_check = $db->prepare("SELECT COUNT(*) as sisa FROM ksp_angsuran WHERE pinjaman_id = ? AND status != 'lunas'");
         $stmt_check->bind_param("i", $pinjaman_id);
         $stmt_check->execute();
-        $sisa = $stmt_check->get_result()->fetch_assoc()['sisa'];
+        $sisa = stmt_fetch_assoc($stmt_check)['sisa'];
         
         if ($sisa == 0) {
             $db->query("UPDATE ksp_pinjaman SET status = 'lunas' WHERE id = " . $pinjaman_id);

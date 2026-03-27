@@ -20,7 +20,7 @@ $db = Database::getInstance()->getConnection();
 $stmt = $db->prepare("SELECT id, nama_lengkap, password, status FROM anggota WHERE nomor_anggota = ?");
 $stmt->bind_param("s", $nomor_anggota);
 $stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+$user = stmt_fetch_assoc($stmt);
 
 if ($user && password_verify($password, $user['password'])) {
     if ($user['status'] !== 'aktif') {

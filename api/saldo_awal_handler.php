@@ -38,7 +38,7 @@ try {
         ");
         $stmt->bind_param('ssiii', $keterangan_jurnal_neraca, $keterangan_jurnal_lr, $user_id, $user_id, $retained_earnings_acc_id);
         $stmt->execute();
-        $accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $accounts = stmt_fetch_all($stmt);
         $stmt->close();
 
         echo json_encode(['status' => 'success', 'data' => $accounts]);
@@ -84,7 +84,7 @@ try {
         $stmt_find_old = $conn->prepare("SELECT id FROM jurnal_entries WHERE keterangan = ? AND user_id = ?");
         $stmt_find_old->bind_param('si', $keterangan_jurnal, $user_id);
         $stmt_find_old->execute();
-        if ($old_journal = $stmt_find_old->get_result()->fetch_assoc()) {
+        if ($old_journal = stmt_fetch_assoc($stmt_find_old)) {
             $old_journal_id = $old_journal['id'];
             $conn->query("DELETE FROM general_ledger WHERE ref_id = $old_journal_id AND ref_type = 'jurnal' AND user_id = $user_id");
             $conn->query("DELETE FROM jurnal_entries WHERE id = $old_journal_id AND user_id = $user_id");

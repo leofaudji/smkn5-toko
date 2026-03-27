@@ -50,7 +50,7 @@ class AsetTetapReportBuilder implements ReportBuilderInterface
         ");
         $stmt->bind_param('sis', $per_tanggal, $user_id, $per_tanggal);
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        return stmt_fetch_all($stmt);
     }
 
     private function render(array $data): void

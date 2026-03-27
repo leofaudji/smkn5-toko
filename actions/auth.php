@@ -79,12 +79,8 @@ try {
         ");
         $stmt_perms->bind_param('i', $role_id);
         $stmt_perms->execute();
-        $result = $stmt_perms->get_result();
-
-        $permissions = [];
-        while ($row = $result->fetch_assoc()) {
-            $permissions[] = $row['slug'];
-        }
+        $permissions_rows = stmt_fetch_all($stmt_perms);
+        $permissions = array_column($permissions_rows, 'slug');
         $stmt_perms->close();
         
         // Simpan daftar slug permission ke dalam session

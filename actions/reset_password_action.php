@@ -33,7 +33,7 @@ $conn = Database::getInstance()->getConnection();
 $stmt = $conn->prepare("SELECT id, username FROM users WHERE reset_token = ? AND reset_token_expires_at > NOW()");
 $stmt->bind_param("s", $token);
 $stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+$user = stmt_fetch_assoc($stmt);
 $stmt->close();
 
 if (!$user) {

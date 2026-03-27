@@ -39,7 +39,7 @@ class DetailPinjamanReportBuilder implements ReportBuilderInterface
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("i", $id);
         $stmt->execute();
-        $this->pinjaman = $stmt->get_result()->fetch_assoc();
+        $this->pinjaman = stmt_fetch_assoc($stmt);
 
         if (!$this->pinjaman) {
             throw new Exception("Data pinjaman tidak ditemukan.");
@@ -49,7 +49,7 @@ class DetailPinjamanReportBuilder implements ReportBuilderInterface
         $stmt_sch = $this->conn->prepare("SELECT * FROM ksp_angsuran WHERE pinjaman_id = ? ORDER BY angsuran_ke ASC");
         $stmt_sch->bind_param("i", $id);
         $stmt_sch->execute();
-        $this->schedule = $stmt_sch->get_result()->fetch_all(MYSQLI_ASSOC);
+        $this->schedule = stmt_fetch_all($stmt_sch);
     }
 
     public function build(): void

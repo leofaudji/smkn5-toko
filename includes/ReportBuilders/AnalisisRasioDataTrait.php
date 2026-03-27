@@ -26,7 +26,7 @@ trait AnalisisRasioDataTrait
         ");
         $stmt_balances->bind_param('isi', $user_id, $date, $user_id);
         $stmt_balances->execute();
-        $all_accounts = $stmt_balances->get_result()->fetch_all(MYSQLI_ASSOC);
+        $all_accounts = stmt_fetch_all($stmt_balances);
         $stmt_balances->close();
 
         $totals = ['Aset' => 0, 'Liabilitas' => 0, 'Ekuitas' => 0];
@@ -44,9 +44,9 @@ trait AnalisisRasioDataTrait
         ");
         $stmt_lr->bind_param('iss', $user_id, $start_of_year, $date);
         $stmt_lr->execute();
-        $lr_res = $stmt_lr->get_result();
         $lr_data = [];
-        while ($row = $lr_res->fetch_assoc()) {
+        $res_rows = stmt_fetch_all($stmt_lr);
+        foreach ($res_rows as $row) {
             $lr_data[$row['tipe_akun']] = (float)$row['total'];
         }
         $stmt_lr->close();

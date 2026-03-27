@@ -70,7 +70,7 @@ class DaftarJurnalReportBuilder implements ReportBuilderInterface
         call_user_func_array([$stmt, 'bind_param'], $bind_params_main);
 
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        return stmt_fetch_all($stmt);
     }
 
     private function render(array $data): void

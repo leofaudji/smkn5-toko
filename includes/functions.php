@@ -262,7 +262,7 @@ function get_user_id_from_username(string $nama_panggilan): ?int {
     if (!$stmt) return null;
     $stmt->bind_param("s", $nama_panggilan);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_assoc();
+    $result = stmt_fetch_assoc($stmt);
     $stmt->close();
     return $result ? (int)$result['id'] : null;
 }
@@ -285,7 +285,8 @@ function get_cash_balance_on_date($conn, $user_id, $date) {
     ");
     $stmt->bind_param('is', $user_id, $date);
     $stmt->execute();
-    $balance = (float)$stmt->get_result()->fetch_assoc()['total_mutasi'];
+    $res = stmt_fetch_assoc($stmt);
+    $balance = $res ? (float)$res['total_mutasi'] : 0;
     $stmt->close();
     return $balance;
 }
@@ -304,7 +305,7 @@ function get_account_balance_on_date($conn, $user_id, $account_id, $date) {
     $stmt_acc = $conn->prepare("SELECT saldo_normal FROM accounts WHERE id = ? AND user_id = ?");
     $stmt_acc->bind_param('ii', $account_id, $user_id);
     $stmt_acc->execute();
-    $account_info = $stmt_acc->get_result()->fetch_assoc();
+    $account_info = stmt_fetch_assoc($stmt_acc);
     $stmt_acc->close();
 
     if (!$account_info) return 0;
@@ -321,7 +322,7 @@ function get_account_balance_on_date($conn, $user_id, $account_id, $date) {
     ");
     $stmt_mutasi->bind_param('iis', $user_id, $account_id, $date);
     $stmt_mutasi->execute();
-    $mutasi = $stmt_mutasi->get_result()->fetch_assoc();
+    $mutasi = stmt_fetch_assoc($stmt_mutasi);
     $stmt_mutasi->close();
 
     $balance = ($saldo_normal === 'Debit') ? ((float)$mutasi['total_debit'] - (float)$mutasi['total_kredit']) : ((float)$mutasi['total_kredit'] - (float)$mutasi['total_debit']);
@@ -335,7 +336,7 @@ function get_account_balance_on_date($conn, $user_id, $account_id, $date) {
  * @param mysqli $conn Koneksi database.
  * @param int $user_id ID pengguna.
  * @param string $per_tanggal Tanggal dalam format Y-m-d.
- * @return array Daftar entri jurnal yang tidak seimbang.
+ * @return array<array<string, mixed>> Daftar entri jurnal yang tidak seimbang.
  */
 function find_unbalanced_journal_entries($conn, $user_id, $per_tanggal) {
     $stmt = $conn->prepare("
@@ -354,7 +355,7 @@ function find_unbalanced_journal_entries($conn, $user_id, $per_tanggal) {
     ");
     $stmt->bind_param('is', $user_id, $per_tanggal);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $result = stmt_fetch_all($stmt);
     $stmt->close();
     return $result;
 }
@@ -366,7 +367,7 @@ function find_unbalanced_journal_entries($conn, $user_id, $per_tanggal) {
  * @param mysqli $conn Koneksi database.
  * @param int $user_id ID pengguna.
  * @param string $per_tanggal Tanggal dalam format Y-m-d.
- * @return bool True jika seimbang, false jika tidak.
+ * @return array{is_balanced: bool, total_aset?: float, total_liabilitas_ekuitas?: float, selisih?: float, unbalanced_journals?: array, message?: string}
  */
 function get_balance_sheet_status($conn, $user_id, $per_tanggal) {
     try {
@@ -390,11 +391,7 @@ function get_balance_sheet_status($conn, $user_id, $per_tanggal) {
         ");
         $stmt->bind_param('si', $per_tanggal, $user_id);
         $stmt->execute();
-        $accounts_result = $stmt->get_result();
-        $accounts = [];
-        while ($row = $accounts_result->fetch_assoc()) {
-            $accounts[] = $row;
-        }
+        $accounts = stmt_fetch_all($stmt);
         $stmt->close();
 
         // 2. Hitung total Aset, Liabilitas, dan Ekuitas
@@ -511,8 +508,8 @@ function check_permission($required, $type = 'role') {
                 $stmt = $conn->prepare("SELECT role_id FROM users WHERE username = ?");
                 $stmt->bind_param("s", $_SESSION['username']);
                 $stmt->execute();
-                $res = $stmt->get_result();
-                if ($row = $res->fetch_assoc()) {
+                $row = stmt_fetch_assoc($stmt);
+                if ($row) {
                     $role_id = $row['role_id'];
                     $_SESSION['role_id'] = $role_id;
                 }
@@ -523,7 +520,8 @@ function check_permission($required, $type = 'role') {
                 $stmt = $conn->prepare("SELECT COUNT(*) as count FROM role_menus WHERE role_id = ? AND menu_key = ?");
                 $stmt->bind_param("is", $role_id, $menu_key);
                 $stmt->execute();
-                $count = $stmt->get_result()->fetch_assoc()['count'];
+                $row = stmt_fetch_assoc($stmt);
+                $count = $row['count'] ?? 0;
                 if ($count > 0) {
                     $has_access = true;
                 }

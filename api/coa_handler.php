@@ -22,8 +22,7 @@ try {
         $stmt = $conn->prepare("SELECT id, parent_id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
-        $result = $stmt->get_result();
-        $accounts = $result->fetch_all(MYSQLI_ASSOC);
+        $accounts = stmt_fetch_all($stmt);
         $stmt->close();
 
         echo json_encode(['status' => 'success', 'data' => $accounts]);
@@ -62,7 +61,7 @@ try {
                 $stmt = $conn->prepare("SELECT id, parent_id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE id = ? AND user_id = ?");
                 $stmt->bind_param('ii', $id, $user_id);
                 $stmt->execute();
-                $account = $stmt->get_result()->fetch_assoc();
+                $account = stmt_fetch_assoc($stmt);
                 $stmt->close();
                 if (!$account) {
                     throw new Exception("Akun tidak ditemukan.");
@@ -103,7 +102,8 @@ try {
                 $stmt_check_child = $conn->prepare("SELECT COUNT(*) as count FROM accounts WHERE parent_id = ?");
                 $stmt_check_child->bind_param('i', $id);
                 $stmt_check_child->execute();
-                if ($stmt_check_child->get_result()->fetch_assoc()['count'] > 0) {
+                $res_child = stmt_fetch_assoc($stmt_check_child);
+                if (($res_child ? $res_child['count'] : 0) > 0) {
                     throw new Exception("Tidak dapat menghapus akun karena memiliki sub-akun.");
                 }
                 $stmt_check_child->close();
@@ -113,7 +113,7 @@ try {
                 $stmt_check_gl = $conn->prepare("SELECT COUNT(*) as count FROM general_ledger WHERE account_id = ? AND user_id = ?");
                 $stmt_check_gl->bind_param('ii', $id, $user_id);
                 $stmt_check_gl->execute();
-                if ($stmt_check_gl->get_result()->fetch_assoc()['count'] > 0) {
+                if (stmt_fetch_assoc($stmt_check_gl)['count'] > 0) {
                     throw new Exception("Tidak dapat menghapus akun karena sudah memiliki riwayat di buku besar (jurnal).");
                 }
                 $stmt_check_gl->close();

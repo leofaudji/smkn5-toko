@@ -22,7 +22,7 @@ switch ($action) {
         $stmt = $db->prepare("SELECT * FROM ksp_pengumuman WHERE id = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
-        $data = $stmt->get_result()->fetch_assoc();
+        $data = stmt_fetch_assoc($stmt);
         echo json_encode(['success' => true, 'data' => $data]);
         break;
 

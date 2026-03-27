@@ -20,7 +20,7 @@ try {
             $stmt = $conn->prepare("SELECT id, nama_akun FROM accounts WHERE user_id = ? AND is_kas = 1 ORDER BY nama_akun");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $accounts = stmt_fetch_all($stmt);
             echo json_encode(['status' => 'success', 'data' => $accounts]);
         } 
         elseif ($action === 'get_transactions') {
@@ -35,7 +35,7 @@ try {
             $stmt_saldo = $conn->prepare("SELECT saldo_awal FROM accounts WHERE id = ? AND user_id = ?");
             $stmt_saldo->bind_param('ii', $account_id, $user_id);
             $stmt_saldo->execute();
-            $account_data = $stmt_saldo->get_result()->fetch_assoc();
+            $account_data = stmt_fetch_assoc($stmt_saldo);
             if (!$account_data) {
                 throw new Exception("Akun dengan ID {$account_id} tidak ditemukan atau Anda tidak memiliki akses.");
             }
@@ -50,7 +50,7 @@ try {
             ");
             $stmt_reconciled_mutation->bind_param('ii', $user_id, $account_id);
             $stmt_reconciled_mutation->execute();
-            $total_mutasi_reconciled = (float)$stmt_reconciled_mutation->get_result()->fetch_assoc()['total_mutasi_reconciled'];
+            $total_mutasi_reconciled = (float)stmt_fetch_assoc($stmt_reconciled_mutation)['total_mutasi_reconciled'];
             $stmt_reconciled_mutation->close();
             
             // Saldo awal untuk proses rekonsiliasi adalah saldo awal akun + total mutasi yang sudah direkonsiliasi
@@ -65,7 +65,7 @@ try {
             ");
             $stmt->bind_param('iis', $user_id, $account_id, $end_date);
             $stmt->execute();
-            $transactions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $transactions = stmt_fetch_all($stmt);
 
             echo json_encode([
                 'status' => 'success', 
@@ -94,20 +94,20 @@ try {
             $params_sum = array_merge($cleared_ids, [$user_id]);
             $stmt_sum->bind_param($types_sum, ...$params_sum);
             $stmt_sum->execute();
-            $total_cleared = (float)$stmt_sum->get_result()->fetch_assoc()['total_cleared'];
+            $total_cleared = (float)stmt_fetch_assoc($stmt_sum)['total_cleared'];
             $stmt_sum->close();
 
             // Hitung saldo awal rekonsiliasi dari sisi server untuk menghitung selisih
             $stmt_saldo_awal_akun = $conn->prepare("SELECT saldo_awal FROM accounts WHERE id = ? AND user_id = ?");
             $stmt_saldo_awal_akun->bind_param('ii', $account_id, $user_id);
             $stmt_saldo_awal_akun->execute();
-            $saldo_awal_akun = (float)$stmt_saldo_awal_akun->get_result()->fetch_assoc()['saldo_awal'];
+            $saldo_awal_akun = (float)stmt_fetch_assoc($stmt_saldo_awal_akun)['saldo_awal'];
             $stmt_saldo_awal_akun->close();
 
             $stmt_reconciled_mutation = $conn->prepare("SELECT COALESCE(SUM(debit - kredit), 0) as total_mutasi_reconciled FROM general_ledger WHERE user_id = ? AND account_id = ? AND is_reconciled = 1 AND reconciliation_id IS NOT NULL");
             $stmt_reconciled_mutation->bind_param('ii', $user_id, $account_id);
             $stmt_reconciled_mutation->execute();
-            $total_mutasi_reconciled = (float)$stmt_reconciled_mutation->get_result()->fetch_assoc()['total_mutasi_reconciled'];
+            $total_mutasi_reconciled = (float)stmt_fetch_assoc($stmt_reconciled_mutation)['total_mutasi_reconciled'];
             $stmt_reconciled_mutation->close();
             $saldo_buku_awal = $saldo_awal_akun + $total_mutasi_reconciled;
             $difference = ($saldo_buku_awal + $total_cleared) - $statement_balance;

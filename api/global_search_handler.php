@@ -32,7 +32,7 @@ try {
     ");
     $stmt_gl->bind_param('iss', $user_id, $search_term, $search_term);
     $stmt_gl->execute();
-    $gl_results = $stmt_gl->get_result()->fetch_all(MYSQLI_ASSOC);
+    $gl_results = stmt_fetch_all($stmt_gl);
     $stmt_gl->close();
 
     foreach ($gl_results as $item) {
@@ -64,7 +64,7 @@ try {
     ");
     $stmt_coa->bind_param('iss', $user_id, $search_term, $search_term);
     $stmt_coa->execute();
-    $coa_results = $stmt_coa->get_result()->fetch_all(MYSQLI_ASSOC);
+    $coa_results = stmt_fetch_all($stmt_coa);
     $stmt_coa->close();
 
     foreach ($coa_results as $item) {
@@ -86,7 +86,7 @@ try {
     ");
     $stmt_sup->bind_param('is', $user_id, $search_term);
     $stmt_sup->execute();
-    $sup_results = $stmt_sup->get_result()->fetch_all(MYSQLI_ASSOC);
+    $sup_results = stmt_fetch_all($stmt_sup);
     $stmt_sup->close();
 
     foreach ($sup_results as $item) {
@@ -109,7 +109,7 @@ try {
         ");
         $stmt_users->bind_param('ss', $search_term, $search_term);
         $stmt_users->execute();
-        $user_results = $stmt_users->get_result()->fetch_all(MYSQLI_ASSOC);
+        $user_results = stmt_fetch_all($stmt_users);
         $stmt_users->close();
 
         foreach ($user_results as $item) {
@@ -132,7 +132,7 @@ try {
     ");
     $stmt_recurring->bind_param('is', $user_id, $search_term);
     $stmt_recurring->execute();
-    $recurring_results = $stmt_recurring->get_result()->fetch_all(MYSQLI_ASSOC);
+    $recurring_results = stmt_fetch_all($stmt_recurring);
     $stmt_recurring->close();
 
     foreach ($recurring_results as $item) {
@@ -154,7 +154,7 @@ try {
     ");
     $stmt_citems->bind_param('is', $user_id, $search_term);
     $stmt_citems->execute();
-    $citems_results = $stmt_citems->get_result()->fetch_all(MYSQLI_ASSOC);
+    $citems_results = stmt_fetch_all($stmt_citems);
     $stmt_citems->close();
 
     foreach ($citems_results as $item) {

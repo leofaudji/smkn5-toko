@@ -41,7 +41,7 @@ try {
     ");
     $stmt_monthly->bind_param('iss', $user_id, $start_of_month, $end_of_month);
     $stmt_monthly->execute();
-    $monthly_results = $stmt_monthly->get_result()->fetch_all(MYSQLI_ASSOC);
+    $monthly_results = stmt_fetch_all($stmt_monthly);
     $stmt_monthly->close();
 
     $pemasukan_bulan_ini = 0;
@@ -78,9 +78,9 @@ try {
     ");
     $stmt_yearly_trend->bind_param('ii', $user_id, $tahun);
     $stmt_yearly_trend->execute();
-    $yearly_trend_result = $stmt_yearly_trend->get_result();
+    $rows = stmt_fetch_all($stmt_yearly_trend);
 
-    while ($row = $yearly_trend_result->fetch_assoc()) {
+    foreach ($rows as $row) {
         $bulan_index = (int)$row['bulan'];
         $pemasukan_per_bulan[$bulan_index] = (float)$row['total_pemasukan'];
         $pengeluaran_per_bulan[$bulan_index] = (float)$row['total_pengeluaran'];
@@ -115,7 +115,7 @@ try {
     ");
     $stmt_recent->bind_param('i', $user_id);
     $stmt_recent->execute();
-    $response_data['transaksi_terbaru'] = $stmt_recent->get_result()->fetch_all(MYSQLI_ASSOC);
+    $response_data['transaksi_terbaru'] = stmt_fetch_all($stmt_recent);
     $stmt_recent->close();
     
     $response_data['pengeluaran_per_kategori'] = [
@@ -148,8 +148,8 @@ try {
     ");
     $stmt_daily_profit->bind_param('iss', $user_id, $start_date_30, $end_date_30);
     $stmt_daily_profit->execute();
-    $daily_profit_result = $stmt_daily_profit->get_result();
-    while ($row = $daily_profit_result->fetch_assoc()) {
+    $daily_rows = stmt_fetch_all($stmt_daily_profit);
+    foreach ($daily_rows as $row) {
         if (isset($daily_profits[$row['tanggal']])) {
             $daily_profits[$row['tanggal']] += (float)$row['profit'];
         }

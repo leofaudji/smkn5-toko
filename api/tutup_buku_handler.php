@@ -24,7 +24,7 @@ try {
         ");
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
-        $history = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $history = stmt_fetch_all($stmt);
         $stmt->close();
         echo json_encode(['status' => 'success', 'data' => $history]);
 
@@ -41,7 +41,7 @@ try {
         $stmt_check = $conn->prepare("SELECT id FROM jurnal_entries WHERE user_id = ? AND keterangan = ?");
         $stmt_check->bind_param('is', $user_id, $keterangan_jurnal);
         $stmt_check->execute();
-        if ($stmt_check->get_result()->num_rows > 0) {
+        if (count(stmt_fetch_all($stmt_check)) > 0) {
             throw new Exception("Jurnal penutup untuk periode {$year} sudah pernah dibuat.");
         }
         $stmt_check->close();
@@ -56,7 +56,7 @@ try {
         $stmt_check_accounts = $conn->prepare("SELECT COUNT(id) as count FROM accounts WHERE user_id = ? AND tipe_akun IN ('Pendapatan', 'Beban')");
         $stmt_check_accounts->bind_param('i', $user_id);
         $stmt_check_accounts->execute();
-        $has_accounts = $stmt_check_accounts->get_result()->fetch_assoc()['count'] > 0;
+        $has_accounts = stmt_fetch_assoc($stmt_check_accounts)['count'] > 0;
         $stmt_check_accounts->close();
 
         if (!$has_accounts) {
@@ -80,7 +80,7 @@ try {
         ");
         $stmt_balances->bind_param('si', $closing_date, $user_id);
         $stmt_balances->execute();
-        $accounts_to_close = $stmt_balances->get_result()->fetch_all(MYSQLI_ASSOC);
+        $accounts_to_close = stmt_fetch_all($stmt_balances);
         $stmt_balances->close();
 
         if (empty($accounts_to_close)) {
@@ -165,7 +165,7 @@ try {
             $stmt_latest = $conn->prepare("SELECT id, tanggal FROM jurnal_entries WHERE user_id = ? AND keterangan LIKE 'Jurnal Penutup Periode%' ORDER BY tanggal DESC LIMIT 1");
             $stmt_latest->bind_param('i', $user_id);
             $stmt_latest->execute();
-            $latest_closing = $stmt_latest->get_result()->fetch_assoc();
+            $latest_closing = stmt_fetch_assoc($stmt_latest);
             $stmt_latest->close();
 
             if (!$latest_closing || (int)$latest_closing['id'] !== $id_to_reverse) {
@@ -176,7 +176,7 @@ try {
             $stmt_original = $conn->prepare("SELECT * FROM jurnal_details WHERE jurnal_entry_id = ?");
             $stmt_original->bind_param('i', $id_to_reverse);
             $stmt_original->execute();
-            $original_lines = $stmt_original->get_result()->fetch_all(MYSQLI_ASSOC);
+            $original_lines = stmt_fetch_all($stmt_original);
             $stmt_original->close();
 
             if (empty($original_lines)) {
@@ -223,7 +223,7 @@ try {
             $stmt_prev_lock = $conn->prepare("SELECT tanggal FROM jurnal_entries WHERE user_id = ? AND keterangan LIKE 'Jurnal Penutup Periode%' AND id != ? ORDER BY tanggal DESC LIMIT 1");
             $stmt_prev_lock->bind_param('ii', $user_id, $id_to_reverse);
             $stmt_prev_lock->execute();
-            $prev_lock = $stmt_prev_lock->get_result()->fetch_assoc();
+            $prev_lock = stmt_fetch_assoc($stmt_prev_lock);
             $stmt_prev_lock->close();
 
             if ($prev_lock) {

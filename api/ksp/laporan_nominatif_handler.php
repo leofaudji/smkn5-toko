@@ -29,7 +29,7 @@ try {
             $stmt = $db->prepare($sql);
             $stmt->bind_param("s", $per_tanggal);
             $stmt->execute();
-            $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $data = stmt_fetch_all($stmt);
             
             echo json_encode(['success' => true, 'data' => $data]);
             break;
@@ -55,7 +55,7 @@ try {
             $stmt = $db->prepare($sql);
             $stmt->bind_param("ss", $per_tanggal, $per_tanggal);
             $stmt->execute();
-            $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $data = stmt_fetch_all($stmt);
             
             echo json_encode(['success' => true, 'data' => $data]);
             break;

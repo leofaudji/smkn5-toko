@@ -22,7 +22,7 @@ try {
         ");
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
-        $history = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $history = stmt_fetch_all($stmt);
         $stmt->close();
 
         echo json_encode(['status' => 'success', 'data' => $history]);

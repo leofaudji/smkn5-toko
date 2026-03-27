@@ -25,7 +25,7 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         $stmt_members = $this->conn->prepare($sql_members);
         $stmt_members->bind_param('i', $user_id);
         $stmt_members->execute();
-        $members = $stmt_members->get_result()->fetch_all(MYSQLI_ASSOC);
+        $members = stmt_fetch_all($stmt_members);
         $stmt_members->close();
 
         // 2. Ambil transaksi WB (SETOR) untuk tahun yang dipilih
@@ -36,10 +36,9 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         $stmt_trans = $this->conn->prepare($sql_trans);
         $stmt_trans->bind_param('ii', $user_id, $tahun);
         $stmt_trans->execute();
-        $transactions_result = $stmt_trans->get_result();
-        
         $transactions = [];
-        while($row = $transactions_result->fetch_assoc()) {
+        $rows_trans = stmt_fetch_all($stmt_trans);
+        foreach ($rows_trans as $row) {
             $transactions[$row['anggota_id']][$row['bulan']] = (float)$row['total_bulan'];
         }
         $stmt_trans->close();
@@ -52,9 +51,11 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         $stmt_belanja = $this->conn->prepare($sql_belanja);
         $stmt_belanja->bind_param('ii', $user_id, $tahun);
         $stmt_belanja->execute();
-        $res_belanja = $stmt_belanja->get_result();
         $belanja_data = [];
-        while($row = $res_belanja->fetch_assoc()) $belanja_data[$row['anggota_id']] = $row['total_belanja'];
+        $rows_belanja = stmt_fetch_all($stmt_belanja);
+        foreach ($rows_belanja as $row) {
+            $belanja_data[$row['anggota_id']] = $row['total_belanja'];
+        }
         $stmt_belanja->close();
 
         // Settings

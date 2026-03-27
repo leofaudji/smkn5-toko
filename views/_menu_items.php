@@ -22,11 +22,12 @@ if (!$is_admin) {
         $stmt_u = $conn->prepare("SELECT role_id FROM users WHERE username = ?");
         $stmt_u->bind_param("s", $_SESSION['username']);
         $stmt_u->execute();
-        $res_u = $stmt_u->get_result();
-        if ($row_u = $res_u->fetch_assoc()) {
+        $row_u = stmt_fetch_assoc($stmt_u);
+        if ($row_u) {
             $role_id = $row_u['role_id'];
             $_SESSION['role_id'] = $role_id; // Simpan ke session untuk request berikutnya
         }
+        $stmt_u->close();
     }
 
     if ($role_id) {
@@ -34,8 +35,9 @@ if (!$is_admin) {
     $stmt = $conn->prepare("SELECT menu_key FROM role_menus WHERE role_id = ?");
         $stmt->bind_param("i", $role_id);
     $stmt->execute();
-    $res = $stmt->get_result();
-    while ($row = $res->fetch_assoc()) $allowed_menus[] = $row['menu_key'];
+    $rows = stmt_fetch_all($stmt);
+    foreach ($rows as $row) $allowed_menus[] = $row['menu_key'];
+    $stmt->close();
     }
 }
 

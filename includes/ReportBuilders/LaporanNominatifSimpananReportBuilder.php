@@ -43,7 +43,7 @@ class LaporanNominatifSimpananReportBuilder implements ReportBuilderInterface
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("s", $per_tanggal);
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        return stmt_fetch_all($stmt);
     }
 
     private function render($data): void

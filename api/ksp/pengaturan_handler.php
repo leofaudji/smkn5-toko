@@ -19,7 +19,7 @@ try {
             $stmt = $db->prepare("SELECT j.*, a.nama_akun, a.kode_akun FROM ksp_jenis_simpanan j JOIN accounts a ON j.akun_id = a.id WHERE j.user_id = ?");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
-            echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+            echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
             break;
 
         case 'save_jenis_simpanan':
@@ -50,7 +50,7 @@ try {
             $stmt = $db->prepare("SELECT * FROM ksp_kategori_transaksi WHERE user_id = ?");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
-            echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+            echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
             break;
 
         case 'save_kategori_transaksi':
@@ -89,7 +89,7 @@ try {
             ");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
-            echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+            echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
             break;
 
         case 'save_jenis_pinjaman':
@@ -121,7 +121,7 @@ try {
         case 'list_tipe_agunan':
             $stmt = $db->prepare("SELECT * FROM ksp_tipe_agunan");
             $stmt->execute();
-            echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+            echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
             break;
 
         case 'save_tipe_agunan':
@@ -158,7 +158,7 @@ try {
             $stmt = $db->prepare("SELECT id, kode_akun, nama_akun, tipe_akun FROM accounts WHERE user_id = ? AND tipe_akun IN ('Liabilitas', 'Ekuitas', 'Aset', 'Pendapatan') ORDER BY kode_akun");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
-            echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+            echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
             break;
 
         // --- NOTIFIKASI ---
@@ -272,7 +272,7 @@ try {
             $stmt = $db->prepare($sql);
             if (!empty($types)) $stmt->bind_param($types, ...$params);
             $stmt->execute();
-            echo json_encode(['success' => true, 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+            echo json_encode(['success' => true, 'data' => stmt_fetch_all($stmt)]);
             break;
 
         default:

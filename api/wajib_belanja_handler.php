@@ -27,15 +27,14 @@ try {
             $stmt = $conn->prepare($sql);
             $stmt->bind_param('iii', $user_id, $limit, $offset);
             $stmt->execute();
-            $result = $stmt->get_result();
-            $data = $result->fetch_all(MYSQLI_ASSOC);
+            $data = stmt_fetch_all($stmt);
             $stmt->close();
 
             $total_sql = "SELECT COUNT(*) as total FROM transaksi_wajib_belanja WHERE user_id = ?";
             $total_stmt = $conn->prepare($total_sql);
             $total_stmt->bind_param('i', $user_id);
             $total_stmt->execute();
-            $total_records = $total_stmt->get_result()->fetch_assoc()['total'];
+            $total_records = stmt_fetch_assoc($total_stmt)['total'];
             $total_stmt->close();
 
             echo json_encode([
@@ -54,14 +53,14 @@ try {
             $stmt_anggota = $conn->prepare($anggota_sql);
             $stmt_anggota->bind_param('i', $user_id);
             $stmt_anggota->execute();
-            $anggota = $stmt_anggota->get_result()->fetch_all(MYSQLI_ASSOC);
+            $anggota = stmt_fetch_all($stmt_anggota);
             $stmt_anggota->close();
 
             $kas_sql = "SELECT id, nama_akun, kode_akun FROM accounts WHERE user_id = ? AND is_kas = 1 ORDER BY nama_akun";
             $stmt_kas = $conn->prepare($kas_sql);
             $stmt_kas->bind_param('i', $user_id);
             $stmt_kas->execute();
-            $kas_accounts = $stmt_kas->get_result()->fetch_all(MYSQLI_ASSOC);
+            $kas_accounts = stmt_fetch_all($stmt_kas);
             $stmt_kas->close();
 
             $nominal_default = get_setting('nominal_wajib_belanja', 50000, $conn);
@@ -81,7 +80,7 @@ try {
             $stmt = $conn->prepare("SELECT twb.*, a.nama_lengkap as nama_anggota FROM transaksi_wajib_belanja twb JOIN anggota a ON twb.anggota_id = a.id WHERE twb.id = ? AND twb.user_id = ?");
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
-            $data = $stmt->get_result()->fetch_assoc();
+            $data = stmt_fetch_assoc($stmt);
             $stmt->close();
 
             if (!$data) throw new Exception("Data tidak ditemukan.");
@@ -188,7 +187,7 @@ try {
             $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE id = ? AND user_id = ? FOR UPDATE");
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
-            $old_trx = $stmt->get_result()->fetch_assoc();
+            $old_trx = stmt_fetch_assoc($stmt);
             $stmt->close();
 
             if (!$old_trx) throw new Exception("Transaksi tidak ditemukan.");
@@ -249,7 +248,7 @@ try {
             $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE id = ? AND user_id = ? FOR UPDATE");
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
-            $old_trx = $stmt->get_result()->fetch_assoc();
+            $old_trx = stmt_fetch_assoc($stmt);
             $stmt->close();
 
             if (!$old_trx) throw new Exception("Transaksi tidak ditemukan.");

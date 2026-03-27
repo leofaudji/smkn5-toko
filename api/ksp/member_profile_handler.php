@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $db->prepare("SELECT password FROM anggota WHERE id = ?");
     $stmt->bind_param("i", $member_id);
     $stmt->execute();
-    $user = $stmt->get_result()->fetch_assoc();
+    $user = stmt_fetch_assoc($stmt);
 
     if ($user && password_verify($current_password, $user['password'])) {
         $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);

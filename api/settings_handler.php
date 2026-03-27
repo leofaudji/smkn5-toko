@@ -36,7 +36,7 @@ try {
             $stmt = $conn->prepare("SELECT id, nama_akun FROM accounts WHERE user_id = ? AND is_kas = 1 ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $cash_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $cash_accounts = stmt_fetch_all($stmt);
             $stmt->close();
             echo json_encode(['status' => 'success', 'data' => $cash_accounts]);
             exit;
@@ -47,7 +47,7 @@ try {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun, cash_flow_category FROM accounts WHERE user_id = ? AND is_kas = 0 ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $cf_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $cf_accounts = stmt_fetch_all($stmt);
             $stmt->close();
 
             // Terapkan nilai default jika kategori masih NULL
@@ -77,7 +77,7 @@ try {
             $stmt = $conn->prepare("SELECT id, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $all_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $all_accounts = stmt_fetch_all($stmt);
             $stmt->close();
 
             $accounts = [
@@ -95,7 +95,7 @@ try {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? AND tipe_akun IN ('Ekuitas', 'Aset', 'Pendapatan', 'Beban') ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $all_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $all_accounts = stmt_fetch_all($stmt);
             $stmt->close();
 
             $accounts = [
@@ -219,7 +219,7 @@ try {
             // Ambil iuran aktif saat ini
             $stmt_current_fee = $conn->prepare("SELECT id, monthly_fee FROM iuran_settings_history WHERE end_date IS NULL ORDER BY start_date DESC LIMIT 1");
             $stmt_current_fee->execute();
-            $current_fee_data = $stmt_current_fee->get_result()->fetch_assoc();
+            $current_fee_data = stmt_fetch_assoc($stmt_current_fee);
             $stmt_current_fee->close();
 
             // Hanya proses jika nominalnya berubah
@@ -273,7 +273,7 @@ try {
             // Delete old letterhead if exists
             $stmt_old = $conn->prepare("SELECT setting_value FROM settings WHERE setting_key = 'letterhead_image'");
             $stmt_old->execute();
-            $old_file_path = $stmt_old->get_result()->fetch_assoc()['setting_value'] ?? null;
+            $old_file_path = stmt_fetch_assoc($stmt_old)['setting_value'] ?? null;
             if ($old_file_path && file_exists(PROJECT_ROOT . '/' . $old_file_path)) {
                 unlink(PROJECT_ROOT . '/' . $old_file_path);
             }
@@ -307,7 +307,7 @@ try {
             // Delete old signature if exists
             $stmt_old = $conn->prepare("SELECT setting_value FROM settings WHERE setting_key = 'signature_image'");
             $stmt_old->execute();
-            $old_file_path = $stmt_old->get_result()->fetch_assoc()['setting_value'] ?? null;
+            $old_file_path = stmt_fetch_assoc($stmt_old)['setting_value'] ?? null;
             if ($old_file_path && file_exists(PROJECT_ROOT . '/' . $old_file_path)) {
                 unlink(PROJECT_ROOT . '/' . $old_file_path);
             }
@@ -341,7 +341,7 @@ try {
             // Delete old stamp if exists
             $stmt_old = $conn->prepare("SELECT setting_value FROM settings WHERE setting_key = 'stamp_image'");
             $stmt_old->execute();
-            $old_file_path = $stmt_old->get_result()->fetch_assoc()['setting_value'] ?? null;
+            $old_file_path = stmt_fetch_assoc($stmt_old)['setting_value'] ?? null;
             if ($old_file_path && file_exists(PROJECT_ROOT . '/' . $old_file_path)) {
                 unlink(PROJECT_ROOT . '/' . $old_file_path);
             }

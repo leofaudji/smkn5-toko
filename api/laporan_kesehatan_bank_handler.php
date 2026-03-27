@@ -15,15 +15,15 @@ if (!function_exists('get_ksp_summary_stats')) {
     function get_ksp_summary_stats($db, $date) {
         $stmt_sim = $db->prepare("SELECT SUM(kredit - debit) as total FROM ksp_transaksi_simpanan WHERE tanggal <= ?");
         $stmt_sim->bind_param("s", $date); $stmt_sim->execute();
-        $total_simpanan = (float)($stmt_sim->get_result()->fetch_assoc()['total'] ?? 0);
+        $total_simpanan = (float)(stmt_fetch_assoc($stmt_sim)['total'] ?? 0);
 
         $stmt_pinj_cair = $db->prepare("SELECT SUM(jumlah_pinjaman) as total FROM ksp_pinjaman WHERE tanggal_pencairan <= ? AND status != 'ditolak'");
         $stmt_pinj_cair->bind_param("s", $date); $stmt_pinj_cair->execute();
-        $total_cair = (float)($stmt_pinj_cair->get_result()->fetch_assoc()['total'] ?? 0);
+        $total_cair = (float)(stmt_fetch_assoc($stmt_pinj_cair)['total'] ?? 0);
 
         $stmt_pinj_bayar = $db->prepare("SELECT SUM(pokok_terbayar) as total FROM ksp_angsuran WHERE tanggal_bayar <= ?");
         $stmt_pinj_bayar->bind_param("s", $date); $stmt_pinj_bayar->execute();
-        $total_bayar_pokok = (float)($stmt_pinj_bayar->get_result()->fetch_assoc()['total'] ?? 0);
+        $total_bayar_pokok = (float)(stmt_fetch_assoc($stmt_pinj_bayar)['total'] ?? 0);
         $total_outstanding = $total_cair - $total_bayar_pokok;
 
         $stmt_macet = $db->prepare("
@@ -36,7 +36,7 @@ if (!function_exists('get_ksp_summary_stats')) {
             ) as sub
         ");
         $stmt_macet->bind_param("ssss", $date, $date, $date, $date); $stmt_macet->execute();
-        $total_macet = (float)($stmt_macet->get_result()->fetch_assoc()['nilai_macet'] ?? 0);
+        $total_macet = (float)(stmt_fetch_assoc($stmt_macet)['nilai_macet'] ?? 0);
 
         return compact('total_simpanan', 'total_outstanding', 'total_macet');
     }
@@ -45,12 +45,12 @@ if (!function_exists('get_ksp_summary_stats')) {
 function get_financial_data_for_date($db, $date) {
     // Laba Bersih (Pendapatan - Beban)
     $stmt_lr = $db->prepare("SELECT (SELECT SUM(kredit - debit) FROM general_ledger WHERE account_id IN (SELECT id FROM accounts WHERE tipe_akun = 'Pendapatan') AND tanggal <= ?) as total_pendapatan, (SELECT SUM(debit - kredit) FROM general_ledger WHERE account_id IN (SELECT id FROM accounts WHERE tipe_akun = 'Beban') AND tanggal <= ?) as total_beban");
-    $stmt_lr->bind_param("ss", $date, $date); $stmt_lr->execute(); $lr = $stmt_lr->get_result()->fetch_assoc();
+    $stmt_lr->bind_param("ss", $date, $date); $stmt_lr->execute(); $lr = stmt_fetch_assoc($stmt_lr);
     $laba_bersih = (float)($lr['total_pendapatan'] ?? 0) - (float)($lr['total_beban'] ?? 0);
 
     // Total Aset & Ekuitas
     $stmt_neraca = $db->prepare("SELECT (SELECT SUM(debit - kredit) FROM general_ledger WHERE account_id IN (SELECT id FROM accounts WHERE tipe_akun = 'Aset') AND tanggal <= ?) as total_aset, (SELECT SUM(kredit - debit) FROM general_ledger WHERE account_id IN (SELECT id FROM accounts WHERE tipe_akun = 'Ekuitas') AND tanggal <= ?) as total_ekuitas");
-    $stmt_neraca->bind_param("ss", $date, $date); $stmt_neraca->execute(); $neraca = $stmt_neraca->get_result()->fetch_assoc();
+    $stmt_neraca->bind_param("ss", $date, $date); $stmt_neraca->execute(); $neraca = stmt_fetch_assoc($stmt_neraca);
     $total_aset = (float)($neraca['total_aset'] ?? 0);
     $total_ekuitas = (float)($neraca['total_ekuitas'] ?? 0);
 
@@ -59,7 +59,7 @@ function get_financial_data_for_date($db, $date) {
 
     // Pendapatan & Beban Bunga
     $stmt_bunga = $db->prepare("SELECT (SELECT SUM(bunga_terbayar) FROM ksp_angsuran WHERE tanggal_bayar <= ?) as pendapatan_bunga, 0 as beban_bunga");
-    $stmt_bunga->bind_param("s", $date); $stmt_bunga->execute(); $bunga = $stmt_bunga->get_result()->fetch_assoc();
+    $stmt_bunga->bind_param("s", $date); $stmt_bunga->execute(); $bunga = stmt_fetch_assoc($stmt_bunga);
     $pendapatan_bunga = (float)($bunga['pendapatan_bunga'] ?? 0);
     $beban_bunga = (float)($bunga['beban_bunga'] ?? 0);
 
@@ -102,11 +102,11 @@ try {
 
         // Get data for this historical point
         $stmt_lr_hist = $db->prepare("SELECT (SELECT SUM(kredit - debit) FROM general_ledger WHERE account_id IN (SELECT id FROM accounts WHERE tipe_akun = 'Pendapatan') AND tanggal <= ?) as p, (SELECT SUM(debit - kredit) FROM general_ledger WHERE account_id IN (SELECT id FROM accounts WHERE tipe_akun = 'Beban') AND tanggal <= ?) as b");
-        $stmt_lr_hist->bind_param("ss", $trend_date, $trend_date); $stmt_lr_hist->execute(); $lr_hist = $stmt_lr_hist->get_result()->fetch_assoc();
+        $stmt_lr_hist->bind_param("ss", $trend_date, $trend_date); $stmt_lr_hist->execute(); $lr_hist = stmt_fetch_assoc($stmt_lr_hist);
         $laba_bersih_hist = (float)($lr_hist['p'] ?? 0) - (float)($lr_hist['b'] ?? 0);
 
         $stmt_neraca_hist = $db->prepare("SELECT (SELECT SUM(debit - kredit) FROM general_ledger WHERE account_id IN (SELECT id FROM accounts WHERE tipe_akun = 'Aset') AND tanggal <= ?) as a, (SELECT SUM(kredit - debit) FROM general_ledger WHERE account_id IN (SELECT id FROM accounts WHERE tipe_akun = 'Ekuitas') AND tanggal <= ?) as e");
-        $stmt_neraca_hist->bind_param("ss", $trend_date, $trend_date); $stmt_neraca_hist->execute(); $neraca_hist = $stmt_neraca_hist->get_result()->fetch_assoc();
+        $stmt_neraca_hist->bind_param("ss", $trend_date, $trend_date); $stmt_neraca_hist->execute(); $neraca_hist = stmt_fetch_assoc($stmt_neraca_hist);
         $total_aset_hist = (float)($neraca_hist['a'] ?? 0);
         $total_ekuitas_hist = (float)($neraca_hist['e'] ?? 0);
 
@@ -114,7 +114,7 @@ try {
 
         $stmt_bunga_hist = $db->prepare("SELECT SUM(bunga_terbayar) as pendapatan_bunga FROM ksp_angsuran WHERE tanggal_bayar <= ?");
         $stmt_bunga_hist->bind_param("s", $trend_date); $stmt_bunga_hist->execute();
-        $pendapatan_bunga_hist = (float)($stmt_bunga_hist->get_result()->fetch_assoc()['pendapatan_bunga'] ?? 0);
+        $pendapatan_bunga_hist = (float)(stmt_fetch_assoc($stmt_bunga_hist)['pendapatan_bunga'] ?? 0);
 
         // Calculate ratios for this historical point
         $historical_trends['roa'][] = ($total_aset_hist > 0) ? ($laba_bersih_hist / $total_aset_hist) * 100 : 0;

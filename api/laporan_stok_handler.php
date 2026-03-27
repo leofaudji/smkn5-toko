@@ -24,7 +24,7 @@ try {
     $stmt_items = $conn->prepare($items_query);
     $stmt_items->bind_param('i', $user_id);
     $stmt_items->execute();
-    $items_result = $stmt_items->get_result()->fetch_all(MYSQLI_ASSOC);
+    $items_result = stmt_fetch_all($stmt_items);
     $stmt_items->close();
 
     $report_data = [];
@@ -54,12 +54,12 @@ try {
         // 2. Hitung Stok Awal
         $stmt_stok_awal->bind_param("is", $item_id, $start_date);
         $stmt_stok_awal->execute();
-        $stok_awal = (int)$stmt_stok_awal->get_result()->fetch_assoc()['stok_awal'];
+        $stok_awal = (int)stmt_fetch_assoc($stmt_stok_awal)['stok_awal'];
 
         // 3. Hitung Pergerakan Stok (Masuk & Keluar) dalam periode
         $stmt_pergerakan->bind_param("ississ", $item_id, $start_date, $end_date, $item_id, $start_date, $end_date);
         $stmt_pergerakan->execute();
-        $pergerakan = $stmt_pergerakan->get_result()->fetch_assoc();
+        $pergerakan = stmt_fetch_assoc($stmt_pergerakan);
         
         $masuk = (int)$pergerakan['masuk'];
         $keluar = (int)$pergerakan['keluar'];

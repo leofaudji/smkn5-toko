@@ -16,7 +16,7 @@ function test_search($term) {
     $stmt = $db->prepare("($sql_normal) UNION ($sql_cons)");
     $stmt->bind_param('isssisss', $user_id, $search, $search, $search, $user_id, $search, $search, $search);
     $stmt->execute();
-    $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $result = stmt_fetch_all($stmt);
     print_r($result);
 }
 

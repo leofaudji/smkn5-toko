@@ -37,7 +37,7 @@ try {
         $stmt = $conn->prepare($sql);
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
-        $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $result = stmt_fetch_all($stmt);
         $stmt->close();
 
         echo json_encode(['success' => true, 'data' => $result]);
@@ -55,7 +55,7 @@ try {
         $stmt = $conn->prepare($sql);
         $stmt->bind_param('ii', $user_id, $customer_id);
         $stmt->execute();
-        $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $result = stmt_fetch_all($stmt);
         $stmt->close();
 
         echo json_encode(['success' => true, 'data' => $result]);
@@ -83,7 +83,7 @@ try {
         $stmt = $conn->prepare($sql);
         $stmt->bind_param('ii', $user_id, $customer_id);
         $stmt->execute();
-        $invoices = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $invoices = stmt_fetch_all($stmt);
         $stmt->close();
 
         $receivable_acc_id = get_setting('sales_receivable_account_id', null, $conn);

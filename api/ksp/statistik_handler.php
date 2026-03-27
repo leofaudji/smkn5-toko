@@ -80,13 +80,10 @@ try {
     ");
     $stmt_quality->bind_param("ssss", $end_date, $end_date, $end_date, $end_date);
     $stmt_quality->execute();
-    $res_quality = $stmt_quality->get_result();
-    
     $quality_counts = ['lancar' => 0, 'dpk' => 0, 'kurang_lancar' => 0, 'diragukan' => 0, 'macet' => 0];
-    
     $terlambat_count = 0;
-
-    while ($row = $res_quality->fetch_assoc()) {
+    $res_quality_rows = stmt_fetch_all($stmt_quality);
+    foreach ($res_quality_rows as $row) {
         $days = (int)$row['max_delay'];
         $terlambat_count++;
         if ($days > 180) $quality_counts['macet']++;
@@ -104,7 +101,7 @@ try {
     ");
     $stmt_total_aktif->bind_param("ss", $end_date, $end_date);
     $stmt_total_aktif->execute();
-    $total_aktif = $stmt_total_aktif->get_result()->fetch_assoc()['total'];
+    $total_aktif = stmt_fetch_assoc($stmt_total_aktif)['total'];
 
     $quality_counts['lancar'] = $total_aktif - $terlambat_count;
 
@@ -116,7 +113,7 @@ try {
                  GROUP BY t.jenis_simpanan_id");
     $stmt_comp->bind_param("s", $end_date);
     $stmt_comp->execute();
-    $comp_data = $stmt_comp->get_result()->fetch_all(MYSQLI_ASSOC);
+    $comp_data = stmt_fetch_all($stmt_comp);
 
     // 5. Top 5 Savers at End Date
     $stmt_top = $db->prepare("SELECT a.nama_lengkap, a.nomor_anggota, SUM(t.kredit - t.debit) as total_saldo 
@@ -128,7 +125,7 @@ try {
                 LIMIT 5");
     $stmt_top->bind_param("s", $end_date);
     $stmt_top->execute();
-    $top_savers = $stmt_top->get_result()->fetch_all(MYSQLI_ASSOC);
+    $top_savers = stmt_fetch_all($stmt_top);
 
     // 6. Cashflow Forecasting (Historical 6 months + Forecast 3 months)
     // Base calculation on end_date to allow backtesting via filter
@@ -186,7 +183,7 @@ try {
     ");
     $stmt_lp->bind_param("ss", $end_date, $end_date);
     $stmt_lp->execute();
-    $loan_portfolio = $stmt_lp->get_result()->fetch_all(MYSQLI_ASSOC);
+    $loan_portfolio = stmt_fetch_all($stmt_lp);
 
     // 8. Member Growth (Last 6 months relative to end_date)
     $mg_start = date('Y-m-01', strtotime("$end_date -5 months"));
@@ -199,7 +196,7 @@ try {
     ");
     $stmt_mg->bind_param("ss", $mg_start, $end_date);
     $stmt_mg->execute();
-    $member_growth_raw = $stmt_mg->get_result()->fetch_all(MYSQLI_ASSOC);
+    $member_growth_raw = stmt_fetch_all($stmt_mg);
     
     // Format data agar bulan yang kosong tetap muncul (0)
     $member_growth = [];
@@ -227,7 +224,7 @@ try {
     ");
     $stmt_top_borrowers->bind_param("ss", $end_date, $end_date);
     $stmt_top_borrowers->execute();
-    $top_borrowers = $stmt_top_borrowers->get_result()->fetch_all(MYSQLI_ASSOC);
+    $top_borrowers = stmt_fetch_all($stmt_top_borrowers);
 
     // 10. Income Trend (Bunga & Denda) - Last 6 months relative to end_date
     $inc_start = date('Y-m-01', strtotime("$end_date -5 months"));
@@ -242,7 +239,7 @@ try {
     ");
     $stmt_income->bind_param("ss", $inc_start, $end_date);
     $stmt_income->execute();
-    $income_trend_raw = $stmt_income->get_result()->fetch_all(MYSQLI_ASSOC);
+    $income_trend_raw = stmt_fetch_all($stmt_income);
 
     // Format Income Data (ensure all months are present)
     $income_trend = [];
@@ -297,18 +294,18 @@ function get_ksp_summary_stats($db, $date) {
     $stmt_sim = $db->prepare("SELECT SUM(kredit - debit) as total FROM ksp_transaksi_simpanan WHERE tanggal <= ?");
     $stmt_sim->bind_param("s", $date);
     $stmt_sim->execute();
-    $total_simpanan = (float)($stmt_sim->get_result()->fetch_assoc()['total'] ?? 0);
+    $total_simpanan = (float)(stmt_fetch_assoc($stmt_sim)['total'] ?? 0);
 
     // Total Outstanding Pinjaman (Sisa Pokok) per Date
     $stmt_pinj_cair = $db->prepare("SELECT SUM(jumlah_pinjaman) as total FROM ksp_pinjaman WHERE tanggal_pencairan <= ? AND status != 'ditolak'");
     $stmt_pinj_cair->bind_param("s", $date);
     $stmt_pinj_cair->execute();
-    $total_cair = (float)($stmt_pinj_cair->get_result()->fetch_assoc()['total'] ?? 0);
+    $total_cair = (float)(stmt_fetch_assoc($stmt_pinj_cair)['total'] ?? 0);
 
     $stmt_pinj_bayar = $db->prepare("SELECT SUM(pokok_terbayar) as total FROM ksp_angsuran WHERE tanggal_bayar <= ?");
     $stmt_pinj_bayar->bind_param("s", $date);
     $stmt_pinj_bayar->execute();
-    $total_bayar_pokok = (float)($stmt_pinj_bayar->get_result()->fetch_assoc()['total'] ?? 0);
+    $total_bayar_pokok = (float)(stmt_fetch_assoc($stmt_pinj_bayar)['total'] ?? 0);
 
     $total_outstanding = $total_cair - $total_bayar_pokok;
 
@@ -328,7 +325,7 @@ function get_ksp_summary_stats($db, $date) {
     ");
     $stmt_macet->bind_param("ssss", $date, $date, $date, $date);
     $stmt_macet->execute();
-    $total_macet = (float)($stmt_macet->get_result()->fetch_assoc()['nilai_macet'] ?? 0);
+    $total_macet = (float)(stmt_fetch_assoc($stmt_macet)['nilai_macet'] ?? 0);
 
     return compact('total_simpanan', 'total_outstanding', 'total_macet');
 }

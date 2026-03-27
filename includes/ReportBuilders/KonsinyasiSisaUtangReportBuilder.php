@@ -63,7 +63,7 @@ class KonsinyasiSisaUtangReportBuilder implements ReportBuilderInterface
         ");
         $stmt->bind_param('isssisssi', $user_id, $cogs_acc_id, $start_date, $end_date, $user_id, $payable_acc_id, $start_date, $end_date, $user_id);
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        return stmt_fetch_all($stmt);
     }
 
     private function render(array $data): void

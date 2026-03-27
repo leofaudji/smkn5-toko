@@ -19,7 +19,7 @@ try {
         $stmt = $conn->prepare("SELECT id, name, frequency_unit, frequency_interval, next_run_date, is_active FROM recurring_templates WHERE user_id = ? ORDER BY next_run_date ASC");
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
-        $templates = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $templates = stmt_fetch_all($stmt);
         $stmt->close();
         echo json_encode(['status' => 'success', 'data' => $templates]);
 
@@ -58,7 +58,7 @@ try {
         $stmt = $conn->prepare("SELECT * FROM recurring_templates WHERE id = ? AND user_id = ?");
         $stmt->bind_param('ii', $id, $user_id);
         $stmt->execute();
-        $template = $stmt->get_result()->fetch_assoc();
+        $template = stmt_fetch_assoc($stmt);
         $stmt->close();
         if (!$template) throw new Exception("Template tidak ditemukan.");
         echo json_encode(['status' => 'success', 'data' => $template]);

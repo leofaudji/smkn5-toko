@@ -111,7 +111,7 @@ try {
         $stmt = $conn->prepare("SELECT * FROM consignment_items WHERE id = ? AND user_id = ?");
         $stmt->bind_param('ii', $id, $user_id);
         $stmt->execute();
-        $item = $stmt->get_result()->fetch_assoc();
+        $item = stmt_fetch_assoc($stmt);
         $stmt->close();
         if (!$item) throw new Exception("Barang tidak ditemukan.");
         echo json_encode(['status' => 'success', 'data' => $item]);
@@ -142,7 +142,7 @@ try {
         ");
         $stmt_item->bind_param('ii', $item_id, $user_id);
         $stmt_item->execute();
-        $item = $stmt_item->get_result()->fetch_assoc();
+        $item = stmt_fetch_assoc($stmt_item);
         $stmt_item->close();
 
         if (!$item) throw new Exception("Barang tidak ditemukan.");
@@ -168,7 +168,7 @@ try {
         $like_prefix = $prefix . '%';
         $stmt_ref->bind_param('iiss', $user_id, $year, $month, $like_prefix);
         $stmt_ref->execute();
-        $last_ref = $stmt_ref->get_result()->fetch_assoc();
+        $last_ref = stmt_fetch_assoc($stmt_ref);
         $stmt_ref->close();
 
         $sequence = 1;
@@ -230,7 +230,7 @@ try {
         $stmt_supplier = $conn->prepare("SELECT nama_pemasok FROM suppliers WHERE id = ?");
         $stmt_supplier->bind_param('i', $supplier_id);
         $stmt_supplier->execute();
-        $supplier_name = $stmt_supplier->get_result()->fetch_assoc()['nama_pemasok'] ?? 'N/A';
+        $supplier_name = stmt_fetch_assoc($stmt_supplier)['nama_pemasok'] ?? 'N/A';
         $stmt_supplier->close();
 
         $conn->begin_transaction();
@@ -281,7 +281,7 @@ try {
         ");
         $stmt->bind_param('iss', $user_id, $start_date, $end_date);
         $stmt->execute();
-        $report = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $report = stmt_fetch_all($stmt);
         $stmt->close();
 
         echo json_encode(['status' => 'success', 'data' => $report]);
@@ -304,7 +304,7 @@ try {
         ");
         $stmt->bind_param('ii', $user_id, $payable_acc_id);
         $stmt->execute();
-        echo json_encode(['status' => 'success', 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['status' => 'success', 'data' => stmt_fetch_all($stmt)]);
     }
     elseif ($action === 'get_debt_summary_report') {
         $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
@@ -357,7 +357,7 @@ try {
         ");
         $stmt->bind_param('isssisssi', $user_id, $payable_acc_id, $start_date, $end_date, $user_id, $payable_acc_id, $start_date, $end_date, $user_id);
         $stmt->execute();
-        echo json_encode(['status' => 'success', 'data' => $stmt->get_result()->fetch_all(MYSQLI_ASSOC)]);
+        echo json_encode(['status' => 'success', 'data' => stmt_fetch_all($stmt)]);
     }
 
 } catch (Exception $e) {

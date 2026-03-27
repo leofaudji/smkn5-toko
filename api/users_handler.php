@@ -22,7 +22,7 @@ try {
             $stmt = $conn->prepare("SELECT id, username, nama_lengkap, role_id FROM users WHERE id = ?");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
-            $user = $stmt->get_result()->fetch_assoc();
+            $user = stmt_fetch_assoc($stmt);
             echo json_encode(['success' => true, 'data' => $user]);
         } else {
             // Get a list of all users, with optional role filtering (Refactored for robustness)
@@ -50,8 +50,7 @@ try {
             }
 
             $stmt->execute();
-            $result = $stmt->get_result();
-            $users = $result->fetch_all(MYSQLI_ASSOC);
+            $users = stmt_fetch_all($stmt);
             $stmt->close();
             echo json_encode(['success' => true, 'data' => $users]);
         }

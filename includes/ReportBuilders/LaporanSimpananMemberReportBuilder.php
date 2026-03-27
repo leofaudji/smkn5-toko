@@ -24,7 +24,7 @@ class LaporanSimpananMemberReportBuilder implements ReportBuilderInterface
         $stmt = $this->conn->prepare("SELECT * FROM anggota WHERE id = ?");
         $stmt->bind_param("i", $anggota_id);
         $stmt->execute();
-        $anggota = $stmt->get_result()->fetch_assoc();
+        $anggota = stmt_fetch_assoc($stmt);
 
         if (!$anggota) {
             die("Anggota tidak ditemukan");
@@ -62,7 +62,7 @@ class LaporanSimpananMemberReportBuilder implements ReportBuilderInterface
         $stmt_awal = $this->conn->prepare("SELECT SUM(kredit - debit) as saldo_awal FROM ksp_transaksi_simpanan WHERE anggota_id = ? AND tanggal < ?");
         $stmt_awal->bind_param("is", $anggota_id, $start_date);
         $stmt_awal->execute();
-        $saldo_awal = $stmt_awal->get_result()->fetch_assoc()['saldo_awal'] ?? 0;
+        $saldo_awal = stmt_fetch_assoc($stmt_awal)['saldo_awal'] ?? 0;
 
         // Baris Saldo Awal
         $this->pdf->SetFont('Arial', 'B', 9);
@@ -80,14 +80,14 @@ class LaporanSimpananMemberReportBuilder implements ReportBuilderInterface
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("iss", $anggota_id, $start_date, $end_date);
         $stmt->execute();
-        $result = $stmt->get_result();
+        $res_rows = stmt_fetch_all($stmt);
 
         $this->pdf->SetFont('Arial', '', 9);
         $current_balance = $saldo_awal;
         $total_debit = 0;
         $total_kredit = 0;
 
-        while ($row = $result->fetch_assoc()) {
+        foreach ($res_rows as $row) {
             $debit = (float)$row['debit'];
             $kredit = (float)$row['kredit'];
             $current_balance += ($kredit - $debit);

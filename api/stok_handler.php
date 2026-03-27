@@ -56,7 +56,7 @@ try {
             }
             call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
             $total_stmt->execute();
-            $total_records = $total_stmt->get_result()->fetch_assoc()['total'];
+            $total_records = stmt_fetch_assoc($total_stmt)['total'];
             $total_stmt->close();
 
             $query = "
@@ -76,7 +76,7 @@ try {
             }
             call_user_func_array([$stmt, 'bind_param'], $bind_params_main);
             $stmt->execute();
-            $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $items = stmt_fetch_all($stmt);
             $stmt->close();
 
             $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records];
@@ -86,7 +86,7 @@ try {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $all_accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $all_accounts = stmt_fetch_all($stmt);
             $stmt->close();
 
             $accounts = [
@@ -100,14 +100,14 @@ try {
             $stmt = $conn->prepare("SELECT id, nama_kategori FROM item_categories WHERE user_id = ? ORDER BY nama_kategori ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $categories = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $categories = stmt_fetch_all($stmt);
             $stmt->close();
             echo json_encode(['status' => 'success', 'data' => $categories]);
         } elseif ($action === 'get_adjustment_accounts') {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun FROM accounts WHERE user_id = ? AND tipe_akun IN ('Beban', 'Ekuitas', 'Pendapatan') ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
-            $accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $accounts = stmt_fetch_all($stmt);
             $stmt->close();
 
             echo json_encode(['status' => 'success', 'data' => $accounts]);
@@ -120,7 +120,7 @@ try {
             $stmt = $conn->prepare("SELECT sa.*, u.username FROM stock_adjustments sa LEFT JOIN users u ON sa.user_id = u.id WHERE sa.item_id = ? ORDER BY sa.tanggal DESC, sa.created_at DESC");
             $stmt->bind_param('i', $item_id);
             $stmt->execute();
-            $history = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $history = stmt_fetch_all($stmt);
             $stmt->close();
 
             echo json_encode(['status' => 'success', 'data' => $history]);
@@ -138,7 +138,7 @@ try {
             $stmt = $conn->prepare("SELECT id, nama_barang, sku FROM items WHERE id = ? AND user_id = ?");
             $stmt->bind_param('ii', $item_id, $user_id);
             $stmt->execute();
-            $item_info = $stmt->get_result()->fetch_assoc();
+            $item_info = stmt_fetch_assoc($stmt);
             $stmt->close();
             if (!$item_info)
                 throw new Exception("Barang tidak ditemukan.");
@@ -151,7 +151,7 @@ try {
             ");
             $stmt->bind_param("is", $item_id, $start_date);
             $stmt->execute();
-            $result = $stmt->get_result()->fetch_assoc();
+            $result = stmt_fetch_assoc($stmt);
             $saldo_awal = (int) $result['saldo'];
             $stmt->close();
 
@@ -167,7 +167,7 @@ try {
             ");
             $stmt->bind_param("iss", $item_id, $start_date, $end_date);
             $stmt->execute();
-            $transactions_raw = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $transactions_raw = stmt_fetch_all($stmt);
             $stmt->close();
 
             // 4. Process transactions and calculate running balance
@@ -254,7 +254,7 @@ try {
             $stmt = $conn->prepare("SELECT * FROM items WHERE id = ? AND user_id = ?");
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
-            $item = $stmt->get_result()->fetch_assoc();
+            $item = stmt_fetch_assoc($stmt);
             $stmt->close();
             if (!$item)
                 throw new Exception("Barang tidak ditemukan.");
@@ -292,7 +292,7 @@ try {
                 $stmt = $conn->prepare("SELECT stok, harga_beli, inventory_account_id FROM items WHERE id = ? FOR UPDATE");
                 $stmt->bind_param("i", $itemId);
                 $stmt->execute();
-                $item = $stmt->get_result()->fetch_assoc();
+                $item = stmt_fetch_assoc($stmt);
                 $stmt->close();
 
                 if (!$item)
@@ -403,7 +403,7 @@ try {
                     // 2. Ambil data barang saat ini
                     $itemStmt->bind_param("ii", $itemId, $userId);
                     $itemStmt->execute();
-                    $item = $itemStmt->get_result()->fetch_assoc();
+                    $item = stmt_fetch_assoc($itemStmt);
 
                     if (!$item)
                         continue; // Lewati jika barang tidak ditemukan atau bukan milik user
@@ -557,7 +557,7 @@ try {
                     while (!$is_unique) {
                         $stmt_check_sku->bind_param('si', $current_sku, $user_id);
                         $stmt_check_sku->execute();
-                        if ($stmt_check_sku->get_result()->num_rows === 0) {
+                        if (count(stmt_fetch_all($stmt_check_sku)) === 0) {
                             $sku = $current_sku;
                             $is_unique = true;
                         } else {
@@ -590,7 +590,7 @@ try {
                     // Cek apakah kategori sudah ada
                     $stmt_select_cat->bind_param('si', $kategori_nama, $user_id);
                     $stmt_select_cat->execute();
-                    $existing_cat = $stmt_select_cat->get_result()->fetch_assoc();
+                    $existing_cat = stmt_fetch_assoc($stmt_select_cat);
 
                     if ($existing_cat) {
                         $category_id = $existing_cat['id'];
@@ -609,7 +609,7 @@ try {
                 if ($item_id_csv > 0) { // Jika ID ada di CSV, ini adalah proses UPDATE
                     $stmt_select->bind_param('ii', $item_id_csv, $user_id);
                     $stmt_select->execute();
-                    $existing_item = $stmt_select->get_result()->fetch_assoc();
+                    $existing_item = stmt_fetch_assoc($stmt_select);
 
                     if (!$existing_item) {
                         // Jika ID dari CSV tidak ditemukan di DB, lewati dan catat error
@@ -623,7 +623,7 @@ try {
                     $stmt_get_stok = $conn->prepare("SELECT stok, harga_beli FROM items WHERE id = ?");
                     $stmt_get_stok->bind_param('i', $item_id);
                     $stmt_get_stok->execute();
-                    $stok_sebelum = (int) $stmt_get_stok->get_result()->fetch_assoc()['stok'];
+                    $stok_sebelum = (int) stmt_fetch_assoc($stmt_get_stok)['stok'];
                     $stmt_get_stok->close();
 
                 } else { // Insert
