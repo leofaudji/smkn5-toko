@@ -21,7 +21,7 @@ function initAnggotaPage() {
     loadData();
 
     // Event Listeners
-    searchInput.addEventListener('input', function() {
+    searchInput.addEventListener('input', function () {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             currentPage = 1;
@@ -29,34 +29,34 @@ function initAnggotaPage() {
         }, 500);
     });
 
-    btnAdd.addEventListener('click', function() {
+    btnAdd.addEventListener('click', function () {
         openModal();
     });
 
-    btnCancel.addEventListener('click', function() {
+    btnCancel.addEventListener('click', function () {
         closeModal();
     });
 
     if (btnSyncSP) {
-        btnSyncSP.addEventListener('click', function() {
+        btnSyncSP.addEventListener('click', function () {
             syncFromSP();
         });
     }
 
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', function (e) {
         e.preventDefault();
         saveData();
     });
 
     // Event Delegation untuk checkbox anggota
-    tableBody.addEventListener('change', function(e) {
+    tableBody.addEventListener('change', function (e) {
         if (e.target.classList.contains('member-checkbox')) {
             updateBatchPrintButton();
         }
     });
 
     if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
+        selectAllCheckbox.addEventListener('change', function () {
             const checkboxes = document.querySelectorAll('.member-checkbox');
             checkboxes.forEach(cb => cb.checked = this.checked);
             updateBatchPrintButton();
@@ -64,7 +64,7 @@ function initAnggotaPage() {
     }
 
     if (btnPrintBatch) {
-        btnPrintBatch.addEventListener('click', function() {
+        btnPrintBatch.addEventListener('click', function () {
             const selectedIds = Array.from(document.querySelectorAll('.member-checkbox:checked')).map(cb => cb.value);
             if (selectedIds.length > 0) {
                 // Gunakan fungsi printCard yang sudah dimodifikasi untuk menerima array ID
@@ -79,7 +79,7 @@ function initAnggotaPage() {
         const search = searchInput.value;
         const url = `${basePath}/api/ksp/anggota?action=get_all&page=${currentPage}&limit=${limit}&search=${encodeURIComponent(search)}`;
 
-        tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Memuat data...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Memuat data...</td></tr>';
 
         fetch(url)
             .then(response => response.json())
@@ -88,7 +88,7 @@ function initAnggotaPage() {
                     renderTable(data.data);
                     renderPagination(data.total, data.page, data.limit);
                     // Reset checkbox select all saat load data baru
-                    if(selectAllCheckbox) selectAllCheckbox.checked = false;
+                    if (selectAllCheckbox) selectAllCheckbox.checked = false;
                     updateBatchPrintButton();
                 } else {
                     alert('Gagal memuat data: ' + data.message);
@@ -96,13 +96,13 @@ function initAnggotaPage() {
             })
             .catch(error => {
                 console.error('Error:', error);
-                tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Terjadi kesalahan saat memuat data.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Terjadi kesalahan saat memuat data.</td></tr>';
             });
     }
 
     function renderTable(data) {
         if (data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Tidak ada data anggota.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Tidak ada data anggota.</td></tr>';
             return;
         }
 
@@ -112,6 +112,7 @@ function initAnggotaPage() {
                     <input type="checkbox" class="member-checkbox rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50" value="${item.id}">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nomor_anggota}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.nik || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.nama_lengkap}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.no_telepon || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${formatDate(item.tanggal_daftar)}</td>
@@ -146,7 +147,7 @@ function initAnggotaPage() {
         paginationControls.innerHTML = controls;
     }
 
-    window.changePage = function(page) {
+    window.changePage = function (page) {
         currentPage = page;
         loadData();
     };
@@ -154,7 +155,7 @@ function initAnggotaPage() {
     function openModal(id = null) {
         form.reset();
         document.getElementById('anggota-id').value = '';
-        
+
         if (id) {
             modalTitle.textContent = 'Edit Anggota';
             fetch(`${basePath}/api/ksp/anggota?action=get_detail&id=${id}`)
@@ -164,6 +165,7 @@ function initAnggotaPage() {
                         const item = data.data;
                         document.getElementById('anggota-id').value = item.id;
                         document.getElementById('nama_lengkap').value = item.nama_lengkap;
+                        document.getElementById('nik').value = item.nik || '';
                         document.getElementById('no_telepon').value = item.no_telepon;
                         document.getElementById('email').value = item.email;
                         document.getElementById('alamat').value = item.alamat;
@@ -194,17 +196,17 @@ function initAnggotaPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
-        .then(res => res.json())
-        .then(response => {
-            if (response.success) {
-                alert(response.message);
-                closeModal();
-                loadData();
-            } else {
-                alert('Gagal: ' + response.message);
-            }
-        })
-        .catch(err => console.error(err));
+            .then(res => res.json())
+            .then(response => {
+                if (response.success) {
+                    alert(response.message);
+                    closeModal();
+                    loadData();
+                } else {
+                    alert('Gagal: ' + response.message);
+                }
+            })
+            .catch(err => console.error(err));
     }
 
     function syncFromSP() {
@@ -236,7 +238,7 @@ function initAnggotaPage() {
             });
     }
 
-    window.editAnggota = function(id) {
+    window.editAnggota = function (id) {
         openModal(id);
     };
 
@@ -248,7 +250,7 @@ function initAnggotaPage() {
         } else {
             btnPrintBatch.classList.add('hidden');
         }
-        
+
         // Update select all state visual
         const allCheckboxes = document.querySelectorAll('.member-checkbox');
         if (allCheckboxes.length > 0 && selectedCount === allCheckboxes.length) {
@@ -286,7 +288,7 @@ function initAnggotaPage() {
         document.body.removeChild(form);
     }
 
-    window.printCard = function(id) {
+    window.printCard = function (id) {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `${basePath}/api/pdf`;
@@ -306,21 +308,21 @@ function initAnggotaPage() {
         document.body.removeChild(form);
     };
 
-    window.deleteAnggota = function(id) {
+    window.deleteAnggota = function (id) {
         if (confirm('Apakah Anda yakin ingin menghapus anggota ini?')) {
             fetch(`${basePath}/api/ksp/anggota?action=delete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id })
             })
-            .then(res => res.json())
-            .then(response => {
-                if (response.success) {
-                    loadData();
-                } else {
-                    alert('Gagal: ' + response.message);
-                }
-            });
+                .then(res => res.json())
+                .then(response => {
+                    if (response.success) {
+                        loadData();
+                    } else {
+                        alert('Gagal: ' + response.message);
+                    }
+                });
         }
     };
 

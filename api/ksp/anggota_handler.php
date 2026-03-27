@@ -3,8 +3,13 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../includes/bootstrap.php';
 
-// Cek login
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+// Cek login atau API Key (Dukungan parameter 'secret' atau 'api_key')
+$api_key = $_GET['api_key'] ?? $_GET['secret'] ?? $_SERVER['HTTP_X_API_KEY'] ?? '';
+$is_authenticated = (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true);
+$sync_secret = Config::get('API_IMPORT_SECRET') ?: Config::get('SP_API_KEY');
+$is_valid_api_key = (!empty($api_key) && $api_key === $sync_secret);
+
+if (!$is_authenticated && !$is_valid_api_key) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
@@ -38,28 +43,30 @@ switch ($action) {
         break;
 }
 
-function get_all_anggota($db) {
-    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+function get_all_anggota($db)
+{
+    $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+    $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 10;
     $offset = ($page - 1) * $limit;
     $search = $_GET['search'] ?? '';
     $user_id = 1; // Default user ID (Toko)
 
-    $sql = "SELECT id, nomor_anggota, nama_lengkap, no_telepon, status, tanggal_daftar FROM anggota WHERE user_id = ?";
+    $sql = "SELECT id, nomor_anggota, nama_lengkap, nik, no_telepon, status, tanggal_daftar FROM anggota WHERE user_id = ?";
     $params = [$user_id];
     $types = "i";
 
     if (!empty($search)) {
-        $sql .= " AND (nama_lengkap LIKE ? OR nomor_anggota LIKE ? OR no_telepon LIKE ?)";
+        $sql .= " AND (nama_lengkap LIKE ? OR nomor_anggota LIKE ? OR no_telepon LIKE ? OR nik LIKE ?)";
         $searchTerm = "%$search%";
         $params[] = $searchTerm;
         $params[] = $searchTerm;
         $params[] = $searchTerm;
-        $types .= "sss";
+        $params[] = $searchTerm;
+        $types .= "ssss";
     }
 
-    $countSql = str_replace("SELECT id, nomor_anggota, nama_lengkap, no_telepon, status, tanggal_daftar", "SELECT COUNT(*) as total", $sql);
-    
+    $countSql = str_replace("SELECT id, nomor_anggota, nama_lengkap, nik, no_telepon, status, tanggal_daftar", "SELECT COUNT(*) as total", $sql);
+
     // Hitung total data
     $stmt = $db->prepare($countSql);
     $stmt->bind_param($types, ...$params);
@@ -88,7 +95,8 @@ function get_all_anggota($db) {
     ]);
 }
 
-function get_detail_anggota($db) {
+function get_detail_anggota($db)
+{
     $id = $_GET['id'] ?? 0;
     $user_id = 1;
 
@@ -96,7 +104,7 @@ function get_detail_anggota($db) {
     $stmt->bind_param("ii", $id, $user_id);
     $stmt->execute();
     $result = stmt_fetch_assoc($stmt);
-    
+
     if ($result) {
         echo json_encode(['success' => true, 'data' => $result]);
     } else {
@@ -105,7 +113,8 @@ function get_detail_anggota($db) {
     }
 }
 
-function store_anggota($db) {
+function store_anggota($db)
+{
     $data = json_decode(file_get_contents('php://input'), true);
     $user_id = 1;
     $created_by = $_SESSION['user_id'];
@@ -123,16 +132,16 @@ function store_anggota($db) {
     $stmt->bind_param("s", $searchPrefix);
     $stmt->execute();
     $last = stmt_fetch_assoc($stmt);
-    
+
     $seq = 1;
     if ($last) {
-        $lastSeq = (int)substr($last['nomor_anggota'], -4);
+        $lastSeq = (int) substr($last['nomor_anggota'], -4);
         $seq = $lastSeq + 1;
     }
     $nomor_anggota = $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
 
-    $stmt = $db->prepare("INSERT INTO anggota (user_id, nomor_anggota, nama_lengkap, alamat, no_telepon, email, tanggal_daftar, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("isssssssi", $user_id, $nomor_anggota, $data['nama_lengkap'], $data['alamat'], $data['no_telepon'], $data['email'], $data['tanggal_daftar'], $data['status'], $created_by);
+    $stmt = $db->prepare("INSERT INTO anggota (user_id, nomor_anggota, nama_lengkap, nik, alamat, no_telepon, email, tanggal_daftar, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("issssssssi", $user_id, $nomor_anggota, $data['nama_lengkap'], $data['nik'], $data['alamat'], $data['no_telepon'], $data['email'], $data['tanggal_daftar'], $data['status'], $created_by);
 
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'Anggota berhasil ditambahkan']);
@@ -142,7 +151,8 @@ function store_anggota($db) {
     }
 }
 
-function update_anggota($db) {
+function update_anggota($db)
+{
     $data = json_decode(file_get_contents('php://input'), true);
     $user_id = 1;
     $updated_by = $_SESSION['user_id'];
@@ -153,8 +163,8 @@ function update_anggota($db) {
         return;
     }
 
-    $stmt = $db->prepare("UPDATE anggota SET nama_lengkap = ?, alamat = ?, no_telepon = ?, email = ?, tanggal_daftar = ?, status = ?, updated_by = ? WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("ssssssiii", $data['nama_lengkap'], $data['alamat'], $data['no_telepon'], $data['email'], $data['tanggal_daftar'], $data['status'], $updated_by, $data['id'], $user_id);
+    $stmt = $db->prepare("UPDATE anggota SET nama_lengkap = ?, nik = ?, alamat = ?, no_telepon = ?, email = ?, tanggal_daftar = ?, status = ?, updated_by = ? WHERE id = ? AND user_id = ?");
+    $stmt->bind_param("sssssssiii", $data['nama_lengkap'], $data['nik'], $data['alamat'], $data['no_telepon'], $data['email'], $data['tanggal_daftar'], $data['status'], $updated_by, $data['id'], $user_id);
 
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'Data anggota berhasil diperbarui']);
@@ -164,14 +174,11 @@ function update_anggota($db) {
     }
 }
 
-function delete_anggota($db) {
+function delete_anggota($db)
+{
     $data = json_decode(file_get_contents('php://input'), true);
     $id = $data['id'] ?? 0;
     $user_id = 1;
-
-    // Cek apakah anggota sudah memiliki transaksi (opsional, untuk keamanan data)
-    // Disini kita asumsikan belum ada tabel transaksi simpan pinjam yang terhubung
-    // Jika ada, lakukan pengecekan terlebih dahulu
 
     $stmt = $db->prepare("DELETE FROM anggota WHERE id = ? AND user_id = ?");
     $stmt->bind_param("ii", $id, $user_id);
@@ -188,7 +195,8 @@ function delete_anggota($db) {
  * Sinkronasi data anggota dari aplikasi Simpan Pinjam (SP)
  * @param mysqli $db Koneksi database
  */
-function sync_from_sp($db) {
+function sync_from_sp($db)
+{
     $apiUrl = Config::get('SP_API_URL');
     if (empty($apiUrl)) {
         http_response_code(400);
@@ -198,14 +206,18 @@ function sync_from_sp($db) {
 
     // Ambil data dari SP App (Limit besar untuk sync awal)
     $fullUrl = $apiUrl . "&limit=1000";
-    
+    $apiKey = Config::get('API_IMPORT_SECRET') ?: Config::get('SP_API_KEY');
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $fullUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-SPA-REQUEST: true']);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'X-SPA-REQUEST: true',
+        'X-API-KEY: ' . $apiKey
+    ]);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    
+
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
@@ -214,45 +226,75 @@ function sync_from_sp($db) {
     if ($httpCode !== 200) {
         http_response_code(500);
         $msg = "Gagal terhubung ke SP App (HTTP $httpCode)";
-        if ($curlError) $msg .= " - Error: $curlError";
+        if ($curlError) {
+            $msg .= " - Error: $curlError";
+        }
         echo json_encode(['success' => false, 'message' => $msg]);
         return;
     }
 
     $resData = json_decode($response, true);
-    if (!$resData || !isset($resData['success']) || !$resData['success']) {
+
+    // Identifikasi format data: raw (langsung array) atau wrapped (ada key success/data)
+    $externalAnggota = [];
+    if (is_array($resData)) {
+        if (isset($resData['success'])) {
+            // Format wrapped
+            if ($resData['success']) {
+                $externalAnggota = $resData['data'] ?? [];
+            } else {
+                http_response_code(500);
+                $remoteMsg = $resData['message'] ?? 'Unknown error';
+                echo json_encode(['success' => false, 'message' => 'SP App Error: ' . $remoteMsg]);
+                return;
+            }
+        } else {
+            // Format raw (asumsi langsung array anggota)
+            $externalAnggota = $resData;
+        }
+    } else {
         http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Format data dari SP App tidak valid atau gagal.']);
+        echo json_encode(['success' => false, 'message' => 'Format data dari SP App tidak valid atau gagal decode JSON.']);
         return;
     }
 
-    $externalAnggota = $resData['data'] ?? [];
     $user_id = 1; // Default
     $current_user_id = $_SESSION['user_id'];
     $successCount = 0;
+    $skipCount = 0;
     $errorCount = 0;
 
     foreach ($externalAnggota as $item) {
-        if (empty($item['nomor_anggota'])) continue;
+        $no_anggota = $item['no_anggota'] ?? $item['nomor_anggota'] ?? '';
+        if (empty($no_anggota)) {
+            continue;
+        }
 
-        // Upsert based on nomor_anggota
+        // Cek apakah data sudah ada berdasarkan no_anggota
         $stmt = $db->prepare("SELECT id FROM anggota WHERE nomor_anggota = ? AND user_id = ?");
-        $stmt->bind_param("si", $item['nomor_anggota'], $user_id);
+        $stmt->bind_param("si", $no_anggota, $user_id);
         $stmt->execute();
         $exists = stmt_fetch_assoc($stmt);
         $stmt->close();
 
         if ($exists) {
-            // Update
-            $sql = "UPDATE anggota SET nama_lengkap = ?, no_telepon = ?, status = ?, updated_by = ? WHERE id = ?";
-            $stmt = $db->prepare($sql);
-            $stmt->bind_param("sssii", $item['nama_lengkap'], $item['no_telepon'], $item['status'], $current_user_id, $exists['id']);
-        } else {
-            // Insert
-            $sql = "INSERT INTO anggota (user_id, nomor_anggota, nama_lengkap, no_telepon, tanggal_daftar, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $db->prepare($sql);
-            $stmt->bind_param("isssssi", $user_id, $item['nomor_anggota'], $item['nama_lengkap'], $item['no_telepon'], $item['tanggal_daftar'], $item['status'], $current_user_id);
+            $skipCount++;
+            continue; // Lewati jika data sudah ada
         }
+
+        // Mapping field dari data external ke field database Toko
+        $nama_lengkap = $item['nama'] ?? $item['nama_lengkap'] ?? null;
+        $no_telepon = $item['telepon'] ?? $item['no_telepon'] ?? null;
+        $nik = $item['nik'] ?? null;
+        $alamat = $item['alamat'] ?? null;
+        $email = $item['email'] ?? null;
+        $status = $item['status'] ?? 'aktif';
+        $tanggal_daftar = $item['tanggal_daftar'] ?? date('Y-m-d');
+
+        // Insert data baru
+        $sql = "INSERT INTO anggota (user_id, nomor_anggota, nama_lengkap, no_telepon, nik, alamat, email, status, tanggal_daftar, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $db->prepare($sql);
+        $stmt->bind_param("issssssssi", $user_id, $no_anggota, $nama_lengkap, $no_telepon, $nik, $alamat, $email, $status, $tanggal_daftar, $current_user_id);
 
         if ($stmt->execute()) {
             $successCount++;
@@ -263,7 +305,7 @@ function sync_from_sp($db) {
     }
 
     echo json_encode([
-        'success' => true, 
-        'message' => "Sinkronasi selesai. $successCount data diproses ($successCount berhasil, $errorCount gagal)."
+        'success' => true,
+        'message' => "Sinkronasi selesai. $successCount data baru ditambahkan, $skipCount data sudah ada (lewati), $errorCount gagal."
     ]);
-}
+}
