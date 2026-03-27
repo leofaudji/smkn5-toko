@@ -11,6 +11,16 @@ if ($settings_result) {
 $app_name = htmlspecialchars($app_settings['app_name'] ?? 'Aplikasi RT');
 $notification_interval = (int)($app_settings['notification_interval'] ?? 15000);
 $log_cleanup_days = (int)($app_settings['log_cleanup_interval_days'] ?? 180);
+
+// Detect App Version from CHANGELOG.md
+$app_version = 'v1.0.0';
+$changelog_file = PROJECT_ROOT . '/CHANGELOG.md';
+if (file_exists($changelog_file)) {
+    $changelog_content = file_get_contents($changelog_file);
+    if (preg_match('/##\s+\[(.*?)\]/', $changelog_content, $matches)) {
+        $app_version = 'v' . $matches[1];
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -76,7 +86,10 @@ $log_cleanup_days = (int)($app_settings['log_cleanup_interval_days'] ?? 180);
                 $logo_url = $logo_path ? base_url($logo_path) : base_url('assets/img/logo.png');
                 ?>
                 <img src="<?= $logo_url ?>" alt="Logo" class="h-8 w-8 object-contain rounded">
-                <span class="hidden-in-collapsed"><?= $app_name ?></span>
+                <div class="flex flex-col leading-tight hidden-in-collapsed">
+                    <span class="text-gray-800 dark:text-white"><?= $app_name ?></span>
+                    <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5"><?= $app_version ?></span>
+                </div>
             </a>
         </div>
 

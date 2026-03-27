@@ -129,4 +129,5 @@ return [
     ['type' => 'item', 'key' => 'activity_log', 'label' => 'Log Aktivitas', 'url' => '/activity-log', 'icon' => 'bi bi-list-check'],
     ['type' => 'item', 'key' => 'tutup_buku', 'label' => 'Tutup Buku', 'url' => '/tutup-buku', 'icon' => 'bi bi-archive-fill'],
     ['type' => 'item', 'key' => 'settings', 'label' => 'Pengaturan', 'url' => '/settings', 'icon' => 'bi bi-gear-fill'],
+    ['type' => 'item', 'key' => 'changelog', 'label' => 'Changelog', 'url' => '/changelog', 'icon' => 'bi bi-journal-text'],
 ];

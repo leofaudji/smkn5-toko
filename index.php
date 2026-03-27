@@ -101,6 +101,7 @@ $router->get('/laporan-harian', 'pages/laporan_harian.php', ['auth']);
 $router->get('/audit-saldo', 'pages/audit_saldo.php', ['auth']);
 
 $router->get('/buku-besar', 'pages/buku_besar.php', ['auth']);
+$router->get('/changelog', 'pages/changelog.php', ['auth']);
 $router->get('/settings', 'pages/settings.php', ['auth']);
 $router->get('/users', 'pages/users.php', ['auth', 'admin']); // Halaman manajemen pengguna
 $router->get('/roles', 'pages/roles.php', ['auth', 'admin']);

@@ -349,6 +349,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/activity_log.js`)
             .then(() => initActivityLogPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/changelog') {
+        loadScript(`${basePath}/assets/js/changelog.js`)
+            .then(() => initChangelogPage())
+            .catch(err => console.error(err));
     } else if (cleanPath === '/anggaran') {
         loadScript(`${basePath}/assets/js/anggaran.js`)
             .then(() => initAnggaranPage())
