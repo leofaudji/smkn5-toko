@@ -51,9 +51,9 @@ function get_all_anggota($db)
     $search = $_GET['search'] ?? '';
     $user_id = 1; // Default user ID (Toko)
 
-    $sql = "SELECT id, nomor_anggota, nama_lengkap, nik, no_telepon, status, tanggal_daftar FROM anggota WHERE user_id = ?";
-    $params = [$user_id];
-    $types = "i";
+    $sql = "SELECT id, nomor_anggota, nama_lengkap, nik, no_telepon, status, tanggal_daftar FROM anggota WHERE 1=1";
+    $params = [];
+    $types = "";
 
     if (!empty($search)) {
         $sql .= " AND (nama_lengkap LIKE ? OR nomor_anggota LIKE ? OR no_telepon LIKE ? OR nik LIKE ?)";
@@ -100,8 +100,8 @@ function get_detail_anggota($db)
     $id = $_GET['id'] ?? 0;
     $user_id = 1;
 
-    $stmt = $db->prepare("SELECT * FROM anggota WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("ii", $id, $user_id);
+    $stmt = $db->prepare("SELECT * FROM anggota WHERE id = ?");
+    $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = stmt_fetch_assoc($stmt);
 
@@ -163,8 +163,8 @@ function update_anggota($db)
         return;
     }
 
-    $stmt = $db->prepare("UPDATE anggota SET nama_lengkap = ?, nik = ?, alamat = ?, no_telepon = ?, email = ?, tanggal_daftar = ?, status = ?, updated_by = ? WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("sssssssiii", $data['nama_lengkap'], $data['nik'], $data['alamat'], $data['no_telepon'], $data['email'], $data['tanggal_daftar'], $data['status'], $updated_by, $data['id'], $user_id);
+    $stmt = $db->prepare("UPDATE anggota SET nama_lengkap = ?, nik = ?, alamat = ?, no_telepon = ?, email = ?, tanggal_daftar = ?, status = ?, updated_by = ? WHERE id = ?");
+    $stmt->bind_param("sssssssii", $data['nama_lengkap'], $data['nik'], $data['alamat'], $data['no_telepon'], $data['email'], $data['tanggal_daftar'], $data['status'], $updated_by, $data['id']);
 
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'Data anggota berhasil diperbarui']);
@@ -180,8 +180,8 @@ function delete_anggota($db)
     $id = $data['id'] ?? 0;
     $user_id = 1;
 
-    $stmt = $db->prepare("DELETE FROM anggota WHERE id = ? AND user_id = ?");
-    $stmt->bind_param("ii", $id, $user_id);
+    $stmt = $db->prepare("DELETE FROM anggota WHERE id = ?");
+    $stmt->bind_param("i", $id);
 
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'Anggota berhasil dihapus']);
@@ -271,8 +271,8 @@ function sync_from_sp($db)
         }
 
         // Cek apakah data sudah ada berdasarkan no_anggota
-        $stmt = $db->prepare("SELECT id FROM anggota WHERE nomor_anggota = ? AND user_id = ?");
-        $stmt->bind_param("si", $no_anggota, $user_id);
+        $stmt = $db->prepare("SELECT id FROM anggota WHERE nomor_anggota = ?");
+        $stmt->bind_param("s", $no_anggota);
         $stmt->execute();
         $exists = stmt_fetch_assoc($stmt);
         $stmt->close();
