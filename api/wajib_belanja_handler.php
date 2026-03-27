@@ -21,18 +21,16 @@ try {
             $sql = "SELECT twb.*, a.nama_lengkap as nama_anggota 
                     FROM transaksi_wajib_belanja twb
                     JOIN anggota a ON twb.anggota_id = a.id
-                    WHERE twb.user_id = ? 
                     ORDER BY twb.tanggal DESC, twb.id DESC
                     LIMIT ? OFFSET ?";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param('iii', $user_id, $limit, $offset);
+            $stmt->bind_param('ii', $limit, $offset);
             $stmt->execute();
             $data = stmt_fetch_all($stmt);
             $stmt->close();
 
-            $total_sql = "SELECT COUNT(*) as total FROM transaksi_wajib_belanja WHERE user_id = ?";
+            $total_sql = "SELECT COUNT(*) as total FROM transaksi_wajib_belanja";
             $total_stmt = $conn->prepare($total_sql);
-            $total_stmt->bind_param('i', $user_id);
             $total_stmt->execute();
             $total_records = stmt_fetch_assoc($total_stmt)['total'];
             $total_stmt->close();
@@ -49,16 +47,14 @@ try {
 
         } elseif ($action === 'init_data') {
             // Fetch initial data for the form
-            $anggota_sql = "SELECT id, nama_lengkap, nomor_anggota FROM anggota WHERE user_id = ? AND status = 'aktif' ORDER BY nama_lengkap";
+            $anggota_sql = "SELECT id, nama_lengkap, nomor_anggota FROM anggota WHERE status = 'aktif' ORDER BY nama_lengkap";
             $stmt_anggota = $conn->prepare($anggota_sql);
-            $stmt_anggota->bind_param('i', $user_id);
             $stmt_anggota->execute();
             $anggota = stmt_fetch_all($stmt_anggota);
             $stmt_anggota->close();
 
-            $kas_sql = "SELECT id, nama_akun, kode_akun FROM accounts WHERE user_id = ? AND is_kas = 1 ORDER BY nama_akun";
+            $kas_sql = "SELECT id, nama_akun, kode_akun FROM accounts WHERE is_kas = 1 ORDER BY nama_akun";
             $stmt_kas = $conn->prepare($kas_sql);
-            $stmt_kas->bind_param('i', $user_id);
             $stmt_kas->execute();
             $kas_accounts = stmt_fetch_all($stmt_kas);
             $stmt_kas->close();
@@ -77,8 +73,8 @@ try {
             $id = (int)($_GET['id'] ?? 0);
             if ($id <= 0) throw new Exception("ID tidak valid.");
 
-            $stmt = $conn->prepare("SELECT twb.*, a.nama_lengkap as nama_anggota FROM transaksi_wajib_belanja twb JOIN anggota a ON twb.anggota_id = a.id WHERE twb.id = ? AND twb.user_id = ?");
-            $stmt->bind_param('ii', $id, $user_id);
+            $stmt = $conn->prepare("SELECT twb.*, a.nama_lengkap as nama_anggota FROM transaksi_wajib_belanja twb JOIN anggota a ON twb.anggota_id = a.id WHERE twb.id = ?");
+            $stmt->bind_param('i', $id);
             $stmt->execute();
             $data = stmt_fetch_assoc($stmt);
             $stmt->close();
@@ -184,8 +180,8 @@ try {
             $conn->begin_transaction();
 
             // Ambil data lama
-            $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE id = ? AND user_id = ? FOR UPDATE");
-            $stmt->bind_param('ii', $id, $user_id);
+            $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE id = ? FOR UPDATE");
+            $stmt->bind_param('i', $id);
             $stmt->execute();
             $old_trx = stmt_fetch_assoc($stmt);
             $stmt->close();
@@ -213,8 +209,8 @@ try {
             $stmt_apply->close();
 
             // 4. Update Jurnal (Hapus lama, buat baru agar bersih)
-            $stmt_del_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'transaksi_wajib_belanja' AND user_id = ?");
-            $stmt_del_gl->bind_param('ii', $id, $user_id);
+            $stmt_del_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'transaksi_wajib_belanja'");
+            $stmt_del_gl->bind_param('i', $id);
             $stmt_del_gl->execute();
             $stmt_del_gl->close();
 
@@ -245,8 +241,8 @@ try {
             $conn->begin_transaction();
 
             // Ambil data transaksi lama
-            $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE id = ? AND user_id = ? FOR UPDATE");
-            $stmt->bind_param('ii', $id, $user_id);
+            $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE id = ? FOR UPDATE");
+            $stmt->bind_param('i', $id);
             $stmt->execute();
             $old_trx = stmt_fetch_assoc($stmt);
             $stmt->close();
@@ -261,8 +257,8 @@ try {
             $stmt_upd->close();
 
             // 2. Hapus Jurnal (General Ledger)
-            $stmt_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'transaksi_wajib_belanja' AND user_id = ?");
-            $stmt_gl->bind_param('ii', $id, $user_id);
+            $stmt_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'transaksi_wajib_belanja'");
+            $stmt_gl->bind_param('i', $id);
             $stmt_gl->execute();
             $stmt_gl->close();
 
