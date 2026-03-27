@@ -433,7 +433,7 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/roles.js`)
             .then(() => initRolesPage())
             .catch(err => console.error(err));
-    } else if (cleanPath === '/ksp/anggota') {
+    } else if (cleanPath === '/ksp/anggota' || cleanPath === '/anggota') {
         loadScript(`${basePath}/assets/js/ksp/anggota.js`)
             .then(() => initAnggotaPage())
             .catch(err => console.error(err));
@@ -487,9 +487,10 @@ function runPageScripts(path) {
             .catch(err => console.error(err));
     } else if (cleanPath === '/ksp/menu') {
         initKspMenuPage();
-    }else if (cleanPath === '/buku-panduan') {        // Halaman ini statis dan tidak memerlukan inisialisasi JavaScript.
-        // Cukup daftarkan agar tidak error dan hentikan eksekusi.
-        return; 
+    } else if (cleanPath === '/buku-panduan') {
+        loadScript(`${basePath}/assets/js/buku_panduan.js`)
+            .then(() => initBukuPanduanPage())
+            .catch(err => console.error(err));
     }
 }
 

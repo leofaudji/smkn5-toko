@@ -16,6 +16,9 @@ check_permission('menu.view.anggota');
         <button id="btn-print-batch" class="hidden inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none">
             <i class="bi bi-printer mr-2"></i> Cetak Terpilih (<span id="selected-count">0</span>)
         </button>
+        <button id="btn-sync-sp" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
+            <i class="bi bi-arrow-repeat mr-2"></i> Sinkronasi dari SP
+        </button>
         <button id="btn-add-anggota" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
             <i class="bi bi-plus-lg mr-2"></i> Tambah Anggota
         </button>

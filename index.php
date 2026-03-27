@@ -106,6 +106,7 @@ $router->get('/settings', 'pages/settings.php', ['auth']);
 $router->get('/users', 'pages/users.php', ['auth', 'admin']); // Halaman manajemen pengguna
 $router->get('/roles', 'pages/roles.php', ['auth', 'admin']);
 $router->post('/roles', 'pages/roles.php', ['auth', 'admin']);
+$router->get('/anggota', 'pages/ksp/anggota.php', ['auth']);
 $router->get('/ksp/anggota', 'pages/ksp/anggota.php', ['auth']);
 $router->get('/ksp/penarikan', 'pages/ksp/penarikan.php', ['auth']);
 $router->get('/ksp/simpanan', 'pages/ksp/simpanan.php', ['auth']);

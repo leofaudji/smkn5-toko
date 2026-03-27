@@ -29,6 +29,9 @@ switch ($action) {
     case 'delete':
         delete_anggota($db);
         break;
+    case 'sync_from_sp':
+        sync_from_sp($db);
+        break;
     default:
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Aksi tidak valid.']);
@@ -180,3 +183,87 @@ function delete_anggota($db) {
         echo json_encode(['success' => false, 'message' => 'Gagal menghapus: ' . $stmt->error]);
     }
 }
+
+/**
+ * Sinkronasi data anggota dari aplikasi Simpan Pinjam (SP)
+ * @param mysqli $db Koneksi database
+ */
+function sync_from_sp($db) {
+    $apiUrl = Config::get('SP_API_URL');
+    if (empty($apiUrl)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Konfigurasi SP_API_URL tidak ditemukan di .env']);
+        return;
+    }
+
+    // Ambil data dari SP App (Limit besar untuk sync awal)
+    $fullUrl = $apiUrl . "&limit=1000";
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $fullUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-SPA-REQUEST: true']);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($httpCode !== 200) {
+        http_response_code(500);
+        $msg = "Gagal terhubung ke SP App (HTTP $httpCode)";
+        if ($curlError) $msg .= " - Error: $curlError";
+        echo json_encode(['success' => false, 'message' => $msg]);
+        return;
+    }
+
+    $resData = json_decode($response, true);
+    if (!$resData || !isset($resData['success']) || !$resData['success']) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Format data dari SP App tidak valid atau gagal.']);
+        return;
+    }
+
+    $externalAnggota = $resData['data'] ?? [];
+    $user_id = 1; // Default
+    $current_user_id = $_SESSION['user_id'];
+    $successCount = 0;
+    $errorCount = 0;
+
+    foreach ($externalAnggota as $item) {
+        if (empty($item['nomor_anggota'])) continue;
+
+        // Upsert based on nomor_anggota
+        $stmt = $db->prepare("SELECT id FROM anggota WHERE nomor_anggota = ? AND user_id = ?");
+        $stmt->bind_param("si", $item['nomor_anggota'], $user_id);
+        $stmt->execute();
+        $exists = stmt_fetch_assoc($stmt);
+        $stmt->close();
+
+        if ($exists) {
+            // Update
+            $sql = "UPDATE anggota SET nama_lengkap = ?, no_telepon = ?, status = ?, updated_by = ? WHERE id = ?";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("sssii", $item['nama_lengkap'], $item['no_telepon'], $item['status'], $current_user_id, $exists['id']);
+        } else {
+            // Insert
+            $sql = "INSERT INTO anggota (user_id, nomor_anggota, nama_lengkap, no_telepon, tanggal_daftar, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("isssssi", $user_id, $item['nomor_anggota'], $item['nama_lengkap'], $item['no_telepon'], $item['tanggal_daftar'], $item['status'], $current_user_id);
+        }
+
+        if ($stmt->execute()) {
+            $successCount++;
+        } else {
+            $errorCount++;
+        }
+        $stmt->close();
+    }
+
+    echo json_encode([
+        'success' => true, 
+        'message' => "Sinkronasi selesai. $successCount data diproses ($successCount berhasil, $errorCount gagal)."
+    ]);
+}

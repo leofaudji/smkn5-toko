@@ -12,6 +12,13 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';
 }
 require_once __DIR__ . '/Config.php';
+
+// Load environment variables from the root directory before anything else
+if (!defined('PROJECT_ROOT')) {
+    define('PROJECT_ROOT', dirname(__DIR__));
+}
+Config::load(PROJECT_ROOT . '/.env');
+
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/RateLimiter.php';
 
@@ -128,9 +135,6 @@ function get_fee_for_period($tahun, $bulan) {
 }
 
 // Define project root path for reliable file includes.
-if (!defined('PROJECT_ROOT')) {
-    define('PROJECT_ROOT', dirname(__DIR__));
-}
 
 // Define base path dynamically so it's available globally.
 if (!defined('BASE_PATH')) {
@@ -153,8 +157,7 @@ if (Config::get('APP_DEBUG') === 'true') {
     error_reporting(E_ALL);
 }
 
-// Load environment variables from the root directory
-Config::load(PROJECT_ROOT . '/.env');
+
 
 // --- Terapkan Rate Limiting untuk API ---
 // Cek apakah permintaan saat ini adalah permintaan API

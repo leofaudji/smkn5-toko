@@ -11,6 +11,7 @@ function initAnggotaPage() {
     const btnPrintBatch = document.getElementById('btn-print-batch');
     const selectAllCheckbox = document.getElementById('select-all-members');
     const selectedCountSpan = document.getElementById('selected-count');
+    const btnSyncSP = document.getElementById('btn-sync-sp');
 
     let currentPage = 1;
     let limit = 10;
@@ -35,6 +36,12 @@ function initAnggotaPage() {
     btnCancel.addEventListener('click', function() {
         closeModal();
     });
+
+    if (btnSyncSP) {
+        btnSyncSP.addEventListener('click', function() {
+            syncFromSP();
+        });
+    }
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -198,6 +205,35 @@ function initAnggotaPage() {
             }
         })
         .catch(err => console.error(err));
+    }
+
+    function syncFromSP() {
+        if (!confirm('Apakah Anda yakin ingin menyinkronkan data anggota dari aplikasi Simpan Pinjam? Data lokal yang memiliki nomor anggota yang sama akan diperbarui.')) {
+            return;
+        }
+
+        const originalBtnHtml = btnSyncSP.innerHTML;
+        btnSyncSP.disabled = true;
+        btnSyncSP.innerHTML = '<i class="bi bi-arrow-repeat animate-spin mr-2"></i> Menyinkronkan...';
+
+        fetch(`${basePath}/api/ksp/anggota?action=sync_from_sp`)
+            .then(res => res.json())
+            .then(response => {
+                if (response.success) {
+                    alert(response.message);
+                    loadData();
+                } else {
+                    alert('Gagal sinkronasi: ' + response.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Terjadi kesalahan koneksi saat sinkronasi.');
+            })
+            .finally(() => {
+                btnSyncSP.disabled = false;
+                btnSyncSP.innerHTML = originalBtnHtml;
+            });
     }
 
     window.editAnggota = function(id) {
