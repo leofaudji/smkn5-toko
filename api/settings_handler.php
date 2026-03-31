@@ -92,7 +92,7 @@ try {
         }
 
         if ($action === 'get_accounts_for_accounting') {
-            $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? AND tipe_akun IN ('Ekuitas', 'Aset', 'Pendapatan', 'Beban') ORDER BY kode_akun ASC");
+            $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? AND tipe_akun IN ('Ekuitas', 'Aset', 'Pendapatan', 'Beban', 'Liabilitas') ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
             $all_accounts = stmt_fetch_all($stmt);
@@ -103,7 +103,8 @@ try {
                 'cash' => [],
                 'revenue' => [],
                 'cogs' => [],
-                'inventory' => []
+                'inventory' => [],
+                'liability' => []
             ];
 
             foreach ($all_accounts as $acc) {
@@ -117,6 +118,8 @@ try {
                     $accounts['cogs'][] = $acc;
                 } else if ($acc['tipe_akun'] === 'Aset' && $acc['is_kas'] == 0) { // Akun persediaan adalah Aset non-kas
                     $accounts['inventory'][] = $acc;
+                } else if ($acc['tipe_akun'] === 'Liabilitas') {
+                    $accounts['liability'][] = $acc;
                 }
             }
             echo json_encode(['status' => 'success', 'data' => $accounts]);
@@ -233,7 +236,8 @@ try {
 
                 // 1. Akhiri periode iuran lama
                 $stmt_end_old = $conn->prepare("UPDATE iuran_settings_history SET end_date = ? WHERE id = ?");
-                $stmt_end_old->bind_param("si", $end_date_for_old_fee->format('Y-m-d'), $current_fee_id);
+                $formatted_end_date = $end_date_for_old_fee->format('Y-m-d');
+                $stmt_end_old->bind_param("si", $formatted_end_date, $current_fee_id);
                 $stmt_end_old->execute();
                 $stmt_end_old->close();
 

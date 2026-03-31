@@ -270,13 +270,14 @@ function initSettingsPage() {
             }
 
             const settings = settingsResult.data;
-            const { equity: equityAccounts, cash: cashAccounts, revenue: revenueAccounts, cogs: cogsAccounts, inventory: inventoryAccounts } = accountsResult.data;
+            const { equity: equityAccounts, cash: cashAccounts, revenue: revenueAccounts, cogs: cogsAccounts, inventory: inventoryAccounts, liability: liabilityAccounts } = accountsResult.data;
 
             let equityOptions = equityAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
             let cashOptions = cashAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
             let revenueOptions = revenueAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
             let cogsOptions = cogsAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
             let inventoryOptions = inventoryAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
+            let liabilityOptions = liabilityAccounts.map(acc => `<option value="${acc.id}">${acc.kode_akun} - ${acc.nama_akun}</option>`).join('');
 
             accountingSettingsContainer.innerHTML = `
                 <div class="space-y-4">
@@ -305,6 +306,24 @@ function initSettingsPage() {
                             ${revenueOptions}
                         </select>
                         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Akun pendapatan yang digunakan jika tidak ada akun spesifik yang diatur pada barang.</p>
+                    </div>
+                    <div>
+                        <label for="sales_receivable_account_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Akun Piutang Anggota</label>
+                        <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="sales_receivable_account_id" name="sales_receivable_account_id">
+                            <option value="">-- Pilih Akun Piutang (Aset) --</option>
+                            ${inventoryOptions}
+                        </select>
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Akun piutang yang digunakan untuk transaksi penjualan kredit (hutang) anggota.</p>
+                    </div>
+                    <hr class="border-gray-200 dark:border-gray-700">
+                    <h6 class="text-base font-medium text-gray-600 dark:text-gray-400">Default Wajib Belanja</h6>
+                    <div>
+                        <label for="wajib_belanja_liability_account_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Akun Utang Wajib Belanja</label>
+                        <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="wajib_belanja_liability_account_id" name="wajib_belanja_liability_account_id">
+                            <option value="">-- Pilih Akun Liabilitas --</option>
+                            ${liabilityOptions}
+                        </select>
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Akun liabilitas untuk menampung saldo simpanan wajib belanja anggota.</p>
                     </div>
                     <hr class="border-gray-200 dark:border-gray-700">
                     <h6 class="text-base font-medium text-gray-600 dark:text-gray-400">Default Persediaan</h6>
@@ -341,6 +360,12 @@ function initSettingsPage() {
             }
             if (settings.default_cogs_account_id) {
                 document.getElementById('default_cogs_account_id').value = settings.default_cogs_account_id;
+            }
+            if (settings.sales_receivable_account_id) {
+                document.getElementById('sales_receivable_account_id').value = settings.sales_receivable_account_id;
+            }
+            if (settings.wajib_belanja_liability_account_id) {
+                document.getElementById('wajib_belanja_liability_account_id').value = settings.wajib_belanja_liability_account_id;
             }
 
         } catch (error) {

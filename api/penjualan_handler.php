@@ -499,43 +499,65 @@ function get_penjualan_detail($db) {
 }
 
 function search_produk($db) {
-    $user_id = 1; // ID Pemilik Data (Toko)
-    $term = $_GET['term'] ?? '';
-    $search = "%{$term}%";
-    
-    // Query untuk barang reguler
-    $sql_normal = "
-        SELECT id, sku, barcode, nama_barang, harga_jual, stok, 'normal' as item_type 
-        FROM items 
-        WHERE user_id = ? AND (nama_barang LIKE ? OR sku LIKE ? OR barcode LIKE ?) AND stok > 0";
-    
-    // Query untuk barang konsinyasi
-    // Hitung stok = stok_awal - total terjual di ledger
-    $sql_consignment = "
-        SELECT 
-            ci.id, ci.sku, ci.barcode, ci.nama_barang, ci.harga_jual,
-            (ci.stok_awal - COALESCE(sales.qty_terjual, 0)) as stok,
-            'consignment' as item_type
-        FROM consignment_items ci
-        LEFT JOIN (
-            SELECT consignment_item_id, SUM(IF(debit > 0, qty, -qty)) as qty_terjual 
-            FROM general_ledger 
-            WHERE ref_type IN ('jurnal', 'penjualan') 
-            AND account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_cogs_account')
-            GROUP BY consignment_item_id
-        ) sales ON ci.id = sales.consignment_item_id
-        WHERE ci.user_id = ? AND (ci.nama_barang LIKE ? OR ci.sku LIKE ? OR ci.barcode LIKE ?)
-        HAVING stok > 0";
+    try {
+        $user_id = 1; // ID Pemilik Data (Toko)
+        $term = $_GET['term'] ?? '';
+        $search = "%{$term}%";
+        
+        // Ambil akun konsinyasi terlebih dahulu
+        $consignment_acc_id = get_setting('consignment_cogs_account', null, $db);
+        
+        // Query untuk barang reguler
+        $sql_normal = "
+            SELECT id, sku, barcode, nama_barang, harga_jual, stok, 'normal' as item_type 
+            FROM items 
+            WHERE user_id = ? AND (nama_barang LIKE ? OR sku LIKE ? OR barcode LIKE ?) AND stok > 0";
+        
+        // Query untuk barang konsinyasi
+        // Hitung stok = stok_awal - total terjual di ledger
+        $sql_consignment = "
+            SELECT 
+                ci.id, ci.sku, ci.barcode, ci.nama_barang, ci.harga_jual,
+                (ci.stok_awal - COALESCE(sales.qty_terjual, 0)) as stok,
+                'consignment' as item_type
+            FROM consignment_items ci
+            LEFT JOIN (
+                SELECT consignment_item_id, SUM(IF(debit > 0, qty, -qty)) as qty_terjual 
+                FROM general_ledger 
+                WHERE ref_type IN ('jurnal', 'penjualan') 
+                AND account_id = ?
+                GROUP BY consignment_item_id
+            ) sales ON ci.id = sales.consignment_item_id
+            WHERE ci.user_id = ? AND (ci.nama_barang LIKE ? OR ci.sku LIKE ? OR ci.barcode LIKE ?)
+            HAVING stok > 0";
 
-    $query = "($sql_normal) UNION ($sql_consignment) LIMIT 15";
-    
-    $stmt = $db->prepare($query);
-    // binding params: 4 for normal, 4 for consignment
-    $stmt->bind_param('isssisss', $user_id, $search, $search, $search, $user_id, $search, $search, $search);
-    $stmt->execute();
-    $result = stmt_fetch_all($stmt);
-    $stmt->close();
-    echo json_encode($result);
+        // Gunakan wrapper SELECT * untuk kompatibilitas UNION yang lebih baik pada beberapa driver
+        $query = "SELECT * FROM (
+            ($sql_normal) 
+            UNION 
+            ($sql_consignment)
+        ) AS combined_results LIMIT 15";
+        
+        $stmt = $db->prepare($query);
+        
+        // Params mapping: 
+        // 1-4 for normal (i, s, s, s)
+        // 5-9 for consignment (i, i, s, s, s) -> account_id, user_id, name, sku, barcode
+        $stmt->bind_param('isssiisss', 
+            $user_id, $search, $search, $search, // Normal parameters
+            $consignment_acc_id, $user_id, $search, $search, $search // Consignment parameters
+        );
+        
+        $stmt->execute();
+        $result = stmt_fetch_all($stmt);
+        $stmt->close();
+        
+        echo json_encode($result);
+    } catch (Exception $e) {
+        // Jika terjadi error, kirim pesan error dengan status 500
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Gagal mencari barang: ' . $e->getMessage()]);
+    }
 }
 
 function search_member($db) {
