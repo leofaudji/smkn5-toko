@@ -9,6 +9,8 @@ function initKonsinyasiPage() {
     const filterSisaUtangBtn = document.getElementById('filter-sisa-utang-btn');
     const addSupplierBtn = document.getElementById('add-supplier-btn');
     const addItemBtn = document.getElementById('add-item-btn');
+    const importCsvBtn = document.getElementById('import-csv-btn');
+    const processImportBtn = document.getElementById('process-import-btn');
 
     if (!supplierTableBody || !itemTableBody) return;
 
@@ -355,6 +357,46 @@ function initKonsinyasiPage() {
         document.getElementById('item-action').value = 'save_item';
         terimaTanggalPicker.setDate(new Date());
         openModal('itemModal');
+    });
+
+    importCsvBtn.addEventListener('click', () => {
+        document.getElementById('import-csv-form').reset();
+        openModal('importItemModal');
+    });
+
+    processImportBtn.addEventListener('click', async () => {
+        const fileInput = document.getElementById('csv_file');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showToast('Harap pilih file CSV terlebih dahulu.', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('action', 'import_items_csv');
+        formData.append('csv_file', fileInput.files[0]);
+
+        processImportBtn.disabled = true;
+        processImportBtn.textContent = 'Memproses...';
+
+        try {
+            const response = await fetch(`${basePath}/api/konsinyasi`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            
+            showToast(result.message, result.status === 'success' ? 'success' : 'error');
+            if (result.status === 'success') {
+                closeModal('importItemModal');
+                loadItems();
+                loadItemsForSale();
+            }
+        } catch (error) {
+            showToast('Gagal mengimpor data: ' + error.message, 'error');
+        } finally {
+            processImportBtn.disabled = false;
+            processImportBtn.textContent = 'Mulai Impor';
+        }
     });
 
     document.getElementById('pemasok-pane').addEventListener('click', e => {

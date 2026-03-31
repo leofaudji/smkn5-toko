@@ -134,4 +134,51 @@ document.getElementById('form-bayar-piutang')?.addEventListener('submit', async 
     }
 });
 
+const importBtn = document.getElementById('piutang-import-btn');
+const importModal = document.getElementById('importPiutangModal');
+const importForm = document.getElementById('form-import-piutang');
+
+if (importBtn) {
+    importBtn.addEventListener('click', () => {
+        importForm.reset();
+        document.getElementById('import-piutang-tanggal').valueAsDate = new Date();
+        openModal('importPiutangModal');
+    });
+}
+
+if (importForm) {
+    importForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('btn-process-import-piutang');
+        const originalText = submitBtn.innerHTML;
+        
+        const formData = new FormData(this);
+        formData.append('action', 'import_piutang');
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Memproses...';
+
+        try {
+            const response = await fetch(`${basePath}/api/laporan-piutang?action=import_piutang`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showToast(result.message, 'success');
+                closeModal('importPiutangModal');
+                loadLaporanPiutang();
+            } else {
+                showToast(result.message, 'error');
+            }
+        } catch (error) {
+            showToast('Gagal mengimpor data.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
+}
+
 loadLaporanPiutang();

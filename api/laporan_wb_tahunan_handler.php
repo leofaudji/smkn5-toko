@@ -35,9 +35,8 @@ try {
     $tahun = isset($_GET['tahun']) ? (int)$_GET['tahun'] : date('Y');
 
     // 1. Ambil semua anggota aktif
-    $sql_members = "SELECT id, nomor_anggota, nama_lengkap FROM anggota WHERE user_id = ? AND status = 'aktif' ORDER BY nama_lengkap ASC";
+    $sql_members = "SELECT id, nomor_anggota, nama_lengkap FROM anggota WHERE status = 'aktif' ORDER BY nama_lengkap ASC";
     $stmt_members = $conn->prepare($sql_members);
-    $stmt_members->bind_param('i', $user_id);
     $stmt_members->execute();
     $members = stmt_fetch_all($stmt_members);
     $stmt_members->close();
@@ -45,10 +44,10 @@ try {
     // 2. Ambil transaksi WB (SETOR) untuk tahun yang dipilih
     $sql_trans = "SELECT anggota_id, MONTH(tanggal) as bulan, SUM(jumlah) as total_bulan 
                   FROM transaksi_wajib_belanja 
-                  WHERE user_id = ? AND YEAR(tanggal) = ? AND jenis = 'setor'
+                  WHERE YEAR(tanggal) = ? AND jenis = 'setor'
                   GROUP BY anggota_id, MONTH(tanggal)";
     $stmt_trans = $conn->prepare($sql_trans);
-    $stmt_trans->bind_param('ii', $user_id, $tahun);
+    $stmt_trans->bind_param('i', $tahun);
     $stmt_trans->execute();
     $transactions = [];
     $rows_trans = stmt_fetch_all($stmt_trans);
@@ -57,14 +56,13 @@ try {
     }
     $stmt_trans->close();
 
-    // 3. Ambil Total Belanja per Anggota (Sepanjang Waktu atau Tahun ini? Biasanya saldo kumulatif)
-    // Kita ambil total belanja tahun ini untuk laporan tahunan, tapi saldo akhir diambil dari tabel anggota
+    // 3. Ambil Total Belanja per Anggota
     $sql_belanja = "SELECT anggota_id, SUM(jumlah) as total_belanja 
                     FROM transaksi_wajib_belanja 
-                    WHERE user_id = ? AND YEAR(tanggal) = ? AND jenis = 'belanja'
+                    WHERE YEAR(tanggal) = ? AND jenis = 'belanja'
                     GROUP BY anggota_id";
     $stmt_belanja = $conn->prepare($sql_belanja);
-    $stmt_belanja->bind_param('ii', $user_id, $tahun);
+    $stmt_belanja->bind_param('i', $tahun);
     $stmt_belanja->execute();
     $belanja_data = [];
     $rows_belanja = stmt_fetch_all($stmt_belanja);
@@ -72,12 +70,12 @@ try {
     $stmt_belanja->close();
 
     // Ambil Saldo Akhir Real-time dari tabel anggota
-    $stmt_saldo = $conn->prepare("SELECT id, saldo_wajib_belanja FROM anggota WHERE user_id = ?");
-    $stmt_saldo->bind_param('i', $user_id);
+    $stmt_saldo = $conn->prepare("SELECT id, saldo_wajib_belanja FROM anggota");
     $stmt_saldo->execute();
     $saldo_map = [];
     $rows_saldo = stmt_fetch_all($stmt_saldo);
     foreach ($rows_saldo as $row) $saldo_map[$row['id']] = $row['saldo_wajib_belanja'];
+    $stmt_saldo->close();
 
     // 3. Gabungkan data anggota dengan data transaksi
     $report_data = [];

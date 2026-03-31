@@ -286,6 +286,94 @@ try {
 
         echo json_encode(['status' => 'success', 'data' => $report]);
     }
+    elseif ($action === 'import_items_csv') {
+        if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception("File tidak terunggah dengan benar.");
+        }
+
+        $file = $_FILES['csv_file']['tmp_name'];
+        if (($handle = fopen($file, "r")) !== FALSE) {
+            $header = fgetcsv($handle, 1000, ","); // Skip header
+            
+            $success = 0;
+            $skipped = 0;
+            $errors = [];
+            $line = 1;
+
+            $conn->begin_transaction();
+
+            while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                $line++;
+                if (count($data) < 6) {
+                    $skipped++;
+                    continue;
+                }
+
+                // no, namasupplier, namabarang, hargabeli, hargajual, sku
+                $nama_supplier = trim($data[1]);
+                $nama_barang = trim($data[2]);
+                $harga_beli = (float)str_replace(',', '.', $data[3]);
+                $harga_jual = (float)str_replace(',', '.', $data[4]);
+                $sku = trim($data[5]);
+
+                if (empty($nama_barang) || empty($nama_supplier)) {
+                    $errors[] = "Baris $line: Nama barang atau supplier kosong.";
+                    continue;
+                }
+
+                // 1. Resolve Supplier
+                $stmt_sup = $conn->prepare("SELECT id FROM suppliers WHERE LOWER(nama_pemasok) = LOWER(?) AND user_id = ?");
+                $stmt_sup->bind_param("si", $nama_supplier, $user_id);
+                $stmt_sup->execute();
+                $sup_res = stmt_fetch_assoc($stmt_sup);
+                $stmt_sup->close();
+
+                if ($sup_res) {
+                    $supplier_id = $sup_res['id'];
+                } else {
+                    $stmt_ins_sup = $conn->prepare("INSERT INTO suppliers (user_id, nama_pemasok, created_by) VALUES (?, ?, ?)");
+                    $stmt_ins_sup->bind_param("isi", $user_id, $nama_supplier, $logged_in_user_id);
+                    $stmt_ins_sup->execute();
+                    $supplier_id = $conn->insert_id;
+                    $stmt_ins_sup->close();
+                }
+
+                // 2. Check if item exists by SKU or Name
+                $stmt_check = $conn->prepare("SELECT id FROM consignment_items WHERE (sku = ? AND sku != '') OR (nama_barang = ? AND supplier_id = ?) AND user_id = ?");
+                $stmt_check->bind_param("ssii", $sku, $nama_barang, $supplier_id, $user_id);
+                $stmt_check->execute();
+                $exists = stmt_fetch_assoc($stmt_check);
+                $stmt_check->close();
+
+                if ($exists) {
+                    // Update existing
+                    $stmt_upd = $conn->prepare("UPDATE consignment_items SET nama_barang=?, harga_jual=?, harga_beli=?, supplier_id=?, updated_by=? WHERE id=?");
+                    $stmt_upd->bind_param("sddiii", $nama_barang, $harga_jual, $harga_beli, $supplier_id, $logged_in_user_id, $exists['id']);
+                    $stmt_upd->execute();
+                    $stmt_upd->close();
+                } else {
+                    // Insert new
+                    $tanggal_terima = date('Y-m-d');
+                    $stok_awal = 0;
+                    $stmt_ins = $conn->prepare("INSERT INTO consignment_items (user_id, supplier_id, sku, nama_barang, harga_jual, harga_beli, stok_awal, tanggal_terima, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt_ins->bind_param("iisssddsi", $user_id, $supplier_id, $sku, $nama_barang, $harga_jual, $harga_beli, $stok_awal, $tanggal_terima, $logged_in_user_id);
+                    $stmt_ins->execute();
+                    $stmt_ins->close();
+                }
+                $success++;
+            }
+            fclose($handle);
+            $conn->commit();
+
+            echo json_encode([
+                'status' => 'success', 
+                'message' => "Impor selesai. $success berhasil, $skipped dilewati.",
+                'errors' => $errors
+            ]);
+        } else {
+            throw new Exception("Gagal membuka file CSV.");
+        }
+    }
     elseif ($action === 'list_payments') {
         $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
         if (empty($payable_acc_id)) {

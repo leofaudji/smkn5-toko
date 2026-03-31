@@ -11,6 +11,9 @@ check_permission('laporan_piutang', 'menu');
 <div class="flex justify-between flex-wrap items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">
     <h1 class="text-2xl font-semibold text-gray-800 dark:text-white flex items-center gap-2"><i class="bi bi-journal-text"></i> Laporan Piutang Anggota</h1>
     <div class="flex mb-2 md:mb-0 gap-2">
+        <button id="piutang-import-btn" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
+            <i class="bi bi-file-earmark-arrow-up mr-2"></i> Impor CSV
+        </button>
         <button onclick="window.print()" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
             <i class="bi bi-printer mr-2"></i> Cetak
         </button>
@@ -94,7 +97,43 @@ check_permission('laporan_piutang', 'menu');
     </div>
 </div>
 
-<script src="<?= base_url('assets/js/pages/laporan_piutang.js') ?>"></script>
+<!-- Modal Impor Piutang -->
+<div id="importPiutangModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="importPiutangModalLabel" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('importPiutangModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+            <form id="form-import-piutang">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <h5 class="text-lg font-medium text-gray-900 dark:text-white" id="importPiutangModalLabel">Impor Saldo Piutang (CSV)</h5>
+                    <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeModal('importPiutangModal')"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                        <p class="text-xs text-blue-700 dark:text-blue-300">
+                            <strong>Format Kolom CSV:</strong><br>
+                            <code>no, noanggota, jumlah</code>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Transaksi</label>
+                        <input type="date" name="tanggal" id="import-piutang-tanggal" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm sm:text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pilih File CSV</label>
+                        <input type="file" name="csv_file" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark" required>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none sm:ml-3 sm:w-auto sm:text-sm" id="btn-process-import-piutang">Mulai Impor</button>
+                    <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm" onclick="closeModal('importPiutangModal')">Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="<?= base_url('assets/js/laporan_piutang.js') ?>"></script>
 
 <?php
 if (!$is_spa_request) {

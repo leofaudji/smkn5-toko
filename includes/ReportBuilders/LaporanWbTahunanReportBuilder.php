@@ -21,9 +21,9 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         // --- Data Fetching Logic ---
         
         // 1. Ambil semua anggota aktif
-        $sql_members = "SELECT id, nomor_anggota, nama_lengkap, saldo_wajib_belanja FROM anggota WHERE user_id = ? AND status = 'aktif' ORDER BY nama_lengkap ASC";
+        // Menghilangkan filter user_id sesuai kebijakan global data
+        $sql_members = "SELECT id, nomor_anggota, nama_lengkap, saldo_wajib_belanja FROM anggota WHERE status = 'aktif' ORDER BY nama_lengkap ASC";
         $stmt_members = $this->conn->prepare($sql_members);
-        $stmt_members->bind_param('i', $user_id);
         $stmt_members->execute();
         $members = stmt_fetch_all($stmt_members);
         $stmt_members->close();
@@ -31,10 +31,10 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         // 2. Ambil transaksi WB (SETOR) untuk tahun yang dipilih
         $sql_trans = "SELECT anggota_id, MONTH(tanggal) as bulan, SUM(jumlah) as total_bulan 
                       FROM transaksi_wajib_belanja 
-                      WHERE user_id = ? AND YEAR(tanggal) = ? AND jenis = 'setor'
+                      WHERE YEAR(tanggal) = ? AND jenis = 'setor'
                       GROUP BY anggota_id, MONTH(tanggal)";
         $stmt_trans = $this->conn->prepare($sql_trans);
-        $stmt_trans->bind_param('ii', $user_id, $tahun);
+        $stmt_trans->bind_param('i', $tahun);
         $stmt_trans->execute();
         $transactions = [];
         $rows_trans = stmt_fetch_all($stmt_trans);
@@ -46,10 +46,10 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         // 3. Ambil Total Belanja per Anggota tahun ini
         $sql_belanja = "SELECT anggota_id, SUM(jumlah) as total_belanja 
                         FROM transaksi_wajib_belanja 
-                        WHERE user_id = ? AND YEAR(tanggal) = ? AND jenis = 'belanja'
+                        WHERE YEAR(tanggal) = ? AND jenis = 'belanja'
                         GROUP BY anggota_id";
         $stmt_belanja = $this->conn->prepare($sql_belanja);
-        $stmt_belanja->bind_param('ii', $user_id, $tahun);
+        $stmt_belanja->bind_param('i', $tahun);
         $stmt_belanja->execute();
         $belanja_data = [];
         $rows_belanja = stmt_fetch_all($stmt_belanja);

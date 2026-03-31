@@ -39,7 +39,8 @@ if (!$is_spa_request) {
     <!-- Tab Kelola Barang -->
     <div class="konsinyasi-tab-pane hidden" id="barang-pane" role="tabpanel">
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-end">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                <button class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none" id="import-csv-btn"><i class="bi bi-file-earmark-arrow-up mr-2"></i> Impor CSV</button>
                 <button class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none" id="add-item-btn"><i class="bi bi-plus-circle mr-2"></i> Tambah Barang</button>
             </div>
             <div class="p-6">
@@ -254,6 +255,38 @@ if (!$is_spa_request) {
             <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" class="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:ml-3 sm:w-auto sm:text-sm" id="print-debt-summary-btn"><i class="bi bi-printer-fill mr-2"></i> Cetak PDF</button>
                 <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:w-auto sm:text-sm" onclick="closeModal('debtSummaryReportModal')">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Impor Barang -->
+<div id="importItemModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="importItemModalLabel" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('importItemModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h5 class="text-lg font-medium text-gray-900 dark:text-white" id="importItemModalLabel">Impor Barang Konsinyasi (CSV)</h5>
+                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeModal('importItemModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="p-6">
+                <form id="import-csv-form" class="space-y-4">
+                    <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                        <p class="text-xs text-blue-700 dark:text-blue-300">
+                            <strong>Format Kolom CSV:</strong><br>
+                            <code>no, namasupplier, namabarang, hargabeli, hargajual, sku</code>
+                        </p>
+                    </div>
+                    <div>
+                        <label for="csv_file" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pilih File CSV</label>
+                        <input type="file" id="csv_file" name="csv_file" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark" required>
+                    </div>
+                </form>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none sm:ml-3 sm:w-auto sm:text-sm" id="process-import-btn">Mulai Impor</button>
+                <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm" onclick="closeModal('importItemModal')">Batal</button>
             </div>
         </div>
     </div>

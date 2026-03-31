@@ -14,7 +14,7 @@ try {
         $action = $_GET['action'] ?? 'list';
 
         if ($action === 'list') {
-            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+            $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
             $limit = 15;
             $offset = ($page - 1) * $limit;
 
@@ -67,11 +67,10 @@ try {
                 'kas_accounts' => $kas_accounts,
                 'nominal_default' => $nominal_default
             ]);
-        }
-
-        elseif ($action === 'get_single') {
-            $id = (int)($_GET['id'] ?? 0);
-            if ($id <= 0) throw new Exception("ID tidak valid.");
+        } elseif ($action === 'get_single') {
+            $id = (int) ($_GET['id'] ?? 0);
+            if ($id <= 0)
+                throw new Exception("ID tidak valid.");
 
             $stmt = $conn->prepare("SELECT twb.*, a.nama_lengkap as nama_anggota FROM transaksi_wajib_belanja twb JOIN anggota a ON twb.anggota_id = a.id WHERE twb.id = ?");
             $stmt->bind_param('i', $id);
@@ -79,7 +78,8 @@ try {
             $data = stmt_fetch_assoc($stmt);
             $stmt->close();
 
-            if (!$data) throw new Exception("Data tidak ditemukan.");
+            if (!$data)
+                throw new Exception("Data tidak ditemukan.");
             echo json_encode(['success' => true, 'data' => $data]);
         }
 
@@ -90,10 +90,139 @@ try {
         $data = !empty($input) ? $input : $_POST;
         $action = $data['action'] ?? 'create';
 
+        if ($action === 'import_csv') {
+            if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception("File tidak terunggah dengan benar.");
+            }
+
+            $tanggal = $data['tanggal'] ?? '';
+            $metode_pembayaran = $data['metode_pembayaran'] ?? '';
+            $akun_kas_id = (int) ($data['akun_kas_id'] ?? 0);
+            $created_by = $_SESSION['user_id'];
+
+            if (empty($tanggal) || empty($metode_pembayaran) || empty($akun_kas_id)) {
+                throw new Exception("Data header (Tanggal, Metode, Akun) wajib diisi.");
+            }
+
+            check_period_lock($tanggal, $conn);
+
+            $file = $_FILES['csv_file']['tmp_name'];
+            if (($handle = fopen($file, "r")) !== FALSE) {
+                $header = fgetcsv($handle, 1000, ","); // Skip header
+
+                $success = 0;
+                $skipped = 0;
+                $errors = [];
+                $line = 1;
+
+                $conn->begin_transaction();
+
+                // Prepare statements (reuse logic from 'create')
+                $stmt_insert = $conn->prepare("INSERT INTO transaksi_wajib_belanja (user_id, anggota_id, tanggal, jumlah, metode_pembayaran, akun_kas_id, keterangan, nomor_referensi, created_by, jenis) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt_update_saldo_plus = $conn->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja + ? WHERE id = ?");
+                $stmt_update_saldo_minus = $conn->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja - ? WHERE id = ?");
+                $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, unit, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transaksi_wajib_belanja', 'toko', ?)");
+
+                $akun_hutang_wb_id = get_setting('wajib_belanja_liability_account_id', null, $conn);
+                if (!$akun_hutang_wb_id)
+                    throw new Exception("Akun Hutang Wajib Belanja belum diatur.");
+
+                $batch_id = date('YmdHis');
+                $nominal_per_bulan = (float) get_setting('nominal_wajib_belanja', 50000, $conn);
+                $tahun_import = date('Y', strtotime($tanggal));
+                $stmt_lookup = $conn->prepare("SELECT id, nama_lengkap FROM anggota WHERE id = ?");
+
+                while (($row = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                    $line++;
+                    if (count($row) < 5) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    $member_id = (int) trim($row[0]);
+                    $total_bayar = (float) str_replace(',', '.', $row[3]);
+                    $total_belanja = (float) str_replace(',', '.', $row[4]);
+
+                    if ($member_id <= 0 || ($total_bayar <= 0 && $total_belanja <= 0)) {
+                        $errors[] = "Baris $line: ID Anggota ($member_id) tidak valid atau tidak ada nilai bayar/belanja.";
+                        $skipped++;
+                        continue;
+                    }
+
+                    // Lookup Anggota
+                    $stmt_lookup->bind_param("i", $member_id);
+                    $stmt_lookup->execute();
+                    $anggota = stmt_fetch_assoc($stmt_lookup);
+
+                    if (!$anggota) {
+                        $errors[] = "Baris $line: Anggota dengan ID $member_id tidak ditemukan.";
+                        continue;
+                    }
+
+                    $anggota_id = $anggota['id'];
+                    $nama_anggota = $anggota['nama_lengkap'];
+                    $nomor_referensi_base = 'WB-IMP-' . $batch_id . '-' . str_pad($line, 4, '0', STR_PAD_LEFT);
+
+                    // A. Proses Total Bayar (Setor) dengan Distribusi Bulanan
+                    if ($total_bayar > 0) {
+                        $remaining_setor = $total_bayar;
+                        for ($m = 1; $m <= 12; $m++) {
+                            if ($remaining_setor <= 0)
+                                break;
+
+                            $bayar_bulan_ini = ($m < 12) ? min($remaining_setor, $nominal_per_bulan) : $remaining_setor;
+                            if ($bayar_bulan_ini <= 0)
+                                break;
+
+                            $tanggal_transaksi = $tahun_import . '-' . str_pad($m, 2, '0', STR_PAD_LEFT) . '-01';
+                            $nomor_referensi = $nomor_referensi_base . '-S' . $m;
+                            $keterangan_transaksi = "Setoran WB (Impor) Bln $m - $nama_anggota";
+                            $jenis = 'setor';
+                            $metode = $metode_pembayaran;
+
+                            $stmt_insert->bind_param('iisdsissss', $user_id, $anggota_id, $tanggal_transaksi, $bayar_bulan_ini, $metode, $akun_kas_id, $keterangan_transaksi, $nomor_referensi, $created_by, $jenis);
+                            $stmt_insert->execute();
+
+                            $stmt_update_saldo_plus->bind_param('di', $bayar_bulan_ini, $anggota_id);
+                            $stmt_update_saldo_plus->execute();
+
+                            $remaining_setor -= $bayar_bulan_ini;
+                        }
+                    }
+
+                    // B. Proses Total Belanja (Tetap di satu tanggal saja agar tidak rumit)
+                    if ($total_belanja > 0) {
+                        $nomor_referensi = $nomor_referensi_base . '-B';
+                        $keterangan_transaksi = "Belanja WB (Impor) - $nama_anggota";
+                        $jenis = 'belanja';
+                        $metode = 'potong_saldo';
+                        $null_val = null;
+
+                        $stmt_insert->bind_param('iisdsissss', $user_id, $anggota_id, $tanggal, $total_belanja, $metode, $null_val, $keterangan_transaksi, $nomor_referensi, $created_by, $jenis);
+                        $stmt_insert->execute();
+
+                        $stmt_update_saldo_minus->bind_param('di', $total_belanja, $anggota_id);
+                        $stmt_update_saldo_minus->execute();
+                    }
+
+                    $success++;
+                }
+
+                fclose($handle);
+                $stmt_lookup->close();
+                $conn->commit();
+
+                echo json_encode(['success' => true, 'message' => "Impor selesai. $success berhasil, $skipped dilewati.", 'errors' => $errors]);
+            } else {
+                throw new Exception("Gagal membuka file CSV.");
+            }
+            exit;
+        }
+
         if ($action === 'create') {
             $tanggal = $data['tanggal'] ?? '';
             $metode_pembayaran = $data['metode_pembayaran'] ?? '';
-            $akun_kas_id = (int)($data['akun_kas_id'] ?? 0);
+            $akun_kas_id = (int) ($data['akun_kas_id'] ?? 0);
             $items = $data['items'] ?? [];
             $created_by = $_SESSION['user_id'];
 
@@ -104,78 +233,80 @@ try {
             if (empty($items) || !is_array($items)) {
                 throw new Exception("Tidak ada data anggota yang disetor.");
             }
-        
-        check_period_lock($tanggal, $conn);
 
-        $conn->begin_transaction();
+            check_period_lock($tanggal, $conn);
 
-        // Prepare statements
-        $stmt_insert = $conn->prepare("INSERT INTO transaksi_wajib_belanja (user_id, anggota_id, tanggal, jumlah, metode_pembayaran, akun_kas_id, keterangan, nomor_referensi, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt_update_anggota = $conn->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja + ? WHERE id = ?");
-        
-        // Insert ke GL per transaksi
-        $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, unit, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transaksi_wajib_belanja', 'toko', ?)");
+            $conn->begin_transaction();
 
-        $akun_hutang_wb_id = get_setting('wajib_belanja_liability_account_id', null, $conn);
-        if (!$akun_hutang_wb_id) {
-            throw new Exception("Akun Hutang Wajib Belanja belum diatur di Pengaturan.");
-        }
-        
-        $total_processed = 0;
-        $batch_id = date('YmdHis');
+            // Prepare statements
+            $stmt_insert = $conn->prepare("INSERT INTO transaksi_wajib_belanja (user_id, anggota_id, tanggal, jumlah, metode_pembayaran, akun_kas_id, keterangan, nomor_referensi, created_by, jenis) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'setor')");
+            $stmt_update_anggota = $conn->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja + ? WHERE id = ?");
 
-        foreach ($items as $index => $item) {
-            $anggota_id = (int)($item['anggota_id'] ?? 0);
-            $jumlah = (float)($item['jumlah'] ?? 0);
-            $ket_row = $item['keterangan'] ?? '';
+            // Insert ke GL per transaksi
+            $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, unit, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transaksi_wajib_belanja', 'toko', ?)");
 
-            if ($anggota_id <= 0 || $jumlah <= 0) continue;
+            $akun_hutang_wb_id = get_setting('wajib_belanja_liability_account_id', null, $conn);
+            if (!$akun_hutang_wb_id) {
+                throw new Exception("Akun Hutang Wajib Belanja belum diatur di Pengaturan.");
+            }
 
-            // Generate nomor referensi unik per item
-            $nomor_referensi = 'WB-' . $batch_id . '-' . str_pad($index + 1, 3, '0', STR_PAD_LEFT);
+            $total_processed = 0;
+            $batch_id = date('YmdHis');
 
-            // Ambil nama anggota untuk keterangan jurnal
-            $res_nama = $conn->query("SELECT nama_lengkap FROM anggota WHERE id=$anggota_id");
-            $nama_anggota = $res_nama ? ($res_nama->fetch_assoc()['nama_lengkap'] ?? 'Anggota') : 'Anggota';
-            
-            $keterangan_transaksi = "Setoran Wajib Belanja - $nama_anggota" . (!empty($ket_row) ? " ($ket_row)" : "");
+            foreach ($items as $index => $item) {
+                $anggota_id = (int) ($item['anggota_id'] ?? 0);
+                $jumlah = (float) ($item['jumlah'] ?? 0);
+                $ket_row = $item['keterangan'] ?? '';
 
-            // 1. Insert Transaksi
-            $stmt_insert->bind_param('iisdsissi', $user_id, $anggota_id, $tanggal, $jumlah, $metode_pembayaran, $akun_kas_id, $ket_row, $nomor_referensi, $created_by);
-            $stmt_insert->execute();
-            $transaksi_wb_id = $stmt_insert->insert_id;
+                if ($anggota_id <= 0 || $jumlah <= 0)
+                    continue;
 
-            // 2. Update Saldo Anggota
-            $stmt_update_anggota->bind_param('di', $jumlah, $anggota_id);
-            $stmt_update_anggota->execute();
+                // Generate nomor referensi unik per item
+                $nomor_referensi = 'WB-' . $batch_id . '-' . str_pad($index + 1, 3, '0', STR_PAD_LEFT);
 
-            // 3. Jurnal Buku Besar (Per Item)
-            $zero = 0;
-            // Debit Kas
-            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan_transaksi, $nomor_referensi, $akun_kas_id, $jumlah, $zero, $transaksi_wb_id, $created_by);
-            $stmt_gl->execute();
-            
-            // Kredit Hutang
-            $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan_transaksi, $nomor_referensi, $akun_hutang_wb_id, $zero, $jumlah, $transaksi_wb_id, $created_by);
-            $stmt_gl->execute();
+                // Ambil nama anggota untuk keterangan jurnal
+                $res_nama = $conn->query("SELECT nama_lengkap FROM anggota WHERE id=$anggota_id");
+                $nama_anggota = $res_nama ? ($res_nama->fetch_assoc()['nama_lengkap'] ?? 'Anggota') : 'Anggota';
 
-            $total_processed++;
-        }
+                $keterangan_transaksi = "Setoran Wajib Belanja - $nama_anggota" . (!empty($ket_row) ? " ($ket_row)" : "");
 
-        $conn->commit();
-        
-        log_activity($_SESSION['username'], 'Tambah Setoran WB', "Menambah setoran Wajib Belanja untuk $total_processed anggota.");
+                // 1. Insert Transaksi
+                $stmt_insert->bind_param('iisdsisss', $user_id, $anggota_id, $tanggal, $jumlah, $metode_pembayaran, $akun_kas_id, $ket_row, $nomor_referensi, $created_by);
+                $stmt_insert->execute();
+                $transaksi_wb_id = $stmt_insert->insert_id;
 
-        echo json_encode(['success' => true, 'message' => "Berhasil menyimpan setoran untuk $total_processed anggota."]);
-        
+                // 2. Update Saldo Anggota
+                $stmt_update_anggota->bind_param('di', $jumlah, $anggota_id);
+                $stmt_update_anggota->execute();
+
+                // 3. Jurnal Buku Besar (Per Item)
+                $zero = 0;
+                // Debit Kas
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan_transaksi, $nomor_referensi, $akun_kas_id, $jumlah, $zero, $transaksi_wb_id, $created_by);
+                $stmt_gl->execute();
+
+                // Kredit Hutang
+                $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan_transaksi, $nomor_referensi, $akun_hutang_wb_id, $zero, $jumlah, $transaksi_wb_id, $created_by);
+                $stmt_gl->execute();
+
+                $total_processed++;
+            }
+
+            $conn->commit();
+
+            log_activity($_SESSION['username'], 'Tambah Setoran WB', "Menambah setoran Wajib Belanja untuk $total_processed anggota.");
+
+            echo json_encode(['success' => true, 'message' => "Berhasil menyimpan setoran untuk $total_processed anggota."]);
+
         } elseif ($action === 'update') {
-            $id = (int)($data['id'] ?? 0);
+            $id = (int) ($data['id'] ?? 0);
             $tanggal = $data['tanggal'];
-            $jumlah = (float)$data['jumlah'];
+            $jumlah = (float) $data['jumlah'];
             $metode = $data['metode_pembayaran'];
             $keterangan = $data['keterangan'];
 
-            if ($id <= 0 || empty($tanggal) || $jumlah <= 0) throw new Exception("Data tidak valid.");
+            if ($id <= 0 || empty($tanggal) || $jumlah <= 0)
+                throw new Exception("Data tidak valid.");
 
             $conn->begin_transaction();
 
@@ -186,7 +317,8 @@ try {
             $old_trx = stmt_fetch_assoc($stmt);
             $stmt->close();
 
-            if (!$old_trx) throw new Exception("Transaksi tidak ditemukan.");
+            if (!$old_trx)
+                throw new Exception("Transaksi tidak ditemukan.");
             check_period_lock($old_trx['tanggal'], $conn);
             check_period_lock($tanggal, $conn);
 
@@ -235,8 +367,9 @@ try {
             echo json_encode(['success' => true, 'message' => 'Transaksi berhasil diperbarui.']);
 
         } elseif ($action === 'delete') {
-            $id = (int)($data['id'] ?? 0);
-            if ($id <= 0) throw new Exception("ID tidak valid.");
+            $id = (int) ($data['id'] ?? 0);
+            if ($id <= 0)
+                throw new Exception("ID tidak valid.");
 
             $conn->begin_transaction();
 
@@ -247,7 +380,8 @@ try {
             $old_trx = stmt_fetch_assoc($stmt);
             $stmt->close();
 
-            if (!$old_trx) throw new Exception("Transaksi tidak ditemukan.");
+            if (!$old_trx)
+                throw new Exception("Transaksi tidak ditemukan.");
             check_period_lock($old_trx['tanggal'], $conn);
 
             // 1. Kembalikan saldo anggota (Kurangi saldo)

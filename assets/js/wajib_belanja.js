@@ -11,6 +11,8 @@ function initWajibBelanjaPage() {
     const addRowBtn = document.getElementById('wb-add-row-btn');
     const loadAllBtn = document.getElementById('wb-load-all-btn');
     const totalDisplay = document.getElementById('wb-total-display');
+    const importBtn = document.getElementById('wb-import-btn');
+    const importForm = document.getElementById('wb-import-form');
 
     let currentPage = 1;
     let nominalDefault = 50000;
@@ -73,7 +75,10 @@ function initWajibBelanjaPage() {
             if (result.success) {
                 anggotaList = result.anggota; // Simpan ke variabel global
                 const kasSelect = document.getElementById('wb-akun-kas-id');
-                kasSelect.innerHTML = '<option value="">Pilih Akun Kas/Bank</option>' + result.kas_accounts.map(k => `<option value="${k.id}">${k.kode_akun} - ${k.nama_akun}</option>`).join('');
+                const importKasSelect = document.getElementById('import-wb-akun-kas-id');
+                const optionsHtml = '<option value="">Pilih Akun Kas/Bank</option>' + result.kas_accounts.map(k => `<option value="${k.id}">${k.kode_akun} - ${k.nama_akun}</option>`).join('');
+                kasSelect.innerHTML = optionsHtml;
+                if (importKasSelect) importKasSelect.innerHTML = optionsHtml;
                 
                 nominalDefault = result.nominal_default;
             } else {
@@ -149,6 +154,44 @@ function initWajibBelanjaPage() {
         addRow();
         
         openModal('wb-form-modal');
+    });
+
+    importBtn.addEventListener('click', () => {
+        importForm.reset();
+        importForm.querySelector('input[type="date"]').valueAsDate = new Date();
+        openModal('wb-import-modal');
+    });
+
+    importForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = importForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        const formData = new FormData(importForm);
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Memproses...';
+
+        try {
+            const response = await fetch(`${basePath}/api/wajib-belanja`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showToast(result.message, 'success');
+                closeModal('wb-import-modal');
+                fetchWajibBelanja(1);
+            } else {
+                showToast(result.message, 'error');
+            }
+        } catch (error) {
+            showToast('Gagal mengimpor data.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
     });
 
     form.addEventListener('submit', async (e) => {
