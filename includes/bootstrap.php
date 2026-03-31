@@ -5,6 +5,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Set default timezone for Indonesia (WIB)
+date_default_timezone_set('Asia/Jakarta');
+
 
 require_once __DIR__ . '/functions.php';
 // Muat autoloader Composer

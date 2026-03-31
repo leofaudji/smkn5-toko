@@ -47,6 +47,21 @@ function initPenjualanPage() {
     const limit = 10;
     let searchTimeout;
 
+    // Load App Settings for Receipt
+    let appSettings = {};
+    const loadAppSettings = async () => {
+        try {
+            const response = await fetch(`${basePath}/api/settings`);
+            const result = await response.json();
+            if (result.status === 'success') {
+                appSettings = result.data;
+            }
+        } catch (error) {
+            console.error('Gagal memuat pengaturan aplikasi:', error);
+        }
+    };
+    loadAppSettings();
+
     // Fungsi utilitas
     const formatRupiah = (angka) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
@@ -113,8 +128,8 @@ function initPenjualanPage() {
                 </head>
                 <body>
                     <div class="text-center mb-1">
-                        <h3 style="margin: 0;">SMKN 5 TOKO</h3>
-                        <div>Jl. Contoh No. 123</div>
+                        <h3 style="margin: 0;">${appSettings.shop_name || 'SMKN 5 TOKO'}</h3>
+                        <div>${appSettings.shop_address || 'Jl. Contoh No. 123'}</div>
                     </div>
                     <div class="border-bottom mb-1" style="padding-bottom: 5px;">
                         <div>No: ${detail.nomor_referensi}</div>
@@ -133,7 +148,7 @@ function initPenjualanPage() {
                         </table>
                     </div>
                     <div class="text-center" style="margin-top: 20px;">
-                        <p>Terima Kasih<br>Barang yang sudah dibeli tidak dapat ditukar/dikembalikan</p>
+                        <p>${(appSettings.receipt_footer || 'Terima Kasih<br>Barang yang sudah dibeli tidak dapat ditukar/dikembalikan').replace(/\n/g, '<br>')}</p>
                     </div>
                     <script>
                         window.onload = function() { 

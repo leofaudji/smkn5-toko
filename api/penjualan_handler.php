@@ -97,6 +97,10 @@ function store_penjualan($db) {
 
     // Extract variables early (Pindahkan definisi variabel ke atas agar bisa divalidasi)
     $tanggal = $data['tanggal'];
+    // Jika tanggal hanya YYYY-MM-DD (10 karakter), tambahkan jam real-time transaksi
+    if (strlen($tanggal) === 10) {
+        $tanggal .= ' ' . date('H:i:s');
+    }
     $customer_name = $data['customer_name'] ?? 'Umum';
     $subtotal = $data['subtotal'];
     $discount = $data['discount'];
@@ -133,7 +137,7 @@ function store_penjualan($db) {
         }
 
         // 1. Generate Nomor Faktur (lebih robust untuk mencegah duplikat)
-        $tanggal_transaksi = $data['tanggal'];
+        $tanggal_transaksi = $tanggal;
         $date_for_prefix = date('Ymd', strtotime($tanggal_transaksi));
         $prefix = "INV/{$date_for_prefix}/";
 

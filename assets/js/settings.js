@@ -62,6 +62,21 @@ function initSettingsPage() {
                                 <label for="pdf_header_line3" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Header Baris 3 (Alamat)</label>
                                 <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="pdf_header_line3" name="pdf_header_line3" value="${settings.pdf_header_line3 || ''}" placeholder="cth: Alamat Sekretariat RT Anda">
                             </div>
+
+                            <hr class="border-gray-200 dark:border-gray-700">
+                            <h5 class="text-lg font-medium text-gray-900 dark:text-white">Pengaturan Struk Belanja (Thermal)</h5>
+                            <div>
+                                <label for="shop_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Toko di Struk</label>
+                                <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="shop_name" name="shop_name" value="${settings.shop_name || 'SMKN 5 TOKO'}" placeholder="Nama yang muncul di header struk">
+                            </div>
+                            <div>
+                                <label for="shop_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Alamat Toko di Struk</label>
+                                <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="shop_address" name="shop_address" value="${settings.shop_address || 'Jl. Contoh No. 123'}" placeholder="Alamat yang muncul di header struk">
+                            </div>
+                            <div>
+                                <label for="receipt_footer" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan Kaki (Footer)</label>
+                                <textarea class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="receipt_footer" name="receipt_footer" rows="2" placeholder="Pesan di bagian bawah struk">${settings.receipt_footer || 'Terima Kasih\nBarang yang sudah dibeli tidak dapat ditukar/dikembalikan'}</textarea>
+                            </div>
                             <hr class="border-gray-200 dark:border-gray-700">
                             <h5 class="text-lg font-medium text-gray-900 dark:text-white">Pengaturan Tanda Tangan Laporan</h5>
                              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
