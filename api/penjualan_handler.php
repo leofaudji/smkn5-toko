@@ -509,15 +509,23 @@ function search_produk($db) {
         
         // Query untuk barang reguler
         $sql_normal = "
-            SELECT id, sku, barcode, nama_barang, harga_jual, stok, 'normal' as item_type 
+            SELECT 
+                id, 
+                sku COLLATE utf8mb4_general_ci as sku, 
+                barcode COLLATE utf8mb4_general_ci as barcode, 
+                nama_barang COLLATE utf8mb4_general_ci as nama_barang, 
+                harga_jual, stok, 'normal' as item_type 
             FROM items 
             WHERE user_id = ? AND (nama_barang LIKE ? OR sku LIKE ? OR barcode LIKE ?) AND stok > 0";
         
         // Query untuk barang konsinyasi
-        // Hitung stok = stok_awal - total terjual di ledger
         $sql_consignment = "
             SELECT 
-                ci.id, ci.sku, ci.barcode, ci.nama_barang, ci.harga_jual,
+                ci.id, 
+                ci.sku COLLATE utf8mb4_general_ci as sku, 
+                ci.barcode COLLATE utf8mb4_general_ci as barcode, 
+                ci.nama_barang COLLATE utf8mb4_general_ci as nama_barang, 
+                ci.harga_jual,
                 (ci.stok_awal - COALESCE(sales.qty_terjual, 0)) as stok,
                 'consignment' as item_type
             FROM consignment_items ci

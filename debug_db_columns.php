@@ -87,12 +87,14 @@ $missing_tables = [];
             // Check columns
             echo "<ul>";
             foreach ($cols as $col => $type) {
-                $checkCol = $conn->query("SHOW COLUMNS FROM `$table` LIKE '$col'");
+                $checkCol = $conn->query("SHOW FULL COLUMNS FROM `$table` LIKE '$col'");
                 if ($checkCol->num_rows == 0) {
                     echo "<li>Kolom <code>$col</code>: <span class='status-error'>TIDAK ADA</span></li>";
                     $missing_columns[] = ['table' => $table, 'column' => $col, 'type' => $type];
                 } else {
-                    echo "<li>Kolom <code>$col</code>: <span class='status-ok'>OK</span></li>";
+                    $cdata = $checkCol->fetch_assoc();
+                    $collation = $cdata['Collation'] ?? 'N/A';
+                    echo "<li>Kolom <code>$col</code>: <span class='status-ok'>OK</span> (Collation: <code>$collation</code>)</li>";
                 }
             }
             echo "</ul>";
