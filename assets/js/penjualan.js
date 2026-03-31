@@ -508,11 +508,11 @@ function initPenjualanPage() {
                 }
 
                 // Coba cari kecocokan eksak dari hasil yang sudah ada atau trigger pencarian cepat
-                const suggestions = Array.from(suggestionsContainer.querySelectorAll('a'));
+                // (Menggunakan variabel suggestions yang sudah dideklarasikan di awal switch)
                 let targetProduct = null;
 
                 // 1. Cek apakah ada yang di-highlight (navigasi keyboard)
-                const activeSuggestion = suggestionsContainer.querySelector('.active-suggestion');
+                // (Menggunakan variabel activeSuggestion yang sudah dideklarasikan di awal switch)
                 if (activeSuggestion) {
                     targetProduct = JSON.parse(activeSuggestion.dataset.product);
                 } 
