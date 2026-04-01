@@ -6,7 +6,7 @@ check_permission('wajib_belanja', 'menu');
 header('Content-Type: application/json');
 
 $conn = Database::getInstance()->getConnection();
-$user_id = $_SESSION['user_id'];
+$user_id = 1; // Data untuk semua user (Global)
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
