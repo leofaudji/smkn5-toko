@@ -145,7 +145,7 @@ try {
     $stmt->close();
 
     $pagination = [
-        'current_page' => $page, 
+        'page' => $page, 
         'total_pages' => ceil($total_records / $limit), 
         'total_records' => $total_records, 
         'limit' => $limit, // Tambahkan limit ke objek pagination

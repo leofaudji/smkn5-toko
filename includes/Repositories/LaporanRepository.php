@@ -550,4 +550,65 @@ class LaporanRepository
         $stmt->execute();
         return stmt_fetch_all($stmt);
     }
+    /**
+     * Mengambil data pertumbuhan laba harian dari penjualan.
+     *
+     * @param int $user_id
+     * @param string $start_date
+     * @param string $end_date
+     * @return array
+     */
+    public function getDailySalesProfitGrowth(int $user_id, string $start_date, string $end_date): array
+    {
+        $query = "
+            SELECT 
+                DATE(p.tanggal_penjualan) as tanggal,
+                SUM(pd.subtotal) as total_penjualan,
+                SUM(CASE 
+                    WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
+                    WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
+                    ELSE 0 
+                END) as total_hpp
+            FROM penjualan p
+            JOIN penjualan_details pd ON p.id = pd.penjualan_id
+            LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
+            LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
+            WHERE p.user_id = ? AND p.status = 'completed' AND DATE(p.tanggal_penjualan) BETWEEN ? AND ?
+            GROUP BY DATE(p.tanggal_penjualan)
+            ORDER BY DATE(p.tanggal_penjualan) ASC
+        ";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bind_param('iss', $user_id, $start_date, $end_date);
+        $stmt->execute();
+        $results = stmt_fetch_all($stmt);
+        $stmt->close();
+
+        $report_data = [];
+        $profit_sebelumnya = 0;
+
+        foreach ($results as $row) {
+            $sales = (float)$row['total_penjualan'];
+            $hpp = (float)$row['total_hpp'];
+            $profit = $sales - $hpp;
+
+            // Hitung pertumbuhan
+            $pertumbuhan = 0;
+            if ($profit_sebelumnya != 0) {
+                $pertumbuhan = (($profit - $profit_sebelumnya) / abs($profit_sebelumnya)) * 100;
+            } elseif ($profit != 0) {
+                $pertumbuhan = 100.0;
+            }
+
+            $row['total_penjualan'] = $sales;
+            $row['total_hpp'] = $hpp;
+            $row['profit'] = $profit;
+            $row['pertumbuhan'] = $pertumbuhan;
+
+            $report_data[] = $row;
+            $profit_sebelumnya = $profit;
+        }
+
+        return $report_data;
+    }
 }

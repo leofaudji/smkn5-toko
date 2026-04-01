@@ -2,6 +2,17 @@
 
 Seluruh pembaruan dan perbaikan pada aplikasi akan dicatat di sini untuk memudahkan Anda mengetahui fitur terbaru.
 
+## [1.4.0] - 2026-04-01
+### FITUR BARU
+- **Laporan Pembelian Lengkap**: Menambahkan menu Laporan Pembelian yang memungkinkan Anda melihat histori pengadaan barang lengkap dengan fitur filter tanggal, supplier, dan pencarian produk.
+- **Export PDF & CSV (Laporan Pembelian)**: Kini laporan pembelian dapat diunduh dalam format PDF yang profesional atau CSV untuk diolah lebih lanjut di Excel.
+- **Keamanan Export**: Memperbarui sistem export laporan PDF menggunakan metode POST yang lebih aman dan mendukung pengiriman data filter yang lebih kompleks.
+
+### PENINGKATAN
+- **Sentralisasi Pengaturan Struk**: Nama Toko, Alamat, dan Pesan Kaki (footer) pada struk penjualan kini selalu sinkron dengan data di menu Pengaturan. Perubahan di Pengaturan akan langsung terlihat pada struk tanpa perlu refresh halaman.
+- **Sistem Cache Busting**: Memperbarui cara aplikasi memuat file JavaScript agar browser selalu mengambil versi terbaru. Hal ini mencegah masalah "tampilan tidak berubah" setelah aplikasi diperbarui oleh tim teknis.
+- **Optimasi SPA (Single Page Application)**: Meningkatkan kecepatan perpindahan antar menu dan sinkronisasi data global antar modul aplikasi.
+
 ## [1.3.0] - 2026-03-27
 ### FITUR BARU
 - **Sinkronasi Anggota (Sync SP)**: Kini Anda dapat mengimpor data anggota secara otomatis dari aplikasi Simpan Pinjam (SP) tanpa perlu input manual satu per satu.

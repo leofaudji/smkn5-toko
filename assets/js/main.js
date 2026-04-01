@@ -365,6 +365,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/laporan_pertumbuhan_laba.js`)
             .then(() => initLaporanPertumbuhanLabaPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/laporan-pertumbuhan-laba-sales') {
+        loadScript(`${basePath}/assets/js/laporan_pertumbuhan_laba_sales.js`)
+            .then(() => initLaporanPertumbuhanLabaSalesPage())
+            .catch(err => console.error(err));
     } else if (cleanPath === '/histori-rekonsiliasi') {
         loadScript(`${basePath}/assets/js/histori_rekonsiliasi.js`)
             .then(() => initHistoriRekonsiliasiPage())
@@ -412,6 +416,10 @@ function runPageScripts(path) {
     } else if (cleanPath === '/laporan-penjualan') {
         loadScript(`${basePath}/assets/js/laporan_penjualan.js`)
             .then(() => initLaporanPenjualanPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/laporan-pembelian') {
+        loadScript(`${basePath}/assets/js/laporan_pembelian.js`)
+            .then(() => initLaporanPembelianPage())
             .catch(err => console.error(err));
     } else if (cleanPath === '/laporan-piutang') {
         loadScript(`${basePath}/assets/js/laporan_piutang.js`)
@@ -501,13 +509,16 @@ function runPageScripts(path) {
  */
 function loadScript(src) {
     return new Promise((resolve, reject) => {
+        const versionedSrc = window.jsVersion ? `${src}?v=${window.jsVersion}` : src;
+        
         // Check if the script is already loaded
-        if (document.querySelector(`script[src="${src}"]`)) {
+        if (document.querySelector(`script[ol-src="${src}"]`)) {
             resolve();
             return;
         }
         const script = document.createElement('script');
-        script.src = src;
+        script.src = versionedSrc;
+        script.setAttribute('ol-src', src); // Original source for future detection
         script.onload = () => resolve();
         script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
         document.body.appendChild(script);

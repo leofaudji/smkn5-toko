@@ -101,6 +101,19 @@ function renderChangelog(data) {
     container.innerHTML = html;
 }
 
+/**
+ * Simple Markdown Parser to support basic formatting
+ * @param {string} text 
+ * @returns {string}
+ */
+function parseMarkdown(text) {
+    if (!text) return '';
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/__(.*?)__/g, '<u>$1</u>');
+}
+
 function renderCategories(categories) {
     let html = '';
     
@@ -146,7 +159,7 @@ function renderCategories(categories) {
                 ${items.map(text => `
                     <div class="flex items-start gap-3 group/item">
                         <div class="mt-2 h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-600 group-hover/item:bg-primary transition-colors"></div>
-                        <p class="text-sm md:text-base text-gray-600 dark:text-gray-400 leading-relaxed">${text}</p>
+                        <p class="text-sm md:text-base text-gray-600 dark:text-gray-400 leading-relaxed">${parseMarkdown(text)}</p>
                     </div>
                 `).join('')}
             </div>

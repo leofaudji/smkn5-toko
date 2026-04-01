@@ -52,7 +52,7 @@ async function showDetailPiutang(customerId, customerName) {
     try {
         // Load Akun Kas jika belum ada
         const akunSelect = document.getElementById('bayar-akun');
-        if (akunSelect.options.length <= 1) {
+        if (akunSelect && akunSelect.options.length <= 1) {
             const accResponse = await fetch(`${basePath}/api/settings?action=get_cash_accounts`);
             const accResult = await accResponse.json();
             if (accResult.status === 'success') {
@@ -96,7 +96,7 @@ async function showDetailPiutang(customerId, customerName) {
             html += `</tbody><tfoot class="bg-gray-100 dark:bg-gray-700 font-bold"><tr><td colspan="4" class="px-4 py-2 text-right">Total Sisa Hutang</td><td class="px-4 py-2 text-right text-red-600">Rp ${new Intl.NumberFormat('id-ID').format(totalSisa)}</td></tr></tfoot></table>`;
             
             detailContainer.innerHTML = html;
-            bayarJumlahInput.max = totalSisa; // Set max payment
+            if(bayarJumlahInput) bayarJumlahInput.max = totalSisa; // Set max payment
         } else {
             detailContainer.innerHTML = '<p class="text-center text-red-500">Gagal memuat detail.</p>';
         }
@@ -178,6 +178,28 @@ if (importForm) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
         }
+    });
+}
+
+const pdfBtn = document.getElementById('piutang-pdf-btn');
+const csvBtn = document.getElementById('piutang-csv-btn');
+
+if (pdfBtn) {
+    pdfBtn.addEventListener('click', () => {
+        const params = new URLSearchParams({
+            report: 'laporan-piutang'
+        });
+        window.open(`${basePath}/api/pdf?${params.toString()}`, '_blank');
+    });
+}
+
+if (csvBtn) {
+    csvBtn.addEventListener('click', () => {
+        const params = new URLSearchParams({
+            report: 'laporan-piutang',
+            format: 'csv'
+        });
+        window.location.href = `${basePath}/api/csv?${params.toString()}`;
     });
 }
 

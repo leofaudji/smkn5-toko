@@ -81,7 +81,18 @@ try {
             $pembelian_list = stmt_fetch_all($stmt);
             $stmt->close();
  
-            $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records, 'limit' => $limit];
+            $from = $total_records > 0 ? $offset + 1 : 0;
+            $to = min($offset + $limit, $total_records);
+
+            $pagination = [
+                'current_page' => $page, 
+                'total_pages' => ceil($total_records / $limit), 
+                'total_records' => $total_records, 
+                'limit' => $limit,
+                'from' => $from,
+                'to' => $to,
+                'total' => $total_records
+            ];
             echo json_encode(['status' => 'success', 'data' => $pembelian_list, 'pagination' => $pagination]);
         
         } elseif ($action === 'get_single') {

@@ -65,6 +65,8 @@ if (file_exists($changelog_file)) {
         const basePath = '<?= BASE_PATH ?>';
         const notificationInterval = <?= $notification_interval ?>;
         const logCleanupDays = <?= $log_cleanup_days ?>;
+        window.appSettings = <?php echo json_encode($app_settings); ?>;
+        window.jsVersion = '<?= date("YmdH") ?>';
     </script>
     <style>
         /* Custom scrollbar untuk sidebar */

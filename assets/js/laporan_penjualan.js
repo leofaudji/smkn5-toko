@@ -8,6 +8,10 @@ function initLaporanPenjualanPage() {
     const paginationInfo = document.getElementById('penjualan-pagination-info');
     const summaryContainer = document.getElementById('report-penjualan-summary');
     const exportPdfBtn = document.getElementById('export-penjualan-pdf');
+    
+    // Use global appSettings provided by header.php for receipt printing
+    const appSettings = window.appSettings || {};
+
 
     const commonOptions = { dateFormat: "d-m-Y", allowInput: true };
     const startDatePicker = flatpickr(startDateInput, commonOptions);
@@ -86,18 +90,34 @@ function initLaporanPenjualanPage() {
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">HPP</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Profit</th>
                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
         `;
+        let totalAmount = 0;
+        let totalHpp = 0;
+        let totalProfit = 0;
+
         data.forEach(item => {
-            const statusBadge = item.status === 'void' 
+            const isVoid = item.status === 'void';
+            const amount = isVoid ? 0 : parseFloat(item.total);
+            const hpp = isVoid ? 0 : parseFloat(item.total_hpp);
+            const profit = isVoid ? 0 : (item.total - item.total_hpp);
+
+            totalAmount += amount;
+            totalHpp += hpp;
+            totalProfit += profit;
+
+            const statusBadge = isVoid 
                 ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Dibatalkan</span>` 
                 : `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Selesai</span>`;
-            const profitClass = item.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
-            const profitValue = item.status === 'void' ? formatRupiah(0) : formatRupiah(item.profit);
+            
+            const profitClass = profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+            const profitValue = formatRupiah(profit);
+
             tableHtml += `
-                <tr>
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nomor_referensi}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${item.customer_name}</td>
@@ -106,10 +126,29 @@ function initLaporanPenjualanPage() {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-right">${formatRupiah(item.total_hpp)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${profitClass}">${profitValue}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center">${statusBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <button class="text-primary hover:text-primary-700 btn-reprint" data-id="${item.id}" title="Cetak Ulang Struk">
+                            <i class="bi bi-printer"></i>
+                        </button>
+                    </td>
                 </tr>
             `;
         });
-        tableHtml += `</tbody></table>`;
+
+        const totalProfitClass = totalProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+
+        tableHtml += `
+            </tbody>
+            <tfoot class="bg-gray-50 dark:bg-gray-800/50 font-bold border-t-2 border-gray-200 dark:border-gray-700">
+                <tr>
+                    <td colspan="4" class="px-6 py-4 text-sm text-gray-900 dark:text-white text-right uppercase tracking-wider">Grand Total (Halaman Ini)</td>
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-white text-right">${formatRupiah(totalAmount)}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-white text-right">${formatRupiah(totalHpp)}</td>
+                    <td class="px-6 py-4 text-sm text-right ${totalProfitClass}">${formatRupiah(totalProfit)}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>`;
         tableBody.innerHTML = tableHtml;
     }
 
@@ -225,6 +264,11 @@ function initLaporanPenjualanPage() {
         });
     }
 
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        loadReport(1);
+    });
+
     exportPdfBtn.addEventListener('click', (e) => {
         e.preventDefault();
         const startDate = startDateInput.value.split('-').reverse().join('-');
@@ -247,6 +291,108 @@ function initLaporanPenjualanPage() {
 
         const url = `${basePath}/api/pdf?${params.toString()}`;
         window.open(url, '_blank');
+    });
+
+    const printStrukWindow = async (penjualanId) => {
+        try {
+            const response = await fetch(`${basePath}/api/penjualan?action=get_detail&id=${penjualanId}`);
+            const result = await response.json();
+
+            if (!result.success) throw new Error(result.message);
+
+            const detail = result.data;
+            const items = result.data.items;
+
+            let itemsHtml = '';
+            items.forEach(item => {
+                itemsHtml += `
+                    <tr>
+                        <td style="width: 60%;">${item.nama_barang}</td>
+                        <td style="width: 10%; text-align: center;">${item.quantity}</td>
+                        <td style="width: 30%; text-align: right;">${formatRupiah(item.subtotal)}</td>
+                    </tr>
+                `;
+            });
+
+            const width = 300;
+            const height = 600;
+            const left = (screen.width - width) / 2;
+            const top = (screen.height - height) / 2;
+
+            const printWindow = window.open('', 'PrintStruk', `width=${width},height=${height},top=${top},left=${left}`);
+            
+            if (!printWindow) {
+                showToast('Pop-up terblokir. Silakan izinkan pop-up untuk situs ini.', 'warning');
+                return;
+            }
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Struk #${detail.nomor_referensi}</title>
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; font-size: 12px; margin: 0; padding: 10px; }
+                        .text-center { text-align: center; }
+                        .text-end { text-align: right; }
+                        .fw-bold { font-weight: bold; }
+                        .mb-1 { margin-bottom: 5px; }
+                        .border-bottom { border-bottom: 1px dashed #000; }
+                        .border-top { border-top: 1px dashed #000; }
+                        table { width: 100%; border-collapse: collapse; }
+                        .items-table td { vertical-align: top; }
+                        @media print { @page { margin: 0; } body { margin: 5px; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="text-center mb-1">
+                        <h3 style="margin: 0;">${(window.appSettings?.shop_name) || 'SMKN 5 TOKO'}</h3>
+                        <div>${(window.appSettings?.shop_address) || 'Jl. Contoh No. 123'}</div>
+                    </div>
+                    <div class="border-bottom mb-1" style="padding-bottom: 5px;">
+                        <div>No: ${detail.nomor_referensi}</div>
+                        <div>Tgl: ${new Date(detail.tanggal_penjualan).toLocaleString('id-ID')}</div>
+                        <div>Kasir: ${detail.created_by_username}</div>
+                        <div>Pelanggan: ${detail.customer_name}</div>
+                    </div>
+                    <table class="items-table mb-1">
+                        ${itemsHtml}
+                    </table>
+                    <div class="border-top" style="padding-top: 5px;">
+                        <table style="width: 100%">
+                            <tr><td>Total</td><td class="text-end fw-bold">${formatRupiah(detail.total)}</td></tr>
+                            <tr><td>Bayar</td><td class="text-end">${formatRupiah(detail.bayar)}</td></tr>
+                            <tr><td>Kembali</td><td class="text-end">${formatRupiah(detail.kembali)}</td></tr>
+                        </table>
+                    </div>
+                    <div class="text-center" style="margin-top: 20px;">
+                        <p>${((window.appSettings?.receipt_footer) || 'Terima Kasih<br>Barang yang sudah dibeli tidak dapat ditukar/dikembalikan').replace(/\n/g, '<br>')}</p>
+                    </div>
+                    <script>
+                        window.onload = function() { 
+                            window.print(); 
+                            window.close(); 
+                        }
+                    </script>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.open();
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+
+        } catch (error) {
+            console.error(error);
+            showToast('Gagal mencetak struk: ' + error.message, 'error');
+        }
+    };
+
+    tableBody.addEventListener('click', (e) => {
+        const reprintBtn = e.target.closest('.btn-reprint');
+        if (reprintBtn) {
+            printStrukWindow(reprintBtn.dataset.id);
+        }
     });
 
     loadReport();

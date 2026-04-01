@@ -83,6 +83,7 @@ $router->get('/saldo-awal', 'pages/saldo_awal.php', ['auth']);
 $router->get('/laporan', 'pages/laporan.php', ['auth']); 
 $router->get('/laporan-stok', 'pages/laporan_stok.php', ['auth']);
 $router->get('/laporan-penjualan', 'pages/laporan_penjualan.php', ['auth']);
+$router->get('/laporan-pembelian', 'pages/laporan_pembelian.php', ['auth']);
 $router->get('/laporan-penjualan-item', 'pages/laporan_penjualan_item.php', ['auth']);
 $router->get('/laporan-kartu-stok', 'pages/laporan_kartu_stok.php', ['auth']);
 $router->get('/laporan-piutang', 'pages/laporan_piutang.php', ['auth']); // Route baru
@@ -95,6 +96,7 @@ $router->get('/neraca-saldo', 'pages/neraca_saldo.php', ['auth']);
 $router->get('/tutup-buku', 'pages/tutup_buku.php', ['auth', 'admin']);
 $router->get('/laporan-laba-ditahan', 'pages/laporan_laba_ditahan.php', ['auth']);
 $router->get('/laporan-pertumbuhan-laba', 'pages/laporan_pertumbuhan_laba.php', ['auth']);
+$router->get('/laporan-pertumbuhan-laba-sales', 'pages/laporan_pertumbuhan_laba_sales.php', ['auth']);
 $router->get('/analisis-rasio', 'pages/laporan_analisis_rasio.php', ['auth']); // Nama file halaman sudah benar
 $router->get('/activity-log', 'pages/activity_log.php', ['auth', 'admin']);
 $router->get('/laporan-harian', 'pages/laporan_harian.php', ['auth']);
@@ -141,6 +143,7 @@ $router->get('/api/laporan-wb-tahunan', 'api/laporan_wb_tahunan_handler.php', ['
 $router->get('/api/pembelian', 'api/pembelian_handler.php', ['auth']);
 $router->post('/api/pembelian', 'api/pembelian_handler.php', ['auth']);
 
+$router->get('/api/laporan-pembelian', 'api/laporan_pembelian_handler.php', ['auth']);
 $router->get('/api/laporan-penjualan', 'api/laporan_penjualan_handler.php', ['auth']);
 $router->get('/api/laporan-penjualan-item', 'api/laporan_penjualan_item_handler.php', ['auth']);
 $router->get('/api/laporan-piutang', 'api/laporan_piutang_handler.php', ['auth']); // API baru
@@ -227,6 +230,7 @@ $router->get('/api/member/dashboard', 'api/ksp/member_dashboard_handler.php'); /
 $router->post('/api/member/dashboard', 'api/ksp/member_dashboard_handler.php'); // API Dashboard Anggota (POST actions)
 $router->post('/api/member/profile', 'api/ksp/member_profile_handler.php'); // API Profil Anggota
 
+$router->get('/api/laporan-pertumbuhan-laba-sales', 'api/laporan_pertumbuhan_laba_sales_handler.php', ['auth']);
 
 // Jalankan router
 $router->dispatch();

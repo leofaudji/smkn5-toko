@@ -10,7 +10,13 @@ check_permission('laporan_piutang', 'menu');
 
 <div class="flex justify-between flex-wrap items-center pt-3 pb-2 mb-3 border-b border-gray-200 dark:border-gray-700">
     <h1 class="text-2xl font-semibold text-gray-800 dark:text-white flex items-center gap-2"><i class="bi bi-journal-text"></i> Laporan Piutang Anggota</h1>
-    <div class="flex mb-2 md:mb-0 gap-2">
+    <div class="flex flex-wrap mb-2 md:mb-0 gap-2">
+        <button id="piutang-pdf-btn" class="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-600 shadow-sm text-sm font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-gray-700 focus:outline-none">
+            <i class="bi bi-file-earmark-pdf mr-2"></i> PDF
+        </button>
+        <button id="piutang-csv-btn" class="inline-flex items-center px-3 py-2 border border-green-300 dark:border-green-600 shadow-sm text-sm font-medium rounded-md text-green-700 dark:text-green-400 bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-gray-700 focus:outline-none">
+            <i class="bi bi-file-earmark-spreadsheet mr-2"></i> CSV
+        </button>
         <button id="piutang-import-btn" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
             <i class="bi bi-file-earmark-arrow-up mr-2"></i> Impor CSV
         </button>

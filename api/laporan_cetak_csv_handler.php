@@ -359,6 +359,116 @@ try {
             break;
         }
 
+        case 'laporan-piutang': {
+            $sql = "
+                SELECT 
+                    p.customer_id,
+                    p.customer_name,
+                    a.nomor_anggota,
+                    SUM(p.total) as total_kredit,
+                    SUM(p.bayar) as total_bayar,
+                    SUM(p.total - p.bayar) as sisa_hutang
+                FROM penjualan p
+                LEFT JOIN anggota a ON p.customer_id = a.id
+                WHERE p.payment_method = 'hutang' 
+                  AND p.status = 'completed'
+                GROUP BY p.customer_id, p.customer_name, a.nomor_anggota
+                HAVING sisa_hutang > 0
+                ORDER BY p.customer_name ASC
+            ";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            $result = stmt_fetch_all($stmt);
+            $stmt->close();
+
+            fputcsv($output, ['Laporan Piutang Anggota']);
+            fputcsv($output, ['Dicetak pada:', date('d-m-Y H:i')]);
+            fputcsv($output, []);
+
+            fputcsv($output, ['No', 'Nama Anggota', 'No. Anggota', 'Total Kredit', 'Sudah Dibayar', 'Sisa Hutang']);
+            $no = 1;
+            foreach ($result as $row) {
+                fputcsv($output, [
+                    $no++,
+                    $row['customer_name'],
+                    $row['nomor_anggota'] ?: '-',
+                    $row['total_kredit'],
+                    $row['total_bayar'],
+                    $row['sisa_hutang']
+                ]);
+            }
+            break;
+        }
+
+        case 'laporan-pembelian': {
+            $start_date = $_GET['start_date'] ?? '';
+            $end_date = $_GET['end_date'] ?? '';
+            $supplier_id = $_GET['supplier_id'] ?? '';
+            $search = $_GET['search'] ?? '';
+
+            $where_clauses = ['p.user_id = ?'];
+            $params = ['i', 1]; // user_id = 1
+
+            if (!empty($start_date)) {
+                $where_clauses[] = 'DATE(p.tanggal_pembelian) >= ?';
+                $params[0] .= 's';
+                $params[] = $start_date;
+            }
+            if (!empty($end_date)) {
+                $where_clauses[] = 'DATE(p.tanggal_pembelian) <= ?';
+                $params[0] .= 's';
+                $params[] = $end_date;
+            }
+            if (!empty($supplier_id)) {
+                $where_clauses[] = 'p.supplier_id = ?';
+                $params[0] .= 'i';
+                $params[] = (int)$supplier_id;
+            }
+            if (!empty($search)) {
+                $where_clauses[] = '(s.nama_pemasok LIKE ? OR p.keterangan LIKE ? OR p.nomor_referensi LIKE ?)';
+                $params[0] .= 'sss';
+                $searchTerm = '%' . $search . '%';
+                array_push($params, $searchTerm, $searchTerm, $searchTerm);
+            }
+
+            $where_sql = 'WHERE ' . implode(' AND ', $where_clauses);
+            $query = "
+                SELECT p.*, s.nama_pemasok FROM pembelian p 
+                LEFT JOIN suppliers s ON p.supplier_id = s.id 
+                $where_sql ORDER BY p.tanggal_pembelian ASC
+            ";
+            $stmt = $conn->prepare($query);
+            $bind_params = [&$params[0]];
+            for ($i = 1; $i < count($params); $i++) { $bind_params[] = &$params[$i]; }
+            call_user_func_array([$stmt, 'bind_param'], $bind_params);
+            $stmt->execute();
+            $result = stmt_fetch_all($stmt);
+            $stmt->close();
+
+            fputcsv($output, ['Laporan Pembelian']);
+            fputcsv($output, ['Dicetak pada:', date('d-m-Y H:i')]);
+            if (!empty($start_date) && !empty($end_date)) {
+                fputcsv($output, ['Periode:', $start_date . ' s/d ' . $end_date]);
+            }
+            fputcsv($output, []);
+
+            fputcsv($output, ['No', 'Tanggal', 'No. Referensi', 'Pemasok', 'Keterangan', 'Metode Pembayaran', 'Status', 'Total']);
+            $no = 1;
+            foreach ($result as $row) {
+                fputcsv($output, [
+                    $no++,
+                    $row['tanggal_pembelian'],
+                    $row['nomor_referensi'],
+                    $row['nama_pemasok'] ?: '-',
+                    $row['keterangan'],
+                    $row['payment_method'],
+                    $row['status'],
+                    $row['total']
+                ]);
+            }
+            break;
+        }
+
         default:
             fputcsv($output, ['Error: Tipe laporan tidak dikenal.']);
             break;
