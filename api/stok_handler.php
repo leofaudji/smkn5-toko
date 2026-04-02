@@ -79,7 +79,14 @@ try {
             $items = stmt_fetch_all($stmt);
             $stmt->close();
 
-            $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records];
+            $pagination = [
+                'current_page' => $page, 
+                'total_pages' => ceil($total_records / $limit), 
+                'total_records' => $total_records,
+                'from' => $total_records > 0 ? $offset + 1 : 0,
+                'to' => min($offset + $limit, $total_records),
+                'total' => $total_records
+            ];
             echo json_encode(['status' => 'success', 'data' => $items, 'pagination' => $pagination]);
 
         } elseif ($action === 'get_accounts') {
@@ -216,28 +223,28 @@ try {
         $action = $data['action'] ?? '';
 
         if ($action === 'save' || $action === 'update') { // Handle both add and update
-            $nama_barang = trim($_POST['nama_barang']);
-            $sku = trim($_POST['sku']) ?: null;
-            $barcode = trim($_POST['barcode']) ?: null;
-            $category_id = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
-            $harga_beli = (float) $_POST['harga_beli'];
-            $harga_jual = (float) $_POST['harga_jual'];
-            $inventory_account_id = !empty($_POST['inventory_account_id']) ? (int) $_POST['inventory_account_id'] : null;
-            $cogs_account_id = !empty($_POST['cogs_account_id']) ? (int) $_POST['cogs_account_id'] : null;
-            $revenue_account_id = !empty($_POST['sales_account_id']) ? (int) $_POST['sales_account_id'] : null;
+            $nama_barang = trim($data['nama_barang'] ?? '');
+            $sku = trim($data['sku'] ?? '') ?: null;
+            $barcode = trim($data['barcode'] ?? '') ?: null;
+            $category_id = !empty($data['category_id']) ? (int) $data['category_id'] : null;
+            $harga_beli = (float) ($data['harga_beli'] ?? 0);
+            $harga_jual = (float) ($data['harga_jual'] ?? 0);
+            $inventory_account_id = !empty($data['inventory_account_id']) ? (int) $data['inventory_account_id'] : null;
+            $cogs_account_id = !empty($data['cogs_account_id']) ? (int) $data['cogs_account_id'] : null;
+            $revenue_account_id = !empty($data['sales_account_id']) ? (int) $data['sales_account_id'] : null;
 
             if (empty($nama_barang) || $harga_beli < 0 || $harga_jual < 0) {
                 throw new Exception("Data barang tidak lengkap atau tidak valid.");
             }
 
             if ($action === 'update') { // Update
-                $id = (int) ($_POST['item-id'] ?? 0);
+                $id = (int) ($data['id'] ?? 0);
                 // Saat update, jangan ubah stok. Stok diubah melalui penyesuaian/pembelian.
                 $stmt = $conn->prepare("UPDATE items SET nama_barang=?, sku=?, barcode=?, category_id=?, harga_beli=?, harga_jual=?, inventory_account_id=?, cogs_account_id=?, revenue_account_id=? WHERE id=? AND user_id=?");
                 $stmt->bind_param('sssiddiiiii', $nama_barang, $sku, $barcode, $category_id, $harga_beli, $harga_jual, $inventory_account_id, $cogs_account_id, $revenue_account_id, $id, $user_id);
             } else { // Add
                 // Saat add, ambil stok dari form.
-                $stok = (int) ($_POST['stok'] ?? 0);
+                $stok = (int) ($data['stok'] ?? 0);
                 if ($stok < 0) {
                     throw new Exception("Stok awal tidak boleh negatif.");
                 }
