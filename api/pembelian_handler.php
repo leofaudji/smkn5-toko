@@ -231,7 +231,7 @@ try {
                     $old_items = stmt_fetch_all($stmt_old_details);
                     $stmt_old_details->close();
 
-                    $stmt_delete_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'pembelian' AND user_id = ?");
+                    $stmt_delete_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type IN ('pembelian', 'transaksi') AND user_id = ?");
                     $stmt_delete_gl->bind_param('ii', $id, $user_id);
                     $stmt_delete_gl->execute();
                     $stmt_delete_gl->close();
@@ -253,7 +253,7 @@ try {
                     $stmt_pembelian = $conn->prepare(
                         "UPDATE pembelian SET supplier_id=?, tanggal_pembelian=?, jatuh_tempo=?, total=?, keterangan=?, status=?, payment_method=?, credit_account_id=?, updated_by=? WHERE id=? AND user_id=?"
                     );
-                    $stmt_pembelian->bind_param('issdsssiiiii', $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $status, $payment_method, $credit_account_id, $user_id, $id, $user_id);
+                    $stmt_pembelian->bind_param('issdsssiiii', $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $status, $payment_method, $credit_account_id, $user_id, $id, $user_id);
                 } else { // add
                     // Insert header
                     $stmt_pembelian = $conn->prepare(
@@ -293,13 +293,14 @@ try {
                 // Perbaiki statement GL untuk menyertakan nomor_referensi
                 $stmt_gl = $conn->prepare(
                     "INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transaksi', ?)"
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pembelian', ?)"
                 );
                 // Tambahkan statement untuk kartu stok
                 $stmt_kartu_stok = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, 0, ?, ?, 'pembelian', ?)");
 
-                // Jurnal Sisi Debit (untuk setiap baris item)
+                // Jurnal Sisi Debit (Agregasi per Akun Persediaan)
                 $stmt_update_stock = $conn->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
+                $aggregated_inventory_totals = [];
 
                 foreach ($lines as $line) {
                     $item_id = (int)$line['item_id'];
@@ -321,10 +322,17 @@ try {
                     $stmt_kartu_stok->bind_param('siisii', $tanggal_pembelian, $item_id, $quantity, $ksKeterangan, $pembelian_id, $user_id);
                     $stmt_kartu_stok->execute();
 
-                    // Insert ke GL (Debit)
+                    // Agregasi untuk GL (Debit)
+                    if (!isset($aggregated_inventory_totals[$inventory_account_id])) {
+                        $aggregated_inventory_totals[$inventory_account_id] = 0;
+                    }
+                    $aggregated_inventory_totals[$inventory_account_id] += $subtotal;
+                }
+
+                // Insert aggregated debits to GL
+                foreach ($aggregated_inventory_totals as $acc_id => $total_debit) {
                     $zero = 0.00;
-                    // Perbaiki bind_param untuk menyertakan nomor_referensi
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal_pembelian, $keterangan, $nomor_referensi, $inventory_account_id, $subtotal, $zero, $pembelian_id, $logged_in_user_id);
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal_pembelian, $keterangan, $nomor_referensi, $acc_id, $total_debit, $zero, $pembelian_id, $logged_in_user_id);
                     $stmt_gl->execute();
                 }
 
@@ -392,7 +400,7 @@ try {
                 $stmt_ks_void->close();
 
                 // Hapus dari GL
-                $stmt_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'pembelian' AND user_id = ?");
+                $stmt_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type IN ('pembelian', 'transaksi') AND user_id = ?");
                 $stmt_gl->bind_param('ii', $id, $user_id);
                 $stmt_gl->execute();
                 $stmt_gl->close();
