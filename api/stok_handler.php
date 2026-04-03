@@ -252,7 +252,18 @@ try {
                 $stmt->bind_param('isssiddiiii', $user_id, $nama_barang, $sku, $barcode, $category_id, $harga_beli, $harga_jual, $stok, $inventory_account_id, $cogs_account_id, $revenue_account_id);
             }
             $stmt->execute();
+            $new_item_id = $conn->insert_id;
             $message = ($action === 'update') ? 'Data barang berhasil diperbarui.' : 'Data barang berhasil ditambahkan.';
+            
+            // Log Saldo Awal to kartu_stok if adding a new item with stock > 0
+            if ($action === 'save' && $stok > 0) {
+                $keterangan_awal = "Saldo Awal Barang";
+                $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, user_id) VALUES (CURDATE(), ?, ?, 0, ?, ?)");
+                $stmt_ks->bind_param('iisi', $new_item_id, $stok, $keterangan_awal, $logged_in_user_id);
+                $stmt_ks->execute();
+                $stmt_ks->close();
+            }
+
             $stmt->close();
             echo json_encode(['status' => 'success', 'message' => $message]);
 
@@ -348,6 +359,17 @@ try {
                 $stmt = $conn->prepare("UPDATE items SET stok = ? WHERE id = ?");
                 $stmt->bind_param("ii", $stokFisik, $itemId);
                 $stmt->execute();
+                $stmt->close();
+
+                // 5. Catat pergerakan stok ke kartu_stok
+                $debit = $selisihKuantitas > 0 ? $selisihKuantitas : 0;
+                $kredit = $selisihKuantitas < 0 ? abs($selisihKuantitas) : 0;
+                $keteranganKS = "Penyesuaian Stok (Opname): " . $keterangan;
+                
+                $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, journal_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt_ks->bind_param('siiisii', $tanggal, $itemId, $debit, $kredit, $keteranganKS, $journalId, $logged_in_user_id);
+                $stmt_ks->execute();
+                $stmt_ks->close();
 
                 // 5. Catat ke tabel history penyesuaian
                 $stmt = $conn->prepare("INSERT INTO stock_adjustments (item_id, user_id, journal_id, tanggal, stok_sebelum, stok_setelah, selisih_kuantitas, selisih_nilai, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");

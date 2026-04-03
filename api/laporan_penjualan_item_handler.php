@@ -79,7 +79,12 @@ try {
     $data = stmt_fetch_all($stmt);
     $stmt->close();
 
-    $pagination = ['current_page' => $page, 'total_pages' => ceil($total_records / $limit), 'total_records' => $total_records];
+    $pagination = [
+        'page' => $page, 
+        'limit' => $limit,
+        'total_pages' => ceil($total_records / $limit), 
+        'total_records' => $total_records
+    ];
     echo json_encode(['status' => 'success', 'data' => $data, 'pagination' => $pagination]);
 
 } catch (Exception $e) {

@@ -19,9 +19,25 @@ check_permission('penjualan', 'menu');
         <h6 class="text-lg font-bold text-primary">Daftar Transaksi Penjualan</h6>
     </div>
     <div class="p-6">
-        <div class="mb-4">
-            <div class="w-full md:w-1/3">
-                <input type="text" id="search-input" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50" placeholder="Cari No. Faktur atau Nama Customer...">
+        <div class="mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label for="filter-start-date" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Dari Tanggal</label>
+                    <input type="text" id="filter-start-date" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Mulai...">
+                </div>
+                <div>
+                    <label for="filter-end-date" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Sampai Tanggal</label>
+                    <input type="text" id="filter-end-date" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Selesai...">
+                </div>
+                <div class="md:col-span-2 flex gap-2">
+                    <div class="flex-grow">
+                        <label for="search-input" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Pencarian</label>
+                        <input type="text" id="search-input" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="No. Faktur / Customer...">
+                    </div>
+                    <button id="btn-filter" class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition ease-in-out duration-150 h-[38px]">
+                        <i class="bi bi-funnel mr-2"></i> Filter
+                    </button>
+                </div>
             </div>
         </div>
         <div class="overflow-auto max-h-[65vh] border border-gray-200 dark:border-gray-700 rounded-md">
@@ -62,6 +78,7 @@ check_permission('penjualan', 'menu');
             </div>
             <div class="p-6">
                 <form id="form-penjualan">
+                    <input type="hidden" id="penjualan_id" name="id">
                     <!-- Form Header -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
@@ -92,7 +109,7 @@ check_permission('penjualan', 'menu');
                             </div>
                             <input type="text" class="block w-full pl-10 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50" id="search-produk" placeholder="Ketik untuk mencari barang...">
                         </div>
-                         <div id="product-suggestions" class="absolute z-10 w-full bg-white dark:bg-gray-700 shadow-lg rounded-md mt-1 max-h-60 overflow-y-auto"></div>
+                         <div id="product-suggestions" class="absolute z-50 w-full bg-white dark:bg-gray-700 shadow-lg rounded-md mt-1 max-h-60 overflow-y-auto hidden"></div>
                     </div>
 
                     <!-- Tabel Item -->

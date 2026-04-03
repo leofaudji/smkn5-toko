@@ -51,11 +51,11 @@ try {
     // --- ITEM ACTIONS ---
     elseif ($action === 'list_items') {
         $result = $conn->query("
-            SELECT 
-                ci.*,
-                s.nama_pemasok,
-                (ci.stok_awal - COALESCE((SELECT SUM(IF(debit > 0, qty, -qty)) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type IN ('jurnal', 'penjualan') AND account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_cogs_account')), 0)) as stok_saat_ini
-            FROM consignment_items ci
+                SELECT 
+                    ci.*,
+                    s.nama_pemasok,
+                    (ci.stok_awal - COALESCE((SELECT SUM(IF(debit > 0, -qty, qty)) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type IN ('jurnal', 'penjualan') AND account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')), 0)) as stok_saat_ini
+                FROM consignment_items ci
             JOIN suppliers s ON ci.supplier_id = s.id
             WHERE ci.user_id = $user_id
             ORDER BY ci.nama_barang ASC
@@ -267,7 +267,7 @@ try {
             SELECT 
                 s.nama_pemasok,
                 ci.nama_barang,
-                SUM(IF(gl.debit > 0, gl.qty, -gl.qty)) as total_terjual, ci.harga_beli, (SUM(IF(gl.debit > 0, gl.qty, -gl.qty)) * ci.harga_beli) as total_utang
+                SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) as total_terjual, ci.harga_beli, (SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) * ci.harga_beli) as total_utang
             FROM general_ledger gl
             JOIN consignment_items ci ON gl.consignment_item_id = ci.id
             JOIN suppliers s ON ci.supplier_id = s.id
@@ -275,7 +275,7 @@ try {
               AND gl.tanggal BETWEEN ? AND ?
               AND gl.ref_type IN ('jurnal', 'penjualan') 
               AND gl.consignment_item_id IS NOT NULL 
-              AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_cogs_account')
+              AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')
             GROUP BY s.nama_pemasok, ci.nama_barang, ci.harga_beli
             ORDER BY s.nama_pemasok, ci.nama_barang
         ");

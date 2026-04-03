@@ -68,6 +68,10 @@ class StrukPenjualanReportBuilder implements ReportBuilderInterface
         $this->pdf->Cell(2, 4, ':');
         $this->pdf->Cell(0, 4, $header['customer_name'], 0, 1);
 
+        $this->pdf->Cell(20, 4, 'Metode');
+        $this->pdf->Cell(2, 4, ':');
+        $this->pdf->Cell(0, 4, $this->getPaymentMethodName($header['payment_method']), 0, 1);
+
         // Garis pemisah
         $this->pdf->Line($this->pdf->GetX(), $this->pdf->GetY() + 2, $this->pdf->GetX() + 70, $this->pdf->GetY() + 2);
         $this->pdf->Ln(4);
@@ -107,5 +111,17 @@ class StrukPenjualanReportBuilder implements ReportBuilderInterface
         $this->pdf->SetFont('Arial', 'I', 8);
         $this->pdf->Cell(0, 4, 'Terima kasih telah berbelanja!', 0, 1, 'C');
         $this->pdf->Cell(0, 4, 'Barang yang sudah dibeli tidak dapat dikembalikan.', 0, 1, 'C');
+    }
+
+    private function getPaymentMethodName(string $method): string
+    {
+        $methods = [
+            'cash' => 'Tunai/Cash',
+            'transfer' => 'Transfer Bank',
+            'potong_saldo' => 'Saldo WB',
+            'hutang' => 'Hutang',
+            'qris' => 'QRIS'
+        ];
+        return $methods[$method] ?? $method;
     }
 }

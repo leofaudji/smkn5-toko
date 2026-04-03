@@ -49,10 +49,11 @@ function initLaporanPenjualanItemPage() {
 
             renderTable(result.data, page);
             renderTailwindPagination(paginationContainer, result.pagination, loadReport);
-            if (paginationInfo) {
-                const start = (result.pagination.page - 1) * result.pagination.limit + 1;
-                const end = Math.min(result.pagination.page * result.pagination.limit, result.pagination.total_records);
-                paginationInfo.textContent = `Menampilkan ${start} sampai ${end} dari ${result.pagination.total_records} data`;
+            if (paginationInfo && result.pagination) {
+                const p = result.pagination;
+                const start = (p.page - 1) * p.limit + 1;
+                const end = Math.min(p.page * p.limit, p.total_records);
+                paginationInfo.textContent = `Menampilkan ${start} sampai ${end} dari ${p.total_records} data`;
             }
 
         } catch (error) {

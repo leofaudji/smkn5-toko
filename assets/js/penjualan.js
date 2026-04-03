@@ -21,7 +21,8 @@ function initPenjualanPage() {
             'border-gray-200',
             'dark:border-gray-600',
             'rounded-b-md',  // Sudut bawah yang membulat
-            'shadow-lg'      // Beri bayangan agar terlihat melayang
+            'shadow-lg',     // Beri bayangan agar terlihat melayang
+            'hidden'         // Sembunyikan secara default agar tidak menghalangi klik (Critical Fix)
         );
     }
 
@@ -56,11 +57,33 @@ function initPenjualanPage() {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
     };
 
-    // Inisialisasi Flatpickr untuk input tanggal
+    const getPaymentMethodName = (method) => {
+        const methods = {
+            'cash': 'Tunai/Cash',
+            'transfer': 'Transfer Bank',
+            'potong_saldo': 'Saldo WB',
+            'hutang': 'Hutang',
+            'qris': 'QRIS'
+        };
+        return methods[method] || method;
+    };
+
+    // Inisialisasi Flatpickr untuk input tanggal di modal (Buat Baru)
     const tanggalPicker = flatpickr(tanggalInput, {
         dateFormat: "d-m-Y", // Format DD-MM-YYYY
         defaultDate: "today",
         allowInput: true // Memungkinkan input manual dari keyboard
+    });
+
+    // Inisialisasi Flatpickr untuk Filter Daftar Transaksi (Area Daftar)
+    const filterStartDate = flatpickr("#filter-start-date", {
+        dateFormat: "d-m-Y",
+        defaultDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // Awal bulan ini
+    });
+
+    const filterEndDate = flatpickr("#filter-end-date", {
+        dateFormat: "d-m-Y",
+        defaultDate: "today",
     });
 
     // Fungsi untuk mencetak struk via window.print()
@@ -125,6 +148,7 @@ function initPenjualanPage() {
                         <div>Tgl: ${formatDate(detail.tanggal_penjualan)}</div>
                         <div>Kasir: ${detail.created_by_username}</div>
                         <div>Pelanggan: ${detail.customer_name}</div>
+                        <div>Metode: ${getPaymentMethodName(detail.payment_method)}</div>
                     </div>
                     <table class="items-table mb-1">
                         ${itemsHtml}
@@ -160,22 +184,59 @@ function initPenjualanPage() {
     };
 
     // Fungsi memuat data utama
-    const loadPenjualan = async (page = 1, search = '') => {
+    const loadPenjualan = async (page = 1) => {
         currentPage = page;
+        const search = document.getElementById('search-input')?.value || '';
+        
+        // Format tanggal ke YYYY-MM-DD untuk API
+        const formatDateAPI = (fp) => {
+            if (!fp || !fp.selectedDates[0]) return '';
+            const d = fp.selectedDates[0];
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
+
+        const startDate = formatDateAPI(filterStartDate);
+        const endDate = formatDateAPI(filterEndDate);
+
         try {
-            const response = await fetch(`${basePath}/api/penjualan?action=get_all&page=${page}&limit=${limit}&search=${search}`);
+            const url = `${basePath}/api/penjualan?action=get_all&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&start_date=${startDate}&end_date=${endDate}`;
+            const response = await fetch(url);
             const result = await response.json();
 
             if (result.success) {
                 renderTable(result.data);
-                renderPagination(paginationContainer, result.pagination, loadPenjualan);
+                if (result.pagination) {
+                    renderPagination(paginationContainer, result.pagination, loadPenjualan);
+                    
+                    // Update pagination info
+                    const info = document.getElementById('pagination-info');
+                    if (info) {
+                        const { total_records, current_page, limit } = result.pagination;
+                        const start = total_records === 0 ? 0 : (current_page - 1) * limit + 1;
+                        const end = Math.min(current_page * limit, total_records);
+                        info.textContent = `Menampilkan ${start} - ${end} dari ${total_records} transaksi.`;
+                    }
+                }
             } else {
                 showToast('Gagal memuat data: ' + result.message, 'danger');
             }
         } catch (error) {
-            showToast('Terjadi kesalahan: ' + error, 'danger');
+            console.error('loadPenjualan error:', error);
+            showToast('Terjadi kesalahan saat memuat data.', 'danger');
         }
     };
+
+    // Event listener untuk tombol filter
+    document.getElementById('btn-filter')?.addEventListener('click', () => {
+        loadPenjualan(1);
+    });
+
+    // Trigger filter saat tekan Enter di input pencarian
+    document.getElementById('search-input')?.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            loadPenjualan(1);
+        }
+    });
 
     const renderTable = (data) => {
         tableBody.innerHTML = '';
@@ -210,7 +271,10 @@ function initPenjualanPage() {
                         <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-l-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-detail" data-id="${item.id}" title="Lihat Detail">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="px-2 py-1 border-t border-b border-r border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md text-red-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-void" data-id="${item.id}" title="Batalkan Transaksi" ${isVoid ? 'disabled' : ''}>
+                        <button class="px-2 py-1 border-t border-b border-gray-300 dark:border-gray-600 text-sm font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-edit" data-id="${item.id}" title="Edit Transaksi" ${isVoid ? 'disabled' : ''}>
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md text-red-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-void" data-id="${item.id}" title="Batalkan Transaksi" ${isVoid ? 'disabled' : ''}>
                             <i class="bi bi-x-circle"></i>
                         </button>
                         </div>
@@ -221,12 +285,35 @@ function initPenjualanPage() {
         });
     };
 
+    // Pengaman untuk mencegah double trigger (Qty 2)
+    let lastAddedId = null;
+    let lastAddedTime = 0;
+
     // Fungsi untuk keranjang (cart)
     const addItemToCart = (product) => {
+        if (!product) return;
+        
+        // Anti-double trigger: Abaikan jika ID yang sama masuk dalam < 300ms
+        const now = Date.now();
+        if (product.id === lastAddedId && (now - lastAddedTime) < 300) {
+            return;
+        }
+        lastAddedId = product.id;
+        lastAddedTime = now;
+
         if (product.stok <= 0) {
             showToast('Stok produk habis.', 'warning');
             return;
         }
+
+        // Segera bersihkan saran untuk mencegah klik ganda/Enter ganda
+        const suggestionsContainer = document.getElementById('product-suggestions');
+        if (suggestionsContainer) {
+            suggestionsContainer.innerHTML = '';
+            suggestionsContainer.classList.add('hidden');
+        }
+        searchProdukInput.value = '';
+
         const existingItem = cart.find(item => item.id === product.id);
         if (existingItem) {
             if (existingItem.qty < existingItem.stok) {
@@ -237,10 +324,9 @@ function initPenjualanPage() {
         } else {
             cart.push({ ...product, qty: 1 });
         }
+
         renderCart();
-        searchProdukInput.value = '';
-        document.getElementById('product-suggestions').innerHTML = '';
-        searchProdukInput.focus(); // Kembalikan fokus ke pencarian agar bisa langsung scan barang berikutnya
+        searchProdukInput.focus();
     };
 
     const renderCart = () => {
@@ -278,6 +364,7 @@ function initPenjualanPage() {
             cartItemsContainer.insertAdjacentHTML('beforeend', row);
         });
         updateSummary();
+        document.getElementById('product-suggestions')?.classList.add('hidden'); // Sembunyikan saran setelah render
     };
 
     const updateSummary = () => {
@@ -307,6 +394,8 @@ function initPenjualanPage() {
     // Event Listeners
     document.getElementById('btn-tambah-penjualan').addEventListener('click', () => {
         document.getElementById('form-penjualan').reset();
+        document.getElementById('penjualan_id').value = '';
+        document.getElementById('penjualanModalLabel').textContent = 'Transaksi Penjualan Baru';
         tanggalPicker.setDate(new Date()); // Reset tanggal ke hari ini menggunakan API Flatpickr
         
         // Reset Member Info
@@ -317,6 +406,7 @@ function initPenjualanPage() {
         
         cart = [];
         renderCart();
+        document.getElementById('product-suggestions')?.classList.add('hidden');
         openModal('penjualanModal');
     });
 
@@ -369,22 +459,7 @@ function initPenjualanPage() {
         }
     });
 
-    searchInput.addEventListener('keyup', (e) => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            loadPenjualan(1, e.target.value);
-        }, 300);
-    });
-
-    paginationContainer.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (e.target.closest('a[data-page]')) {
-            const page = parseInt(e.target.dataset.page);
-            if (page && page !== currentPage) {
-                loadPenjualan(page, searchInput.value);
-            }
-        }
-    });
+    // Pagination handled by global renderPagination
 
     const debounce = (func, delay) => {
         let timeout;
@@ -448,18 +523,6 @@ function initPenjualanPage() {
                 }).join('');
                 suggestionsContainer.innerHTML = list;
                 suggestionsContainer.classList.remove('hidden');
-
-                // Re-bind click events for new suggestions
-                suggestionsContainer.querySelectorAll('a').forEach(el => {
-                    el.addEventListener('click', (ev) => {
-                        ev.preventDefault();
-                        const p = JSON.parse(el.dataset.product);
-                        addItemToCart(p);
-                        suggestionsContainer.innerHTML = '';
-                        suggestionsContainer.classList.add('hidden');
-                        searchProdukInput.value = '';
-                    });
-                });
             } else {
                 suggestionsContainer.innerHTML = '<div class="p-3 text-gray-500 text-center">Produk tidak ditemukan.</div>';
                 suggestionsContainer.classList.remove('hidden');
@@ -468,6 +531,21 @@ function initPenjualanPage() {
             console.error('Error fetching search results:', error);
         }
     };
+
+    // Event Delegation untuk klik pada saran produk (Critical Fix: Mencegah double trigger)
+    document.getElementById('product-suggestions')?.addEventListener('click', (e) => {
+        const item = e.target.closest('a');
+        if (item) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                const p = JSON.parse(item.dataset.product);
+                addItemToCart(p);
+            } catch (err) {
+                console.error("Gagal parse data produk:", err);
+            }
+        }
+    });
 
     searchProdukInput.addEventListener('keyup', debounce(handleProductSearch, 400));
 
@@ -714,6 +792,7 @@ function initPenjualanPage() {
     document.getElementById('discount_total').addEventListener('input', updateSummary);
 
     document.getElementById('btn-simpan-penjualan').addEventListener('click', async () => {
+        const id = document.getElementById('penjualan_id').value;
         const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.harga_jual) * parseInt(item.qty)), 0);
         const totalHPP = cart.reduce((sum, item) => sum + (parseFloat(item.harga_beli || 0) * parseInt(item.qty)), 0);
         const itemDiscounts = cart.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0);
@@ -756,6 +835,7 @@ function initPenjualanPage() {
             return `${year}-${month}-${day}`;
         };
         const formData = {
+            id: id || null,
             tanggal: formatDateForDB(tanggalPicker.selectedDates[0]),
             customer_name: document.getElementById('member_search').value || 'Umum',
             anggota_id: document.getElementById('anggota_id').value || null,
@@ -782,7 +862,8 @@ function initPenjualanPage() {
         };
 
         try {
-            const response = await fetch(`${basePath}/api/penjualan?action=store`, {
+            const action = id ? 'update' : 'store';
+            const response = await fetch(`${basePath}/api/penjualan?action=${action}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -959,6 +1040,85 @@ function initPenjualanPage() {
             if (id) {
                 printStrukWindow(id);
             }
+        }
+    });
+
+    // Event listener untuk tombol Edit di tabel
+    tableBody.addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('.btn-edit');
+        if (!editBtn) return;
+
+        const id = editBtn.dataset.id;
+        try {
+            const response = await fetch(`${basePath}/api/penjualan?action=get_detail&id=${id}`);
+            const result = await response.json();
+
+            if (result.success) {
+                const detail = result.data;
+                
+                // Set Modal State
+                document.getElementById('form-penjualan').reset();
+                document.getElementById('penjualan_id').value = id;
+                document.getElementById('penjualanModalLabel').textContent = 'Edit Transaksi #' + detail.nomor_referensi;
+                
+                // Populate Headers
+                tanggalPicker.setDate(detail.tanggal_penjualan);
+                document.getElementById('member_search').value = detail.customer_name;
+                document.getElementById('anggota_id').value = detail.customer_id;
+                
+                // Fallback jika payment_method korup (0 atau kosong)
+                const paymentMethod = (detail.payment_method === '0' || !detail.payment_method) ? 'cash' : detail.payment_method;
+                document.getElementById('payment_method').value = paymentMethod;
+                
+                document.getElementById('catatan').value = detail.keterangan;
+                document.getElementById('discount_total').value = detail.discount;
+                document.getElementById('bayar').value = detail.bayar;
+                
+                // Check if it's transfer/qris to show account selector
+                if (paymentMethod === 'transfer' || paymentMethod === 'qris') {
+                    document.getElementById('account-select-container').classList.remove('hidden');
+                    // We need to ensure accounts are loaded before setting the value
+                    const accountSelect = document.getElementById('payment_account_id');
+                    if (accountSelect.options.length <= 1) {
+                        // If not loaded, load them then set value
+                        loadPaymentAccounts().then(() => {
+                            accountSelect.value = detail.payment_account_id || '';
+                        });
+                    } else {
+                        accountSelect.value = detail.payment_account_id || '';
+                    }
+                } else {
+                    document.getElementById('account-select-container').classList.add('hidden');
+                }
+
+                // If customer is member, show member info
+                if (detail.customer_id) {
+                    memberInfoDiv.textContent = `Pelanggan: ${detail.customer_name}`;
+                    memberInfoDiv.classList.remove('hidden');
+                } else {
+                    memberInfoDiv.classList.add('hidden');
+                }
+
+                // Populate Cart
+                cart = detail.items.map(item => ({
+                    id: item.item_id,
+                    nama_barang: item.nama_barang,
+                    harga_jual: item.price,
+                    harga_beli: item.harga_beli, // Important for COGS calculation on update
+                    qty: item.quantity,
+                    discount: item.discount,
+                    item_type: item.item_type || 'normal',
+                    stok: 999999 // Assume plenty for edit mode, server will validate anyway
+                }));
+
+                renderCart();
+                openModal('penjualanModal');
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            console.error(error);
+            showToast('Gagal memuat detail transaksi.', 'danger');
         }
     });
 

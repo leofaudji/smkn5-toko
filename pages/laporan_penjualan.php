@@ -73,6 +73,34 @@ check_permission('laporan_penjualan', 'menu');
     </div>
 </div>
 
+<!-- Modal Detail Penjualan -->
+<div id="modal-detail-penjualan" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" id="close-modal-detail-overlay"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center mb-4 border-b pb-2 dark:border-gray-700">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                        Detail Transaksi <span id="detail-nomor-faktur" class="text-primary font-bold"></span>
+                    </h3>
+                    <button type="button" class="text-gray-400 hover:text-gray-500" id="close-modal-detail-btn">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div class="mt-2" id="modal-detail-body">
+                    <!-- Detail content will be injected by JS -->
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-2 sm:px-6 sm:flex sm:flex-row-reverse border-t dark:border-gray-600">
+                <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" id="close-modal-detail-footer-btn">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php
 if (!$is_spa_request) {
     // Kita akan membuat file JS terpisah untuk halaman ini

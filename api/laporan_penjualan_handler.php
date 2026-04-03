@@ -41,8 +41,9 @@ try {
     }
 
     $where_sql = 'WHERE ' . implode(' AND ', $where_clauses);
-
-    // Get summary data (total sales and profit)
+    $view_type = $_GET['view_type'] ?? 'summary';
+    
+    // Get summary data (total sales and profit) - Always keep this summary based on transactions
     $summary_where_sql = 'WHERE ' . implode(' AND ', $where_clauses) . " AND p.status = 'completed'";
     $summary_stmt = $conn->prepare("
         SELECT
@@ -92,46 +93,92 @@ try {
         }
     }
 
-    // Get total count for pagination
-    $total_stmt = $conn->prepare("SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id $where_sql");
-    $bind_params_total = [&$params[0]];
-    for ($i = 1; $i < count($params); $i++) { $bind_params_total[] = &$params[$i]; }
-    call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
-    $total_stmt->execute();
-    $total_records = stmt_fetch_assoc($total_stmt)['total'];
-    $total_stmt->close();
+    if ($view_type === 'detail') {
+        // COUNT for detail mode (number of items sold)
+        $count_stmt_sql = "SELECT COUNT(pd.id) as total FROM penjualan_details pd JOIN penjualan p ON pd.penjualan_id = p.id LEFT JOIN users u ON p.created_by = u.id $where_sql";
+        $count_stmt = $conn->prepare($count_stmt_sql);
+        $bind_params_count = [&$params[0]];
+        for ($i = 1; $i < count($params); $i++) { $bind_params_count[] = &$params[$i]; }
+        call_user_func_array([$count_stmt, 'bind_param'], $bind_params_count);
+        $count_stmt->execute();
+        $total_records = stmt_fetch_assoc($count_stmt)['total'];
+        $count_stmt->close();
 
-    // Get data for the current page
-    $query = "
-        SELECT 
-            p.id, 
-            p.nomor_referensi, 
-            p.tanggal_penjualan, 
-            p.customer_name, 
-            p.total, 
-            p.status, 
-            u.username,
-            COALESCE(cogs.total_hpp, 0) as total_hpp,
-            (p.total - COALESCE(cogs.total_hpp, 0)) as profit
-        FROM penjualan p
-        LEFT JOIN users u ON p.created_by = u.id
-        LEFT JOIN (
+        // QUERY for detail mode
+        $query = "
             SELECT 
-                pd.penjualan_id, 
-                SUM(CASE 
-                    WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
-                    WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
-                    ELSE 0 
-                END) as total_hpp
+                p.id as penjualan_id,
+                p.nomor_referensi,
+                p.tanggal_penjualan,
+                p.customer_name,
+                p.payment_method,
+                p.status,
+                u.username,
+                pd.id as detail_id,
+                pd.item_id,
+                pd.deskripsi_item,
+                pd.quantity,
+                pd.price,
+                pd.subtotal as item_total,
+                pd.item_type,
+                CASE 
+                    WHEN pd.item_type = 'normal' THEN i.harga_beli
+                    WHEN pd.item_type = 'consignment' THEN ci.harga_beli
+                    ELSE 0
+                END as item_hpp
             FROM penjualan_details pd
+            JOIN penjualan p ON pd.penjualan_id = p.id
             LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
             LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
-            GROUP BY pd.penjualan_id
-        ) as cogs ON p.id = cogs.penjualan_id
-        $where_sql 
-        ORDER BY p.tanggal_penjualan DESC, p.id DESC 
-        LIMIT ? OFFSET ?
-    ";
+            LEFT JOIN users u ON p.created_by = u.id
+            $where_sql
+            ORDER BY p.tanggal_penjualan DESC, p.id DESC, pd.id ASC
+            LIMIT ? OFFSET ?
+        ";
+    } else {
+        // COUNT for summary mode (number of invoices)
+        $total_stmt = $conn->prepare("SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id $where_sql");
+        $bind_params_total = [&$params[0]];
+        for ($i = 1; $i < count($params); $i++) { $bind_params_total[] = &$params[$i]; }
+        call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
+        $total_stmt->execute();
+        $total_records = stmt_fetch_assoc($total_stmt)['total'];
+        $total_stmt->close();
+
+        // QUERY for summary mode
+        $query = "
+            SELECT 
+                p.id, 
+                p.nomor_referensi, 
+                p.tanggal_penjualan, 
+                p.customer_name, 
+                p.total, 
+                p.payment_method,
+                p.status, 
+                u.username,
+                COALESCE(cogs.total_hpp, 0) as total_hpp,
+                (p.total - COALESCE(cogs.total_hpp, 0)) as profit
+            FROM penjualan p
+            LEFT JOIN users u ON p.created_by = u.id
+            LEFT JOIN (
+                SELECT 
+                    pd.penjualan_id, 
+                    SUM(CASE 
+                        WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
+                        WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
+                        ELSE 0 
+                    END) as total_hpp
+                FROM penjualan_details pd
+                LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
+                LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
+                GROUP BY pd.penjualan_id
+            ) as cogs ON p.id = cogs.penjualan_id
+            $where_sql 
+            ORDER BY p.tanggal_penjualan DESC, p.id DESC 
+            LIMIT ? OFFSET ?
+        ";
+    }
+
     $params[0] .= 'ii';
     $params[] = $limit;
     $params[] = $offset;

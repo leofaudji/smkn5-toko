@@ -2,6 +2,20 @@
 
 Seluruh pembaruan dan perbaikan pada aplikasi akan dicatat di sini untuk memudahkan Anda mengetahui fitur terbaru.
 
+## [1.5.0] - 2026-04-04
+### FITUR BARU
+- **Riwayat Transaksi WB Lengkap**: Menambahkan kolom Metode Pembayaran (Tunai, QRIS, Transfer, Saldo WB) pada modal riwayat transaksi di Laporan WB Tahunan untuk transparansi data yang lebih baik.
+
+### PERBAIKAN
+- **Sinkronisasi Nilai Persediaan**: Memperbaiki gap data antara tabel produk dan kartu stok dengan mewajibkan pencatatan log (kartu stok) saat Tambah Barang Baru dan Penyesuaian Stok (Opname).
+- **Akurasi Laporan Stok**: Menjalankan skrip rekonsiliasi otomatis untuk menyelaraskan riwayat stok lama dengan saldo fisik saat ini, memastikan laporan historis dan real-time selaras 100%.
+- **Navigasi Laporan (NaN Fix)**: Memperbaiki bug tampilan pagination "NaN sampai NaN" pada Laporan Penjualan per Item dengan mensinkronkan variabel metadata antara API dan Frontend.
+- **Optimasi Kasir (Qty)**: Memperbaiki bug "Qty 2" pada modul penjualan menggunakan sistem *Throttling* 300ms dan *Event Delegation* untuk stabilitas scan barcode yang lebih baik.
+- **Stok Konsinyasi Akurat**: Memperbaiki sinkronisasi stok barang konsinyasi agar otomatis berkurang secara real-time saat terjual, baik di menu Penjualan maupun Manajemen Konsinyasi.
+- **Stabilitas Edit Transaksi**: Menangani error `ArgumentCountError` dan typo pada kolom database (`price` -> `harga_jual`) saat melakukan edit transaksi penjualan.
+- **Validasi Pembayaran**: Memastikan data metode pembayaran dan akun tujuan tersimpan dengan benar di database saat pembaruan transaksi (Edit).
+- **Pembersihan Sistem**: Membersihkan ruang kerja dari puluhan file skrip sementara, debug, dan migrasi untuk menjaga performa dan kerapian kode aplikasi.
+
 ## [1.4.0] - 2026-04-01
 ### FITUR BARU
 - **Laporan Pembelian Lengkap**: Menambahkan menu Laporan Pembelian yang memungkinkan Anda melihat histori pengadaan barang lengkap dengan fitur filter tanggal, supplier, dan pencarian produk.

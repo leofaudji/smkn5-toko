@@ -57,7 +57,7 @@ function initLaporanPenjualanPage() {
 
             if (result.status !== 'success') throw new Error(result.message);
 
-            renderTable(result.data, page);
+            renderTable(result.data, page, viewType);
             renderTailwindPagination(paginationContainer, result.pagination, loadReport);
             renderSummary(result.pagination.summary);
             if (paginationInfo) {
@@ -72,85 +72,227 @@ function initLaporanPenjualanPage() {
         }
     }
 
-    function renderTable(data, currentPage) {
+    const getPaymentMethodName = (method) => {
+        const methods = {
+            'cash': 'Tunai/Cash',
+            'transfer': 'Transfer Bank',
+            'potong_saldo': 'Saldo WB',
+            'hutang': 'Hutang',
+            'qris': 'QRIS'
+        };
+        return methods[method] || method;
+    };
+
+    function renderTable(data, currentPage, viewType = 'summary') {
         if (data.length === 0) {
             tableBody.innerHTML = '<div class="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-200 p-4 rounded-md text-center">Tidak ada data penjualan pada periode ini.</div>';
             return;
         }
 
-        let tableHtml = `
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No. Faktur</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tanggal</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Kasir</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">HPP</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Profit</th>
-                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-        `;
-        let totalAmount = 0;
-        let totalHpp = 0;
-        let totalProfit = 0;
-
-        data.forEach(item => {
-            const isVoid = item.status === 'void';
-            const amount = isVoid ? 0 : parseFloat(item.total);
-            const hpp = isVoid ? 0 : parseFloat(item.total_hpp);
-            const profit = isVoid ? 0 : (item.total - item.total_hpp);
-
-            totalAmount += amount;
-            totalHpp += hpp;
-            totalProfit += profit;
-
-            const statusBadge = isVoid 
-                ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Dibatalkan</span>` 
-                : `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Selesai</span>`;
-            
-            const profitClass = profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
-            const profitValue = formatRupiah(profit);
-
-            tableHtml += `
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nomor_referensi}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${item.customer_name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.username}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">${formatRupiah(item.total)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-right">${formatRupiah(item.total_hpp)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${profitClass}">${profitValue}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center">${statusBadge}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                        <button class="text-primary hover:text-primary-700 btn-reprint" data-id="${item.id}" title="Cetak Ulang Struk">
-                            <i class="bi bi-printer"></i>
-                        </button>
-                    </td>
-                </tr>
+        let tableHtml = '';
+        
+        if (viewType === 'detail') {
+            tableHtml = `
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Transaksi</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Barang & Qty</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Harga & Subtotal</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Info Pembayaran</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             `;
-        });
 
-        const totalProfitClass = totalProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+            data.forEach(item => {
+                const isVoid = item.status === 'void';
+                const rowClass = isVoid ? 'opacity-50 line-through grayscale bg-gray-50' : '';
+                
+                tableHtml += `
+                    <tr class="hover:bg-gray-100 dark:hover:bg-gray-700/50 ${rowClass}">
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm font-semibold text-gray-900 dark:text-white">${item.nomor_referensi}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">${new Date(item.tanggal_penjualan).toLocaleString('id-ID', {dateStyle: 'short', timeStyle: 'short'})}</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-gray-900 dark:text-white font-medium">${item.deskripsi_item}</div>
+                            <div class="text-xs text-gray-500">Jumlah: <span class="font-bold">${item.quantity}</span></div>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <div class="text-xs text-gray-500">@ ${formatRupiah(item.price)}</div>
+                            <div class="text-sm font-bold text-gray-900 dark:text-white">${formatRupiah(item.item_total)}</div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">${getPaymentMethodName(item.payment_method)}</div>
+                            <div class="text-[10px] text-gray-500">Kasir: ${item.username}</div>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            tableHtml = `
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Transaksi</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Pelanggan & Kasir</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Status & Bayar</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Analisis Keuangan</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-20">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            `;
+
+            data.forEach(item => {
+                const isVoid = item.status === 'void';
+                const amount = isVoid ? 0 : parseFloat(item.total);
+                const hpp = isVoid ? 0 : parseFloat(item.total_hpp);
+                const profit = isVoid ? 0 : (item.total - item.total_hpp);
+
+                const statusBadge = isVoid 
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800">VOID</span>` 
+                    : `<span class="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">OK</span>`;
+                
+                const profitClass = profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                const rowClass = isVoid ? 'bg-gray-50 dark:bg-gray-900/20' : '';
+
+                tableHtml += `
+                    <tr class="hover:bg-gray-100 dark:hover:bg-gray-700/50 ${rowClass}">
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm font-bold text-gray-900 dark:text-white">${item.nomor_referensi}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-gray-900 dark:text-white">${item.customer_name || 'Umum'}</div>
+                            <div class="text-xs text-gray-500">Kasir: ${item.username}</div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">${getPaymentMethodName(item.payment_method)}</div>
+                            ${statusBadge}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <div class="text-sm font-bold text-gray-900 dark:text-white">${formatRupiah(item.total)}</div>
+                            <div class="text-[10px] text-gray-400">HPP: ${formatRupiah(item.total_hpp)}</div>
+                            <div class="text-[10px] font-bold ${profitClass}">Profit: ${formatRupiah(profit)}</div>
+                        </td>
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <div class="flex items-center justify-center space-x-3">
+                                <button class="text-blue-600 hover:text-blue-800 btn-view-detail" data-id="${item.id}" title="Lihat Detail">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="text-primary hover:text-primary-700 btn-reprint" data-id="${item.id}" title="Cetak Ulang Struk">
+                                    <i class="bi bi-printer"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
 
         tableHtml += `
             </tbody>
-            <tfoot class="bg-gray-50 dark:bg-gray-800/50 font-bold border-t-2 border-gray-200 dark:border-gray-700">
-                <tr>
-                    <td colspan="4" class="px-6 py-4 text-sm text-gray-900 dark:text-white text-right uppercase tracking-wider">Grand Total (Halaman Ini)</td>
-                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-white text-right">${formatRupiah(totalAmount)}</td>
-                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-white text-right">${formatRupiah(totalHpp)}</td>
-                    <td class="px-6 py-4 text-sm text-right ${totalProfitClass}">${formatRupiah(totalProfit)}</td>
-                    <td colspan="2"></td>
-                </tr>
-            </tfoot>
         </table>`;
         tableBody.innerHTML = tableHtml;
     }
+
+    const modal = document.getElementById('modal-detail-penjualan');
+    const modalBody = document.getElementById('modal-detail-body');
+    const modalFaktur = document.getElementById('detail-nomor-faktur');
+
+    async function showTransactionDetail(id) {
+        modalBody.innerHTML = `<div class="text-center p-5"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></div>`;
+        modalFaktur.textContent = '...';
+        modal.classList.remove('hidden');
+
+        try {
+            const response = await fetch(`${basePath}/api/penjualan?action=get_detail&id=${id}`);
+            const result = await response.json();
+
+            if (!result.success) throw new Error(result.message);
+
+            const detail = result.data;
+            modalFaktur.textContent = `#${detail.nomor_referensi}`;
+
+            let itemsHtml = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4 text-sm mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
+                        <div>
+                            <p class="text-gray-500">Tanggal:</p>
+                            <p class="font-medium text-gray-900 dark:text-white">${new Date(detail.tanggal_penjualan).toLocaleString('id-ID')}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Customer:</p>
+                            <p class="font-medium text-gray-900 dark:text-white">${detail.customer_name || 'Umum'}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Kasir:</p>
+                            <p class="font-medium text-gray-900 dark:text-white">${detail.created_by_username}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Metode Bayar:</p>
+                            <p class="font-medium text-gray-900 dark:text-white">${getPaymentMethodName(detail.payment_method)}</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead>
+                                <tr class="text-left text-xs font-bold text-gray-500 uppercase">
+                                    <th class="pb-2">Barang</th>
+                                    <th class="pb-2 text-center">Qty</th>
+                                    <th class="pb-2 text-right">Harga</th>
+                                    <th class="pb-2 text-right">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y dark:divide-gray-700">
+            `;
+
+            detail.items.forEach(item => {
+                itemsHtml += `
+                    <tr>
+                        <td class="py-2 text-gray-900 dark:text-white">${item.nama_barang}</td>
+                        <td class="py-2 text-center text-gray-500 dark:text-gray-300">${item.quantity}</td>
+                        <td class="py-2 text-right text-gray-500 dark:text-gray-300">${formatRupiah(item.price)}</td>
+                        <td class="py-2 text-right text-gray-900 dark:text-white font-medium">${formatRupiah(item.subtotal)}</td>
+                    </tr>
+                `;
+            });
+
+            itemsHtml += `
+                            </tbody>
+                            <tfoot class="border-t-2 dark:border-gray-600">
+                                <tr class="font-bold text-gray-900 dark:text-white">
+                                    <td colspan="3" class="pt-4 text-right">Total Akhir:</td>
+                                    <td class="pt-4 text-right text-lg text-primary">${formatRupiah(detail.total)}</td>
+                                </tr>
+                                <tr class="text-sm text-gray-500 dark:text-gray-400">
+                                    <td colspan="3" class="pt-1 text-right">Bayar:</td>
+                                    <td class="pt-1 text-right">${formatRupiah(detail.bayar)}</td>
+                                </tr>
+                                <tr class="text-sm text-gray-500 dark:text-gray-400">
+                                    <td colspan="3" class="pt-1 text-right">Kembali:</td>
+                                    <td class="pt-1 text-right">${formatRupiah(detail.kembali)}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            modalBody.innerHTML = itemsHtml;
+
+        } catch (error) {
+            modalBody.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-md">Error: ${error.message}</div>`;
+        }
+    }
+
+    const closeModal = () => modal.classList.add('hidden');
+    document.getElementById('close-modal-detail-btn').onclick = closeModal;
+    document.getElementById('close-modal-detail-footer-btn').onclick = closeModal;
+    document.getElementById('close-modal-detail-overlay').onclick = closeModal;
 
     function renderSummary(summary) {
         if (!summary) {
@@ -293,6 +435,7 @@ function initLaporanPenjualanPage() {
         window.open(url, '_blank');
     });
 
+
     const printStrukWindow = async (penjualanId) => {
         try {
             const response = await fetch(`${basePath}/api/penjualan?action=get_detail&id=${penjualanId}`);
@@ -354,6 +497,7 @@ function initLaporanPenjualanPage() {
                         <div>Tgl: ${new Date(detail.tanggal_penjualan).toLocaleString('id-ID')}</div>
                         <div>Kasir: ${detail.created_by_username}</div>
                         <div>Pelanggan: ${detail.customer_name}</div>
+                        <div>Metode: ${getPaymentMethodName(detail.payment_method)}</div>
                     </div>
                     <table class="items-table mb-1">
                         ${itemsHtml}
@@ -392,6 +536,11 @@ function initLaporanPenjualanPage() {
         const reprintBtn = e.target.closest('.btn-reprint');
         if (reprintBtn) {
             printStrukWindow(reprintBtn.dataset.id);
+        }
+
+        const viewBtn = e.target.closest('.btn-view-detail');
+        if (viewBtn) {
+            showTransactionDetail(viewBtn.dataset.id);
         }
     });
 

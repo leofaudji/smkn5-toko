@@ -148,9 +148,19 @@ function initLaporanWbTahunanPage() {
 
             if (result.status === 'success') {
                 if (result.data.length === 0) {
-                    historyBody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-gray-500">Tidak ada riwayat transaksi.</td></tr>';
+                    historyBody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-gray-500">Tidak ada riwayat transaksi.</td></tr>';
                 } else {
-                    historyBody.innerHTML = result.data.map(item => `
+                    historyBody.innerHTML = result.data.map(item => {
+                        const metodeLabels = {
+                            'cash': 'Tunai',
+                            'transfer': 'Transfer',
+                            'qris': 'QRIS',
+                            'potong_saldo': 'Saldo WB',
+                            'hutang': 'Hutang'
+                        };
+                        const metodeLabel = metodeLabels[item.metode_pembayaran] || item.metode_pembayaran || '-';
+                        
+                        return `
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                             <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${formatDate(item.tanggal)}</td>
                             <td class="px-4 py-2 whitespace-nowrap text-sm">
@@ -161,12 +171,18 @@ function initLaporanWbTahunanPage() {
                             <td class="px-4 py-2 whitespace-nowrap text-sm text-right font-medium ${item.jenis === 'setor' ? 'text-green-600' : 'text-blue-600'}">
                                 ${formatRupiah(item.jumlah)}
                             </td>
+                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                                <span class="flex items-center gap-1">
+                                    <i class="bi bi-${item.metode_pembayaran === 'cash' ? 'cash-stack' : (item.metode_pembayaran === 'transfer' ? 'bank' : 'qr-code')} text-xs"></i>
+                                    ${metodeLabel}
+                                </span>
+                            </td>
                             <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">${item.keterangan || '-'}</td>
-                        </tr>
-                    `).join('');
+                        </tr>`;
+                    }).join('');
                 }
             } else {
-                historyBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">${result.message}</td></tr>`;
+                historyBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">${result.message}</td></tr>`;
             }
         } catch (error) {
             console.error(error);

@@ -60,6 +60,7 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
                     p.tanggal_penjualan, 
                     p.customer_name, 
                     p.status, 
+                    p.payment_method,
                     u.username,
                     pd.deskripsi_item,
                     pd.quantity,
@@ -77,6 +78,7 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
                     p.tanggal_penjualan, 
                     p.customer_name, 
                     p.total, 
+                    p.payment_method,
                     p.status, 
                     u.username
                 FROM penjualan p 
@@ -91,27 +93,40 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         return stmt_fetch_all($stmt);
     }
 
+    private function getPaymentMethodName(string $method): string
+    {
+        $methods = [
+            'cash' => 'Tunai',
+            'transfer' => 'Transfer',
+            'potong_saldo' => 'Sal. WB',
+            'hutang' => 'Piutang'
+        ];
+        return $methods[$method] ?? $method;
+    }
+
     private function renderSummary(array $data): void
     {
-        // No.Faktur(35), Tgl(35), Cust(55), Kasir(30), Total(35)
-        $w = [35, 35, 55, 30, 35];
+        // Faktur(25), Tgl(30), Cust(40), Bayar(25), Kasir(30), Total(40)
+        $w = [25, 30, 40, 25, 30, 40];
 
         $this->pdf->SetFont('Helvetica', 'B', 8);
         $this->pdf->SetFillColor(230, 230, 230);
-        $this->pdf->Cell($w[0], 8, 'No. Faktur', 1, 0, 'C', true);
+        $this->pdf->Cell($w[0], 8, 'Faktur', 1, 0, 'C', true);
         $this->pdf->Cell($w[1], 8, 'Tanggal', 1, 0, 'C', true);
         $this->pdf->Cell($w[2], 8, 'Customer', 1, 0, 'C', true);
-        $this->pdf->Cell($w[3], 8, 'Kasir', 1, 0, 'C', true);
-        $this->pdf->Cell($w[4], 8, 'Total', 1, 1, 'C', true);
+        $this->pdf->Cell($w[3], 8, 'Bayar', 1, 0, 'C', true);
+        $this->pdf->Cell($w[4], 8, 'Kasir', 1, 0, 'C', true);
+        $this->pdf->Cell($w[5], 8, 'Total', 1, 1, 'C', true);
 
         $this->pdf->SetFont('Helvetica', '', 8);
         foreach ($data as $row) {
-            $statusText = ($row['status'] === 'void' ? ' (VOID)' : '');
+            $statusText = ($row['status'] === 'void' ? ' (V)' : '');
             $this->pdf->Cell($w[0], 7, $row['nomor_referensi'] . $statusText, 1);
-            $this->pdf->Cell($w[1], 7, date('d/m/Y H:i', strtotime($row['tanggal_penjualan'])), 1, 0, 'C');
-            $this->pdf->Cell($w[2], 7, substr($row['customer_name'] ?? 'Umum', 0, 35), 1);
-            $this->pdf->Cell($w[3], 7, $row['username'], 1);
-            $this->pdf->Cell($w[4], 7, format_currency_pdf($row['total']), 1, 1, 'R');
+            $this->pdf->Cell($w[1], 7, date('d/m/y H:i', strtotime($row['tanggal_penjualan'])), 1, 0, 'C');
+            $this->pdf->Cell($w[2], 7, substr($row['customer_name'] ?? 'Umum', 0, 25), 1);
+            $this->pdf->Cell($w[3], 7, $this->getPaymentMethodName($row['payment_method']), 1, 0, 'C');
+            $this->pdf->Cell($w[4], 7, substr($row['username'], 0, 15), 1);
+            $this->pdf->Cell($w[5], 7, format_currency_pdf($row['total']), 1, 1, 'R');
             
             if ($this->pdf->GetY() > 260) $this->pdf->AddPage('P');
         }
@@ -120,27 +135,29 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
 
     private function renderDetail(array $data): void
     {
-        // Tgl(25), Faktur(30), Barang(65), Qty(10), Harga(30), Total(30)
-        $w = [25, 30, 65, 10, 30, 30];
+        // Tgl(22), Faktur(28), Barang(55), Qty(10), Harga(25), Total(25), Bayar(25)
+        $w = [22, 28, 55, 10, 25, 25, 25];
 
         $this->pdf->SetFont('Helvetica', 'B', 7);
         $this->pdf->SetFillColor(230, 230, 230);
         $this->pdf->Cell($w[0], 8, 'Tanggal', 1, 0, 'C', true);
-        $this->pdf->Cell($w[1], 8, 'No. Faktur', 1, 0, 'C', true);
+        $this->pdf->Cell($w[1], 8, 'Faktur', 1, 0, 'C', true);
         $this->pdf->Cell($w[2], 8, 'Barang', 1, 0, 'C', true);
         $this->pdf->Cell($w[3], 8, 'Qty', 1, 0, 'C', true);
         $this->pdf->Cell($w[4], 8, 'Harga', 1, 0, 'C', true);
-        $this->pdf->Cell($w[5], 8, 'Total', 1, 1, 'C', true);
+        $this->pdf->Cell($w[5], 8, 'Total', 1, 0, 'C', true);
+        $this->pdf->Cell($w[6], 8, 'Bayar', 1, 1, 'C', true);
 
         $this->pdf->SetFont('Helvetica', '', 7);
         foreach ($data as $row) {
             $statusText = ($row['status'] === 'void' ? '*' : '');
             $this->pdf->Cell($w[0], 7, date('d/m/y', strtotime($row['tanggal_penjualan'])), 1, 0, 'C');
             $this->pdf->Cell($w[1], 7, $row['nomor_referensi'] . $statusText, 1);
-            $this->pdf->Cell($w[2], 7, ' ' . substr($row['deskripsi_item'], 0, 48), 1);
+            $this->pdf->Cell($w[2], 7, ' ' . substr($row['deskripsi_item'], 0, 40), 1);
             $this->pdf->Cell($w[3], 7, $row['quantity'], 1, 0, 'C');
             $this->pdf->Cell($w[4], 7, format_currency_pdf($row['price']), 1, 0, 'R');
-            $this->pdf->Cell($w[5], 7, format_currency_pdf($row['item_total']), 1, 1, 'R');
+            $this->pdf->Cell($w[5], 7, format_currency_pdf($row['item_total']), 1, 0, 'R');
+            $this->pdf->Cell($w[6], 7, $this->getPaymentMethodName($row['payment_method']), 1, 1, 'C');
 
             if ($this->pdf->GetY() > 260) $this->pdf->AddPage('P');
         }
