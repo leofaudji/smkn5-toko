@@ -232,6 +232,7 @@ try {
             $inventory_account_id = !empty($data['inventory_account_id']) ? (int) $data['inventory_account_id'] : null;
             $cogs_account_id = !empty($data['cogs_account_id']) ? (int) $data['cogs_account_id'] : null;
             $revenue_account_id = !empty($data['sales_account_id']) ? (int) $data['sales_account_id'] : null;
+            $expired_date = !empty($data['expired_date']) ? $data['expired_date'] : null;
 
             if (empty($nama_barang) || $harga_beli < 0 || $harga_jual < 0) {
                 throw new Exception("Data barang tidak lengkap atau tidak valid.");
@@ -240,16 +241,16 @@ try {
             if ($action === 'update') { // Update
                 $id = (int) ($data['id'] ?? 0);
                 // Saat update, jangan ubah stok. Stok diubah melalui penyesuaian/pembelian.
-                $stmt = $conn->prepare("UPDATE items SET nama_barang=?, sku=?, barcode=?, category_id=?, harga_beli=?, harga_jual=?, inventory_account_id=?, cogs_account_id=?, revenue_account_id=? WHERE id=? AND user_id=?");
-                $stmt->bind_param('sssiddiiiii', $nama_barang, $sku, $barcode, $category_id, $harga_beli, $harga_jual, $inventory_account_id, $cogs_account_id, $revenue_account_id, $id, $user_id);
+                $stmt = $conn->prepare("UPDATE items SET nama_barang=?, sku=?, barcode=?, category_id=?, harga_beli=?, harga_jual=?, inventory_account_id=?, cogs_account_id=?, revenue_account_id=?, expired_date=? WHERE id=? AND user_id=?");
+                $stmt->bind_param('sssiddiiissi', $nama_barang, $sku, $barcode, $category_id, $harga_beli, $harga_jual, $inventory_account_id, $cogs_account_id, $revenue_account_id, $expired_date, $id, $user_id);
             } else { // Add
                 // Saat add, ambil stok dari form.
                 $stok = (int) ($data['stok'] ?? 0);
                 if ($stok < 0) {
                     throw new Exception("Stok awal tidak boleh negatif.");
                 }
-                $stmt = $conn->prepare("INSERT INTO items (user_id, nama_barang, sku, barcode, category_id, harga_beli, harga_jual, stok, inventory_account_id, cogs_account_id, revenue_account_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param('isssiddiiii', $user_id, $nama_barang, $sku, $barcode, $category_id, $harga_beli, $harga_jual, $stok, $inventory_account_id, $cogs_account_id, $revenue_account_id);
+                $stmt = $conn->prepare("INSERT INTO items (user_id, nama_barang, sku, barcode, category_id, harga_beli, harga_jual, stok, inventory_account_id, cogs_account_id, revenue_account_id, expired_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('isssiddiiiis', $user_id, $nama_barang, $sku, $barcode, $category_id, $harga_beli, $harga_jual, $stok, $inventory_account_id, $cogs_account_id, $revenue_account_id, $expired_date);
             }
             $stmt->execute();
             $new_item_id = $conn->insert_id;

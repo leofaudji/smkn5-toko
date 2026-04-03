@@ -155,7 +155,7 @@ async function loadItemsList(page = 1) {
     const categoryFilter = document.getElementById('filter-category')?.value || '';
     
     const params = new URLSearchParams({ page, limit: 15, search, stok_filter: stokFilter, category_filter: categoryFilter });
-    tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-5"><div class="spinner-border"></div></td></tr>`;
 
     try {
         const response = await fetch(`${basePath}/api/stok?${params.toString()}`);
@@ -168,15 +168,49 @@ async function loadItemsList(page = 1) {
                 const nilaiStok = parseFloat(item.harga_beli) * parseInt(item.stok);
                 const row = `
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nama_barang}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono">
-                            <div>${item.sku || '-'}</div>
-                            <div class="text-[10px] text-gray-400">${item.barcode || ''}</div>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                            <div class="flex flex-col">
+                                <span class="font-bold text-base text-primary-600 dark:text-primary-400">${item.nama_barang}</span>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="px-2 inline-flex text-[10px] leading-4 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                        ${item.nama_kategori || 'Tanpa Kategori'}
+                                    </span>
+                                    <span class="text-[10px] text-gray-400 font-mono">
+                                        ${item.sku || '-'} ${item.barcode ? `| ${item.barcode}` : ''}
+                                    </span>
+                                </div>
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">${item.nama_kategori || 'Tanpa Kategori'}</span></td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatCurrencyAccounting(item.harga_beli)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatCurrencyAccounting(item.harga_jual)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                            <div class="flex flex-col text-xs space-y-1">
+                                <div class="flex justify-end gap-2">
+                                    <span class="text-gray-400">Beli:</span>
+                                    <span class="text-gray-500 italic">${formatCurrencyAccounting(item.harga_beli)}</span>
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                    <span class="text-gray-400 font-medium">Jual:</span>
+                                    <span class="font-bold text-gray-900 dark:text-white text-sm">${formatCurrencyAccounting(item.harga_jual)}</span>
+                                </div>
+                            </div>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white text-right">${item.stok}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
+                            ${(() => {
+                                if (!item.expired_date) return '<span class="text-gray-400">-</span>';
+                                const expDate = new Date(item.expired_date);
+                                const today = new Date();
+                                const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+                                
+                                let badgeClass = 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+                                if (diffDays < 0) {
+                                    badgeClass = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+                                } else if (diffDays <= 30) {
+                                    badgeClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+                                }
+                                
+                                return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}">${item.expired_date}</span>`;
+                            })()}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatCurrencyAccounting(nilaiStok)}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                             <div class="inline-flex rounded-md shadow-sm">
@@ -196,7 +230,7 @@ async function loadItemsList(page = 1) {
                 tableBody.insertAdjacentHTML('beforeend', row);
             });
         } else {
-            tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-500 py-10">Tidak ada barang ditemukan.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500 py-10">Tidak ada barang ditemukan.</td></tr>';
         }
         renderPagination(paginationContainer, result.pagination, loadItemsList);
         if (paginationInfo && result.pagination) {
@@ -311,6 +345,9 @@ async function handleEditItem(id) {
             document.getElementById('item-id').value = item.id;
             document.getElementById('item-action').value = 'update';
             document.getElementById('stok').disabled = true;
+            if (document.getElementById('expired_date')) {
+                document.getElementById('expired_date').value = item.expired_date || '';
+            }
             document.getElementById('stok-help-text').textContent = 'Stok tidak dapat diubah dari sini. Gunakan fitur "Penyesuaian Stok" atau "Stok Opname".';
             openModal('itemModal');
         } else {
