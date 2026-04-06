@@ -70,9 +70,11 @@ function initPenjualanPage() {
 
     // Inisialisasi Flatpickr untuk input tanggal di modal (Buat Baru)
     const tanggalPicker = flatpickr(tanggalInput, {
-        dateFormat: "d-m-Y", // Format DD-MM-YYYY
+        enableTime: true,
+        dateFormat: "d-m-Y H:i:s", // Format DD-MM-YYYY HH:mm:ss
+        time_24hr: true,
         defaultDate: "today",
-        allowInput: true // Memungkinkan input manual dari keyboard
+        allowInput: true
     });
 
     // Inisialisasi Flatpickr untuk Filter Daftar Transaksi (Area Daftar)
@@ -828,13 +830,15 @@ function initPenjualanPage() {
 
         // Helper function untuk mengubah format tanggal menjadi YYYY-MM-DD yang dibutuhkan oleh database
         const formatDateForDB = (date) => {
-            // Jika tidak ada tanggal yang dipilih, gunakan tanggal hari ini sebagai fallback
-            if (!date) return new Date().toISOString().slice(0, 10);
+            if (!date) return new Date().toISOString().slice(0, 19).replace('T', ' ');
             const d = new Date(date);
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const seconds = String(d.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         };
         const formData = {
             id: id || null,
@@ -1076,7 +1080,11 @@ function initPenjualanPage() {
                 document.getElementById('penjualanModalLabel').textContent = 'Edit Transaksi #' + detail.nomor_referensi;
                 
                 // Populate Headers
-                tanggalPicker.setDate(detail.tanggal_penjualan);
+                if (detail.tanggal_penjualan) {
+                    // Gunakan format ISO agar parsing lebih konsisten di berbagai browser
+                    const dbDate = detail.tanggal_penjualan.replace(' ', 'T');
+                    tanggalPicker.setDate(new Date(dbDate));
+                }
                 document.getElementById('member_search').value = detail.customer_name;
                 document.getElementById('anggota_id').value = detail.customer_id;
                 
