@@ -556,6 +556,29 @@ function formatDate(dateString) {
     }
 }
 
+/**
+ * Formats a date string into standard datetime format (DD-MM-YYYY HH:mm).
+ * @param {string} dateString The date/datetime string to format.
+ * @returns {string} The formatted datetime string.
+ */
+function formatDateTime(dateString) {
+    if (!dateString || dateString.startsWith('0000')) return '';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return dateString;
+        }
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}-${month}-${year} ${hours}:${minutes}`;
+    } catch (e) {
+        return dateString;
+    }
+}
+
 function timeSince(date) {
     const seconds = Math.floor((new Date() - new Date(date)) / 1000);
     let interval = seconds / 31536000;

@@ -169,6 +169,30 @@ if (!$is_spa_request) {
                     </div>
                 </div>
 
+                <!-- Row 4: Product Performance (Performa Barang) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Barang Terlaris (Fast Moving) -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100" id="widget-fast_moving">
+                        <div class="flex justify-between items-center mb-4">
+                            <h5 class="font-bold text-gray-800">5 Barang Terlaris (Bulan Ini)</h5>
+                            <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">Fast Moving</span>
+                        </div>
+                        <div class="relative h-64 w-full">
+                            <canvas id="dashboard-fast-moving-chart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Barang Mandeg (Slow Moving) -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100" id="widget-slow_moving">
+                        <div class="flex justify-between items-center mb-4">
+                            <h5 class="font-bold text-gray-800">5 Barang Mandeg (Stok Mengendap)</h5>
+                            <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-semibold">Slow Moving</span>
+                        </div>
+                        <div class="relative h-64 w-full">
+                            <canvas id="dashboard-slow-moving-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Recent Transactions (Full Width) -->
                 <div class="grid grid-cols-1 gap-6 mb-8">
                     <!-- Tabel Transaksi Terbaru (lebar 2 kolom) -->
@@ -217,6 +241,52 @@ if (!$is_spa_request) {
                     Simpan Perubahan
                 </button>
                 <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" data-modal-close="customizeDashboardModal">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Audit Neraca -->
+<div id="neracaAuditModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" data-modal-close="neracaAuditModal"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-bold text-red-600 mb-4 flex items-center gap-2">
+                    <i class="bi bi-search"></i> Diagnosa Ketidakseimbangan Neraca
+                </h3>
+                <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                    <p class="text-sm text-red-700">
+                        Sistem mendeteksi adanya ketidakseimbangan antara <strong>Aset</strong> dan <strong>Liabilitas + Ekuitas</strong>. Berikut adalah rincian transaksi yang menyebabkan perbedaan tersebut:
+                    </p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referensi</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Keterangan</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Debit</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Kredit</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Selisih</th>
+                                <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="neraca-audit-tbody" class="bg-white divide-y divide-gray-200 text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 text-xs text-gray-500 italic">
+                    * Menampilkan maksimal 20 transaksi terbaru yang tidak seimbang.
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 flex justify-end">
+                <button type="button" class="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:text-sm" data-modal-close="neracaAuditModal">
                     Tutup
                 </button>
             </div>

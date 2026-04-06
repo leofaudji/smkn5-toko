@@ -145,7 +145,7 @@ function initPenjualanPage() {
                     </div>
                     <div class="border-bottom mb-1" style="padding-bottom: 5px;">
                         <div>No: ${detail.nomor_referensi}</div>
-                        <div>Tgl: ${formatDate(detail.tanggal_penjualan)}</div>
+                        <div>Tgl: ${formatDateTime(detail.tanggal_penjualan)}</div>
                         <div>Kasir: ${detail.created_by_username}</div>
                         <div>Pelanggan: ${detail.customer_name}</div>
                         <div>Metode: ${getPaymentMethodName(detail.payment_method)}</div>
@@ -260,7 +260,7 @@ function initPenjualanPage() {
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-calendar-event mr-1 text-gray-400"></i> <span class="${textDecoration}">${formatDate(item.tanggal_penjualan)}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-calendar-event mr-1 text-gray-400"></i> <span class="${textDecoration}">${formatDateTime(item.tanggal_penjualan)}</span></td>
                     <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-person mr-1 text-gray-400"></i> <span class="${textDecoration}">${item.customer_name}</span></td>
                     <td class="px-6 py-4 whitespace-nowrap text-right">
                         <span class="font-bold ${isVoid ? 'text-gray-500' : 'text-green-600'} ${textDecoration}">${formatRupiah(item.total)}</span>

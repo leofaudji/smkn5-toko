@@ -161,6 +161,55 @@ try {
         'data' => array_values($daily_profits)
     ];
 
+    // 6. Data Performa Barang (Fast Moving vs Slow Moving)
+    // Fast Moving: Top 5 by Quantity in selected period
+    $stmt_fast = $conn->prepare("
+        SELECT i.nama_barang as label, SUM(pd.quantity) as value
+        FROM penjualan_details pd
+        JOIN items i ON pd.item_id = i.id
+        JOIN penjualan p ON pd.penjualan_id = p.id
+        WHERE pd.item_type = 'normal' AND p.tanggal_penjualan BETWEEN ? AND ?
+        GROUP BY i.id, i.nama_barang
+        ORDER BY value DESC
+        LIMIT 5
+    ");
+    $stmt_fast->bind_param('ss', $start_of_month, $end_of_month);
+    $stmt_fast->execute();
+    $fast_moving = stmt_fetch_all($stmt_fast);
+    $stmt_fast->close();
+
+    // Slow Moving: Top 5 with stock > 0 but low sales in selected period
+    $stmt_slow = $conn->prepare("
+        SELECT i.nama_barang as label, i.stok as value
+        FROM items i
+        LEFT JOIN (
+            SELECT pd.item_id, SUM(pd.quantity) as qty_sold
+            FROM penjualan_details pd
+            JOIN penjualan p ON pd.penjualan_id = p.id
+            WHERE pd.item_type = 'normal' AND p.tanggal_penjualan BETWEEN ? AND ?
+            GROUP BY pd.item_id
+        ) sales ON i.id = sales.item_id
+        WHERE i.stok > 0
+        GROUP BY i.id, i.nama_barang, i.stok
+        ORDER BY COALESCE(sales.qty_sold, 0) ASC, i.stok DESC
+        LIMIT 5
+    ");
+    $stmt_slow->bind_param('ss', $start_of_month, $end_of_month);
+    $stmt_slow->execute();
+    $slow_moving = stmt_fetch_all($stmt_slow);
+    $stmt_slow->close();
+
+    $response_data['performa_barang'] = [
+        'fast_moving' => [
+            'labels' => array_column($fast_moving, 'label'),
+            'data' => array_map('floatval', array_column($fast_moving, 'value'))
+        ],
+        'slow_moving' => [
+            'labels' => array_column($slow_moving, 'label'),
+            'data' => array_map('intval', array_column($slow_moving, 'value'))
+        ]
+    ];
+
     echo json_encode(['status' => 'success', 'data' => $response_data]);
 
 } catch (Exception $e) {

@@ -11,6 +11,9 @@ function initDashboardPage() {
     let expenseChartInstance = null;
     let profitGrowthChartInstance = null;
     let inventoryGrowthChartInstance = null;
+    let fastMovingChartInstance = null;
+    let slowMovingChartInstance = null;
+    let currentImbalancedGroups = []; // Cache data untuk audit neraca
 
     // Fungsi untuk membuka/menutup modal kustomisasi (non-bootstrap)
     const openCustomizeModal = () => { populateCustomizeModal(); customizeModalEl.classList.remove('hidden'); };
@@ -23,6 +26,8 @@ function initDashboardPage() {
         profit_loss_trend: { name: 'Grafik Tren Arus Kas', default: true },
         profit_growth: { name: 'Grafik Pertumbuhan Laba', default: true },
         inventory_growth: { name: 'Grafik Pertumbuhan Nilai Persediaan', default: true },
+        fast_moving: { name: 'Grafik Barang Terlaris', default: true },
+        slow_moving: { name: 'Grafik Barang Mandeg', default: true },
         expense_category: { name: 'Grafik Kategori Pengeluaran', default: true },
         recent_transactions: { name: 'Tabel Transaksi Terbaru', default: true },
     };
@@ -128,8 +133,10 @@ function initDashboardPage() {
             // --- Render Status Keseimbangan Neraca ---
             const balanceStatusContent = document.getElementById('balance-status-content');
             if (balanceStatusContent) {
-                const isBalanced = data.balance_status?.is_balanced;
+                const balanceData = data.balance_status || {};
+                const isBalanced = balanceData.is_balanced;
                 let contentHtml = '';
+                
                 if (isBalanced === true) {
                     contentHtml = `
                         <div class="text-center">
@@ -140,16 +147,117 @@ function initDashboardPage() {
                         </div>
                     `;
                 } else {
+                    currentImbalancedGroups = balanceData.imbalanced_groups || [];
+                    const selisih = Math.abs(balanceData.selisih || 0);
                     contentHtml = `
                         <div class="text-center">
-                            <div class="text-6xl text-red-500 mb-2"><i class="bi bi-x-octagon-fill"></i></div>
+                            <div class="text-6xl text-red-500 mb-2"><i class="bi bi-exclamation-triangle-fill"></i></div>
                             <h6 class="font-bold text-lg text-red-700">Tidak Seimbang</h6>
-                            <p class="text-sm text-gray-500 mt-1">Periksa kembali entri jurnal Anda.</p>
-                            <a href="${basePath}/laporan" class="text-sm text-primary hover:underline mt-3 inline-block">Lihat Laporan Neraca</a>
+                            <p class="text-sm text-red-600 font-semibold">Selisih: ${currencyFormatter.format(selisih)}</p>
+                            <p class="text-xs text-gray-500 mt-1">Sistem mendeteksi adanya selisih pada pembukuan.</p>
+                            <div class="flex flex-col gap-2 mt-4">
+                                <button id="btn-audit-neraca" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition">
+                                    <i class="bi bi-search mr-1"></i> Cari Penyebab
+                                </button>
+                                <a href="${basePath}/laporan" class="text-sm text-primary hover:underline">Buka Laporan Neraca</a>
+                            </div>
                         </div>
                     `;
                 }
                 balanceStatusContent.innerHTML = contentHtml;
+
+                // Event listener untuk tombol audit
+                const auditBtn = document.getElementById('btn-audit-neraca');
+                if (auditBtn) {
+                    auditBtn.addEventListener('click', () => {
+                        const auditBody = document.getElementById('neraca-audit-tbody');
+                        const auditModal = document.getElementById('neracaAuditModal');
+                        if (auditBody) {
+                            auditBody.innerHTML = '';
+                            if (currentImbalancedGroups.length === 0) {
+                                auditBody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Sistem tidak menemukan transaksi spesifik yang tidak seimbang (Dr != Cr). Masalah mungkin terletak pada saldo awal atau akun yang hilang.</td></tr>';
+                            } else {
+                                currentImbalancedGroups.forEach(g => {
+                                    const tr = document.createElement('tr');
+                                    tr.className = 'hover:bg-gray-50 transition-colors';
+                                    tr.innerHTML = `
+                                        <td class="px-4 py-3 whitespace-nowrap">${new Date(g.tanggal).toLocaleDateString('id-ID')}</td>
+                                        <td class="px-4 py-3 font-mono text-xs text-gray-600">${g.ref_type.toUpperCase()}-${g.ref_id}</td>
+                                        <td class="px-4 py-3 max-w-xs truncate" title="${g.keterangan}">${g.keterangan}</td>
+                                        <td class="px-4 py-3 text-right">${currencyFormatter.format(g.total_debit)}</td>
+                                        <td class="px-4 py-3 text-right">${currencyFormatter.format(g.total_kredit)}</td>
+                                        <td class="px-4 py-3 text-right text-red-600 font-bold">${currencyFormatter.format(g.selisih)}</td>
+                                        <td class="px-4 py-3 text-center">
+                                            <div class="flex items-center justify-center gap-3">
+                                                <button class="btn-repost text-red-600 hover:text-red-800 transition" 
+                                                        title="Posting Ulang Otomatis"
+                                                        data-type="${g.ref_type}" data-id="${g.ref_id}">
+                                                    <i class="bi bi-arrow-repeat text-lg"></i>
+                                                </button>
+                                                <a href="${basePath}/daftar-jurnal#JRN-${g.ref_id}" 
+                                                   class="text-primary hover:text-blue-700 transition" 
+                                                   title="Edit Manual">
+                                                    <i class="bi bi-pencil-square text-lg"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    `;
+                                    auditBody.appendChild(tr);
+                                });
+
+                                // Event Delegation untuk tombol repost
+                                auditBody.querySelectorAll('.btn-repost').forEach(btn => {
+                                    btn.addEventListener('click', async (e) => {
+                                        const refType = btn.dataset.type;
+                                        const refId = btn.dataset.id;
+
+                                        const { isConfirmed } = await Swal.fire({
+                                            title: 'Posting Ulang Transaksi?',
+                                            text: `Sistem akan menghapus entri lama di Buku Besar untuk ${refType.toUpperCase()} #${refId} dan menulis ulang berdasarkan data sumber. Lanjutkan?`,
+                                            icon: 'warning',
+                                            showCancelButton: true,
+                                            confirmButtonColor: '#d33',
+                                            cancelButtonColor: '#3085d6',
+                                            confirmButtonText: 'Ya, Posting Ulang!',
+                                            cancelButtonText: 'Batal'
+                                        });
+
+                                        if (isConfirmed) {
+                                            Swal.fire({
+                                                title: 'Memproses...',
+                                                text: 'Mohon tunggu sejenak.',
+                                                allowOutsideClick: false,
+                                                didOpen: () => Swal.showLoading()
+                                            });
+
+                                            try {
+                                                const response = await fetch(`${basePath}/api/audit_handler.php`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ action: 'repost', ref_type: refType, ref_id: refId })
+                                                });
+                                                const result = await response.json();
+                                                
+                                                if (result.status === 'success') {
+                                                    Swal.fire('Berhasil!', result.message, 'success');
+                                                    // Refresh dashboard data
+                                                    filterHandler();
+                                                    // Tutup modal audit
+                                                    if (auditModal) auditModal.classList.add('hidden');
+                                                } else {
+                                                    throw new Error(result.message);
+                                                }
+                                            } catch (err) {
+                                                Swal.fire('Gagal!', err.message, 'error');
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                        if (auditModal) auditModal.classList.remove('hidden');
+                    });
+                }
             }
 
             // --- Render Transaksi Terbaru ---
@@ -317,6 +425,60 @@ function initDashboardPage() {
                 }
             }
 
+            // --- Render Grafik Barang Terlaris (Fast Moving) ---
+            const fastMovingCtx = document.getElementById('dashboard-fast-moving-chart');
+            if (fastMovingCtx && data.performa_barang && data.performa_barang.fast_moving) {
+                if (fastMovingChartInstance) fastMovingChartInstance.destroy();
+
+                const fastMovingData = data.performa_barang.fast_moving;
+                fastMovingChartInstance = new Chart(fastMovingCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: fastMovingData.labels,
+                        datasets: [{
+                            label: 'Kuantitas Terjual',
+                            data: fastMovingData.data,
+                            backgroundColor: '#10B981', // Emerald-500
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            // --- Render Grafik Barang Mandeg (Slow Moving) ---
+            const slowMovingCtx = document.getElementById('dashboard-slow-moving-chart');
+            if (slowMovingCtx && data.performa_barang && data.performa_barang.slow_moving) {
+                if (slowMovingChartInstance) slowMovingChartInstance.destroy();
+
+                const slowMovingData = data.performa_barang.slow_moving;
+                slowMovingChartInstance = new Chart(slowMovingCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: slowMovingData.labels,
+                        datasets: [{
+                            label: 'Stok Tersedia',
+                            data: slowMovingData.data,
+                            backgroundColor: '#F59E0B', // Amber-500
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { beginAtZero: true } }
+                    }
+                });
+            }
+
         } catch (error) {
             showToast(`Gagal memuat data dashboard: ${error.message}`, 'error');
         }
@@ -346,6 +508,11 @@ function initDashboardPage() {
         closeCustomizeModal(); // Ganti dari bootstrap hide()
         // Muat ulang dashboard dengan preferensi baru
         filterHandler();
+    });
+
+    // Close logic untuk audit modal
+    document.querySelectorAll('[data-modal-close="neracaAuditModal"]').forEach(btn => {
+        btn.addEventListener('click', () => document.getElementById('neracaAuditModal').classList.add('hidden'));
     });
 
     setupFilters();

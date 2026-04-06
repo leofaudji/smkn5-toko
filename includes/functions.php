@@ -338,20 +338,25 @@ function get_account_balance_on_date($conn, $user_id, $account_id, $date) {
  * @param string $per_tanggal Tanggal dalam format Y-m-d.
  * @return array<array<string, mixed>> Daftar entri jurnal yang tidak seimbang.
  */
-function find_unbalanced_journal_entries($conn, $user_id, $per_tanggal) {
+/**
+ * Menemukan grup transaksi yang tidak seimbang (total debit != total kredit) di seluruh general_ledger.
+ */
+function find_imbalanced_ledger_groups($conn, $user_id, $per_tanggal) {
     $stmt = $conn->prepare("
         SELECT 
-            je.id, 
-            je.tanggal, 
-            je.keterangan, 
-            SUM(jd.debit) as total_debit, 
-            SUM(jd.kredit) as total_kredit
-        FROM jurnal_entries je
-        JOIN jurnal_details jd ON je.id = jd.jurnal_entry_id
-        WHERE je.user_id = ? AND je.tanggal <= ?
-        GROUP BY je.id, je.tanggal, je.keterangan
-        HAVING ABS(SUM(jd.debit) - SUM(jd.kredit)) > 0.01
-        ORDER BY je.tanggal DESC
+            gl.ref_type, 
+            gl.ref_id, 
+            MAX(gl.tanggal) as tanggal, 
+            MAX(gl.keterangan) as keterangan, 
+            SUM(gl.debit) as total_debit, 
+            SUM(gl.kredit) as total_kredit,
+            ABS(SUM(gl.debit) - SUM(gl.kredit)) as selisih
+        FROM general_ledger gl
+        WHERE gl.user_id = ? AND gl.tanggal <= ?
+        GROUP BY gl.ref_type, gl.ref_id
+        HAVING ABS(SUM(gl.debit) - SUM(gl.kredit)) > 0.01
+        ORDER BY MAX(gl.tanggal) DESC, gl.ref_id DESC
+        LIMIT 20
     ");
     $stmt->bind_param('is', $user_id, $per_tanggal);
     $stmt->execute();
@@ -423,7 +428,7 @@ function get_balance_sheet_status($conn, $user_id, $per_tanggal) {
                 'total_aset' => $total_aset,
                 'total_liabilitas_ekuitas' => $total_liabilitas_ekuitas,
                 'selisih' => $total_aset - $total_liabilitas_ekuitas,
-                'unbalanced_journals' => find_unbalanced_journal_entries($conn, $user_id, $per_tanggal)
+                'imbalanced_groups' => find_imbalanced_ledger_groups($conn, $user_id, $per_tanggal)
             ];
         }
 

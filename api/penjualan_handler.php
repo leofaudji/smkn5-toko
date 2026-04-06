@@ -535,9 +535,14 @@ function get_penjualan_detail($db)
 
         if ($penjualan) {
             $stmt = $db->prepare(
-                "SELECT pd.*, i.nama_barang, i.harga_jual
+                "SELECT 
+                    pd.*, 
+                    COALESCE(i.nama_barang, ci.nama_barang, pd.deskripsi_item) as nama_barang,
+                    COALESCE(i.harga_jual, ci.harga_jual, pd.price) as harga_jual,
+                    COALESCE(i.harga_beli, ci.harga_beli, 0) as harga_beli
                  FROM penjualan_details pd
-                 JOIN items i ON pd.item_id = i.id
+                 LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
+                 LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
                  WHERE pd.penjualan_id = ?"
             );
             $stmt->bind_param('i', $id);
