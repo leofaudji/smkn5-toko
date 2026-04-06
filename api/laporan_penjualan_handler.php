@@ -48,7 +48,10 @@ try {
     $summary_stmt = $conn->prepare("
         SELECT
             pd.item_type,
-            SUM(pd.subtotal) as total_penjualan,
+            SUM(pd.subtotal) as total_bruto,
+            -- Kita perlu menghitung total neto dengan memperhitungkan proporsi diskon global 
+            -- atau sederhananya kita hitung total p.total tertimbang per item_type
+            SUM(pd.subtotal - (pd.subtotal / NULLIF(p.subtotal, 0) * p.discount)) as total_neto,
             SUM(CASE 
                 WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
                 WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
@@ -78,18 +81,20 @@ try {
     ];
 
     foreach ($summary_rows as $row) {
-        $sales = (float)$row['total_penjualan'];
+        $bruto = (float)$row['total_bruto'];
+        $sales = (float)$row['total_neto'];
         $hpp = (float)$row['total_hpp'];
         $profit = $sales - $hpp;
 
+        $summary_data['total_penjualan_bruto'] = ($summary_data['total_penjualan_bruto'] ?? 0) + $bruto;
         $summary_data['total_penjualan'] += $sales;
         $summary_data['total_hpp'] += $hpp;
         $summary_data['total_profit'] += $profit;
 
         if ($row['item_type'] === 'normal') {
-            $summary_data['shop'] = ['sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
+            $summary_data['shop'] = ['bruto' => $bruto, 'sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
         } elseif ($row['item_type'] === 'consignment') {
-            $summary_data['consignment'] = ['sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
+            $summary_data['consignment'] = ['bruto' => $bruto, 'sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
         }
     }
 
@@ -119,6 +124,7 @@ try {
                 pd.deskripsi_item,
                 pd.quantity,
                 pd.price,
+                pd.discount as item_discount,
                 pd.subtotal as item_total,
                 pd.item_type,
                 CASE 
@@ -152,6 +158,8 @@ try {
                 p.nomor_referensi, 
                 p.tanggal_penjualan, 
                 p.customer_name, 
+                p.subtotal as gross_total,
+                p.discount as global_discount,
                 p.total, 
                 p.payment_method,
                 p.status, 

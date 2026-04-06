@@ -65,6 +65,7 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
                     pd.deskripsi_item,
                     pd.quantity,
                     pd.price,
+                    pd.discount as item_discount,
                     pd.subtotal as item_total
                 FROM penjualan p 
                 JOIN penjualan_details pd ON p.id = pd.penjualan_id
@@ -77,6 +78,8 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
                     p.nomor_referensi, 
                     p.tanggal_penjualan, 
                     p.customer_name, 
+                    p.subtotal as gross_total,
+                    p.discount as global_discount,
                     p.total, 
                     p.payment_method,
                     p.status, 
@@ -116,7 +119,7 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         $this->pdf->Cell($w[2], 8, 'Customer', 1, 0, 'C', true);
         $this->pdf->Cell($w[3], 8, 'Bayar', 1, 0, 'C', true);
         $this->pdf->Cell($w[4], 8, 'Kasir', 1, 0, 'C', true);
-        $this->pdf->Cell($w[5], 8, 'Total', 1, 1, 'C', true);
+        $this->pdf->Cell($w[5], 8, 'Total (Net)', 1, 1, 'C', true);
 
         $this->pdf->SetFont('Helvetica', '', 8);
         foreach ($data as $row) {
@@ -153,7 +156,9 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
             $statusText = ($row['status'] === 'void' ? '*' : '');
             $this->pdf->Cell($w[0], 7, date('d/m/y', strtotime($row['tanggal_penjualan'])), 1, 0, 'C');
             $this->pdf->Cell($w[1], 7, $row['nomor_referensi'] . $statusText, 1);
-            $this->pdf->Cell($w[2], 7, ' ' . substr($row['deskripsi_item'], 0, 40), 1);
+            $itemDesc = $row['deskripsi_item'];
+            if ($row['item_discount'] > 0) $itemDesc .= ' (Disc: -'.number_format($row['item_discount']).')';
+            $this->pdf->Cell($w[2], 7, ' ' . substr($itemDesc, 0, 40), 1);
             $this->pdf->Cell($w[3], 7, $row['quantity'], 1, 0, 'C');
             $this->pdf->Cell($w[4], 7, format_currency_pdf($row['price']), 1, 0, 'R');
             $this->pdf->Cell($w[5], 7, format_currency_pdf($row['item_total']), 1, 0, 'R');
@@ -178,31 +183,39 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         
         $this->pdf->SetFont('Helvetica', 'B', 7);
         $this->pdf->SetFillColor(245, 245, 245);
-        $this->pdf->Cell(40, 6, 'Kategori', 1, 0, 'L', true);
-        $this->pdf->Cell(35, 6, 'Penjualan', 1, 0, 'R', true);
-        $this->pdf->Cell(35, 6, 'HPP', 1, 0, 'R', true);
-        $this->pdf->Cell(35, 6, 'Profit', 1, 1, 'R', true);
+        $this->pdf->Cell(35, 6, 'Kategori', 1, 0, 'L', true);
+        $this->pdf->Cell(30, 6, 'Bruto', 1, 0, 'R', true);
+        $this->pdf->Cell(30, 6, 'Diskon', 1, 0, 'R', true);
+        $this->pdf->Cell(30, 6, 'Neto', 1, 0, 'R', true);
+        $this->pdf->Cell(30, 6, 'HPP', 1, 0, 'R', true);
+        $this->pdf->Cell(30, 6, 'Profit', 1, 1, 'R', true);
 
         $this->pdf->SetFont('Helvetica', '', 7);
         // Barang Toko
-        $this->pdf->Cell(40, 6, 'Barang Toko', 1, 0, 'L');
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['shop']['sales']), 1, 0, 'R');
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['shop']['hpp']), 1, 0, 'R');
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['shop']['profit']), 1, 1, 'R');
+        $this->pdf->Cell(35, 6, 'Barang Toko', 1, 0, 'L');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['shop']['bruto']), 1, 0, 'R');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['shop']['bruto'] - $summary['shop']['sales']), 1, 0, 'R');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['shop']['sales']), 1, 0, 'R');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['shop']['hpp']), 1, 0, 'R');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['shop']['profit']), 1, 1, 'R');
 
         // Barang Konsinyasi
-        $this->pdf->Cell(40, 6, 'Barang Konsinyasi', 1, 0, 'L');
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['consignment']['sales']), 1, 0, 'R');
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['consignment']['hpp']), 1, 0, 'R');
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['consignment']['profit']), 1, 1, 'R');
+        $this->pdf->Cell(35, 6, 'Barang Konsinyasi', 1, 0, 'L');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['consignment']['bruto']), 1, 0, 'R');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['consignment']['bruto'] - $summary['consignment']['sales']), 1, 0, 'R');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['consignment']['sales']), 1, 0, 'R');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['consignment']['hpp']), 1, 0, 'R');
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['consignment']['profit']), 1, 1, 'R');
 
         // Total
         $this->pdf->SetFont('Helvetica', 'B', 7);
         $this->pdf->SetFillColor(230, 230, 230);
-        $this->pdf->Cell(40, 6, 'GRAND TOTAL', 1, 0, 'L', true);
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['total_penjualan']), 1, 0, 'R', true);
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['total_hpp']), 1, 0, 'R', true);
-        $this->pdf->Cell(35, 6, format_currency_pdf($summary['total_profit']), 1, 1, 'R', true);
+        $this->pdf->Cell(35, 6, 'GRAND TOTAL', 1, 0, 'L', true);
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['total_penjualan_bruto']), 1, 0, 'R', true);
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['total_penjualan_bruto'] - $summary['total_penjualan']), 1, 0, 'R', true);
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['total_penjualan']), 1, 0, 'R', true);
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['total_hpp']), 1, 0, 'R', true);
+        $this->pdf->Cell(30, 6, format_currency_pdf($summary['total_profit']), 1, 1, 'R', true);
     }
 
     private function fetchSummaryData(int $user_id, string $start_date, string $end_date, string $search): array
@@ -221,7 +234,8 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         $query = "
             SELECT
                 pd.item_type,
-                SUM(pd.subtotal) as total_penjualan,
+                SUM(pd.subtotal) as total_bruto,
+                SUM(pd.subtotal - (pd.subtotal / NULLIF(p.subtotal, 0) * p.discount)) as total_neto,
                 SUM(CASE 
                     WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
                     WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
@@ -242,22 +256,24 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         $rows = stmt_fetch_all($stmt);
 
         $summary = [
-            'total_penjualan' => 0, 'total_hpp' => 0, 'total_profit' => 0,
-            'shop' => ['sales' => 0, 'hpp' => 0, 'profit' => 0],
-            'consignment' => ['sales' => 0, 'hpp' => 0, 'profit' => 0]
+            'total_penjualan_bruto' => 0, 'total_penjualan' => 0, 'total_hpp' => 0, 'total_profit' => 0,
+            'shop' => ['bruto' => 0, 'sales' => 0, 'hpp' => 0, 'profit' => 0],
+            'consignment' => ['bruto' => 0, 'sales' => 0, 'hpp' => 0, 'profit' => 0]
         ];
 
         foreach ($rows as $row) {
-            $sales = (float)$row['total_penjualan'];
+            $bruto = (float)$row['total_bruto'];
+            $sales = (float)$row['total_neto'];
             $hpp = (float)$row['total_hpp'];
             $profit = $sales - $hpp;
+            $summary['total_penjualan_bruto'] += $bruto;
             $summary['total_penjualan'] += $sales;
             $summary['total_hpp'] += $hpp;
             $summary['total_profit'] += $profit;
             if ($row['item_type'] === 'normal') {
-                $summary['shop'] = ['sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
+                $summary['shop'] = ['bruto' => $bruto, 'sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
             } elseif ($row['item_type'] === 'consignment') {
-                $summary['consignment'] = ['sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
+                $summary['consignment'] = ['bruto' => $bruto, 'sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
             }
         }
         return $summary;

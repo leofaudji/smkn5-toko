@@ -73,10 +73,10 @@ function initLaporanPenjualanItemPage() {
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">#</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nama Barang</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">SKU</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jumlah Terjual</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Penjualan</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estimasi Profit</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Terjual</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Bruto & Disc</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Neto</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Profit</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -84,12 +84,18 @@ function initLaporanPenjualanItemPage() {
         data.forEach((item, index) => {
             const profitClass = item.total_profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
             tableHtml += `
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${index + 1 + (currentPage - 1) * 15}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nama_barang}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.sku || '-'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right font-bold">${item.total_terjual}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">${formatRupiah(item.total_penjualan)}</td>
+                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-300">${index + 1 + (currentPage - 1) * 15}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white line-clamp-1" title="${item.nama_barang}">${item.nama_barang}</div>
+                        <div class="text-[10px] text-gray-500">${item.sku || '-'} | ${item.item_type}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-900 dark:text-white">${item.total_terjual}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <div class="text-[10px] text-gray-500">${formatRupiah(item.total_bruto)}</div>
+                        ${item.total_diskon_item > 0 ? `<div class="text-[10px] text-red-500 italic">-${formatRupiah(item.total_diskon_item)}</div>` : ''}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-primary font-bold">${formatRupiah(item.total_penjualan)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${profitClass}">${formatRupiah(item.total_profit)}</td>
                 </tr>
             `;

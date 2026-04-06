@@ -372,6 +372,16 @@ function store_penjualan($db)
             $stmt_gl->execute();
         }
 
+        // B2. Debit Potongan Penjualan (Jika ada diskon global)
+        if ($discount > 0) {
+            $discount_acc_id = get_setting('sales_discount_account_id', null, $db);
+            if ($discount_acc_id) {
+                $ket_discount = "Potongan Penjualan #" . $nomor_referensi;
+                $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $ket_discount, $nomor_referensi, $discount_acc_id, $discount, $zero, $penjualanId, $null_val, $null_val, $logged_in_user_id);
+                $stmt_gl->execute();
+            }
+        }
+
         // C. Credit Revenue (Aggregated)
         foreach ($revenue_totals as $acc_id => $amount) {
             $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $acc_id, $zero, $amount, $penjualanId, $null_val, $null_val, $logged_in_user_id);
@@ -867,6 +877,16 @@ function update_penjualan($db)
 
         $gl_stmt->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $old_penjualan['nomor_referensi'], $debit_acc, $total, $zero, $id, $logged_in_user_id);
         $gl_stmt->execute();
+
+        // 7b. DEBIT DISKON (Potongan Penjualan)
+        if ($discount > 0) {
+            $discount_acc_id = get_setting('sales_discount_account_id', null, $db);
+            if ($discount_acc_id) {
+                $ket_discount = "Potongan Penjualan #" . $old_penjualan['nomor_referensi'];
+                $gl_stmt->bind_param('isssiddii', $user_id, $tanggal, $ket_discount, $old_penjualan['nomor_referensi'], $discount_acc_id, $discount, $zero, $id, $logged_in_user_id);
+                $gl_stmt->execute();
+            }
+        }
 
         // KREDIT PENDAPATAN
         foreach ($revenue_totals as $acc_id => $amount) {

@@ -98,8 +98,9 @@ function initLaporanPenjualanPage() {
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Transaksi</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Barang & Qty</th>
-                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Harga & Subtotal</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Info Pembayaran</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Harga & Diskon</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Neto</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Info</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -113,18 +114,21 @@ function initLaporanPenjualanPage() {
                     <tr class="hover:bg-gray-100 dark:hover:bg-gray-700/50 ${rowClass}">
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div class="text-sm font-semibold text-gray-900 dark:text-white">${item.nomor_referensi}</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400">${new Date(item.tanggal_penjualan).toLocaleString('id-ID', {dateStyle: 'short', timeStyle: 'short'})}</div>
+                            <div class="text-[10px] text-gray-500 dark:text-gray-400">${new Date(item.tanggal_penjualan).toLocaleString('id-ID', {dateStyle: 'short', timeStyle: 'short'})}</div>
                         </td>
                         <td class="px-4 py-3">
-                            <div class="text-sm text-gray-900 dark:text-white font-medium">${item.deskripsi_item}</div>
-                            <div class="text-xs text-gray-500">Jumlah: <span class="font-bold">${item.quantity}</span></div>
+                            <div class="text-sm text-gray-900 dark:text-white font-medium line-clamp-1" title="${item.deskripsi_item}">${item.deskripsi_item}</div>
+                            <div class="text-xs text-gray-500">Qty: <span class="font-bold">${item.quantity}</span></div>
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="text-xs text-gray-500">@ ${formatRupiah(item.price)}</div>
-                            <div class="text-sm font-bold text-gray-900 dark:text-white">${formatRupiah(item.item_total)}</div>
+                            ${item.item_discount > 0 ? `<div class="text-[10px] text-red-500 italic">Disc: -${formatRupiah(item.item_discount)}</div>` : ''}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <div class="text-sm font-bold text-primary">${formatRupiah(item.item_total)}</div>
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <div class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">${getPaymentMethodName(item.payment_method)}</div>
+                            <div class="text-[10px] font-medium text-gray-700 dark:text-gray-300">${getPaymentMethodName(item.payment_method)}</div>
                             <div class="text-[10px] text-gray-500">Kasir: ${item.username}</div>
                         </td>
                     </tr>
@@ -136,9 +140,9 @@ function initLaporanPenjualanPage() {
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Transaksi</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Pelanggan & Kasir</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Status & Bayar</th>
-                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Analisis Keuangan</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Pelanggan/Kasir</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Bayar</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Rincian & Profit</th>
                             <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-20">Aksi</th>
                         </tr>
                     </thead>
@@ -162,19 +166,21 @@ function initLaporanPenjualanPage() {
                     <tr class="hover:bg-gray-100 dark:hover:bg-gray-700/50 ${rowClass}">
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div class="text-sm font-bold text-gray-900 dark:text-white">${item.nomor_referensi}</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</div>
+                            <div class="text-[10px] text-gray-500 dark:text-gray-400">${new Date(item.tanggal_penjualan).toLocaleString('id-ID')}</div>
                         </td>
                         <td class="px-4 py-3">
                             <div class="text-sm text-gray-900 dark:text-white">${item.customer_name || 'Umum'}</div>
-                            <div class="text-xs text-gray-500">Kasir: ${item.username}</div>
+                            <div class="text-[10px] text-gray-500">Kasir: ${item.username}</div>
                         </td>
                         <td class="px-4 py-3 text-center">
                             <div class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">${getPaymentMethodName(item.payment_method)}</div>
                             ${statusBadge}
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <div class="text-sm font-bold text-gray-900 dark:text-white">${formatRupiah(item.total)}</div>
-                            <div class="text-[10px] text-gray-400">HPP: ${formatRupiah(item.total_hpp)}</div>
+                            <div class="text-xs text-gray-400">Bruto: ${formatRupiah(item.gross_total)}</div>
+                            ${item.global_discount > 0 ? `<div class="text-[10px] text-red-500 italic">Disc: -${formatRupiah(item.global_discount)}</div>` : ''}
+                            <div class="text-sm font-bold text-primary">${formatRupiah(item.total)}</div>
+                            <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
                             <div class="text-[10px] font-bold ${profitClass}">Profit: ${formatRupiah(profit)}</div>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
@@ -253,7 +259,10 @@ function initLaporanPenjualanPage() {
             detail.items.forEach(item => {
                 itemsHtml += `
                     <tr>
-                        <td class="py-2 text-gray-900 dark:text-white">${item.nama_barang}</td>
+                        <td class="py-2 text-gray-900 dark:text-white">
+                            ${item.nama_barang}
+                            ${item.discount > 0 ? `<div class="text-[10px] text-red-500 italic">Potongan: -${formatRupiah(item.discount)}</div>` : ''}
+                        </td>
                         <td class="py-2 text-center text-gray-500 dark:text-gray-300">${item.quantity}</td>
                         <td class="py-2 text-right text-gray-500 dark:text-gray-300">${formatRupiah(item.price)}</td>
                         <td class="py-2 text-right text-gray-900 dark:text-white font-medium">${formatRupiah(item.subtotal)}</td>
@@ -264,17 +273,26 @@ function initLaporanPenjualanPage() {
             itemsHtml += `
                             </tbody>
                             <tfoot class="border-t-2 dark:border-gray-600">
+                                ${detail.discount > 0 ? `
+                                <tr class="text-sm text-gray-500 dark:text-gray-400">
+                                    <td colspan="3" class="pt-2 text-right">Subtotal Gross:</td>
+                                    <td class="pt-2 text-right">${formatRupiah(detail.subtotal)}</td>
+                                </tr>
+                                <tr class="text-sm text-red-500 italic">
+                                    <td colspan="3" class="text-right">Potongan Global:</td>
+                                    <td class="text-right">-${formatRupiah(detail.discount)}</td>
+                                </tr>` : ''}
                                 <tr class="font-bold text-gray-900 dark:text-white">
-                                    <td colspan="3" class="pt-4 text-right">Total Akhir:</td>
-                                    <td class="pt-4 text-right text-lg text-primary">${formatRupiah(detail.total)}</td>
+                                    <td colspan="3" class="pt-2 text-right">Total Akhir:</td>
+                                    <td class="pt-2 text-right text-lg text-primary">${formatRupiah(detail.total)}</td>
                                 </tr>
                                 <tr class="text-sm text-gray-500 dark:text-gray-400">
                                     <td colspan="3" class="pt-1 text-right">Bayar:</td>
                                     <td class="pt-1 text-right">${formatRupiah(detail.bayar)}</td>
                                 </tr>
                                 <tr class="text-sm text-gray-500 dark:text-gray-400">
-                                    <td colspan="3" class="pt-1 text-right">Kembali:</td>
-                                    <td class="pt-1 text-right">${formatRupiah(detail.kembali)}</td>
+                                    <td colspan="3" class="pt-1 text-right text-green-600">Kembali:</td>
+                                    <td class="pt-1 text-right text-green-600">${formatRupiah(detail.kembali)}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -307,18 +325,22 @@ function initLaporanPenjualanPage() {
                 <!-- Total Section -->
                 <div class="bg-gray-50 dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700 text-center col-span-1 md:col-span-3">
                     <h6 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Total Seluruh Transaksi</h6>
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-4 gap-2">
                         <div>
-                            <p class="text-xs text-gray-500">Penjualan</p>
-                            <p class="font-bold text-gray-900 dark:text-white">${formatRupiah(summary.total_penjualan)}</p>
+                            <p class="text-xs text-gray-500">Gross</p>
+                            <p class="font-bold text-gray-900 dark:text-white text-xs">${formatRupiah(summary.total_penjualan_bruto)}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-500">HPP</p>
-                            <p class="font-bold text-gray-900 dark:text-white">${formatRupiah(summary.total_hpp)}</p>
+                            <p class="text-xs text-red-500">Disc</p>
+                            <p class="font-bold text-red-500 text-xs">-${formatRupiah(summary.total_penjualan_bruto - summary.total_penjualan)}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-500">Profit</p>
-                            <p class="font-bold ${profitClass(summary.total_profit)}">${formatRupiah(summary.total_profit)}</p>
+                            <p class="text-xs text-primary">Nett Rev</p>
+                            <p class="font-bold text-primary text-xs">${formatRupiah(summary.total_penjualan)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-green-600">Profit</p>
+                            <p class="font-bold ${profitClass(summary.total_profit)} text-xs">${formatRupiah(summary.total_profit)}</p>
                         </div>
                     </div>
                 </div>
@@ -450,9 +472,11 @@ function initLaporanPenjualanPage() {
             items.forEach(item => {
                 itemsHtml += `
                     <tr>
-                        <td style="width: 60%;">${item.nama_barang}</td>
-                        <td style="width: 10%; text-align: center;">${item.quantity}</td>
-                        <td style="width: 30%; text-align: right;">${formatRupiah(item.subtotal)}</td>
+                        <td style="width: 60%; padding: 5px 0;">
+                            ${item.nama_barang}<br>
+                            <small>${item.quantity} x ${formatRupiah(item.price)}${item.discount > 0 ? ` (-${formatRupiah(item.discount)})` : ''}</small>
+                        </td>
+                        <td style="width: 40%; text-align: right; vertical-align: bottom;">${formatRupiah(item.subtotal)}</td>
                     </tr>
                 `;
             });
@@ -504,6 +528,8 @@ function initLaporanPenjualanPage() {
                     </table>
                     <div class="border-top" style="padding-top: 5px;">
                         <table style="width: 100%">
+                            ${detail.discount > 0 ? `<tr><td>Subtotal</td><td class="text-end">${formatRupiah(detail.subtotal)}</td></tr>` : ''}
+                            ${detail.discount > 0 ? `<tr><td>Diskon</td><td class="text-end">-${formatRupiah(detail.discount)}</td></tr>` : ''}
                             <tr><td>Total</td><td class="text-end fw-bold">${formatRupiah(detail.total)}</td></tr>
                             <tr><td>Bayar</td><td class="text-end">${formatRupiah(detail.bayar)}</td></tr>
                             <tr><td>Kembali</td><td class="text-end">${formatRupiah(detail.kembali)}</td></tr>

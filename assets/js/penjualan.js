@@ -102,7 +102,7 @@ function initPenjualanPage() {
                 <tr>
                     <td style="padding: 5px 0;">
                         ${item.deskripsi_item}<br>
-                        <small>${item.quantity} x ${formatRupiah(item.price)}</small>
+                        <small>${item.quantity} x ${formatRupiah(item.price)}${item.discount > 0 ? ` (-${formatRupiah(item.discount)})` : ''}</small>
                     </td>
                     <td style="text-align: right; vertical-align: bottom;">${formatRupiah(item.subtotal)}</td>
                 </tr>
@@ -155,6 +155,8 @@ function initPenjualanPage() {
                     </table>
                     <div class="border-top" style="padding-top: 5px;">
                         <table style="width: 100%">
+                            ${detail.discount > 0 ? `<tr><td>Subtotal</td><td class="text-end">${formatRupiah(detail.subtotal)}</td></tr>` : ''}
+                            ${detail.discount > 0 ? `<tr><td>Diskon</td><td class="text-end">-${formatRupiah(detail.discount)}</td></tr>` : ''}
                             <tr><td>Total</td><td class="text-end fw-bold">${formatRupiah(detail.total)}</td></tr>
                             <tr><td>Bayar</td><td class="text-end">${formatRupiah(detail.bayar)}</td></tr>
                             <tr><td>Kembali</td><td class="text-end">${formatRupiah(detail.kembali)}</td></tr>
@@ -958,7 +960,10 @@ function initPenjualanPage() {
                 const detail = result.data;
                 const itemsHtml = detail.items.map(item => `
                     <tr class="text-sm text-gray-800 dark:text-gray-300">
-                        <td class="px-4 py-2">${item.deskripsi_item}</td>
+                        <td class="px-4 py-2">
+                           ${item.deskripsi_item}
+                           ${item.discount > 0 ? `<div class="text-xs text-red-500">Potongan: -${formatRupiah(item.discount)}</div>` : ''}
+                        </td>
                         <td class="px-4 py-2 text-center">${item.quantity}</td>
                         <td class="px-4 py-2 text-right">${formatRupiah(item.price)}</td>
                         <td class="px-4 py-2 text-right font-medium">${formatRupiah(item.subtotal)}</td>
@@ -1001,6 +1006,15 @@ function initPenjualanPage() {
                     
                     <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <div class="space-y-2">
+                            ${detail.discount > 0 ? `
+                            <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                                <span>Subtotal</span>
+                                <span>${formatRupiah(detail.subtotal)}</span>
+                            </div>
+                            <div class="flex justify-between text-sm text-red-500">
+                                <span>Diskon Global</span>
+                                <span>-${formatRupiah(detail.discount)}</span>
+                            </div>` : ''}
                             <div class="flex justify-between">
                                 <span>Total Tagihan</span>
                                 <span class="font-bold text-lg text-primary">${formatRupiah(detail.total)}</span>

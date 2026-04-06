@@ -49,6 +49,8 @@ try {
             COALESCE(i.nama_barang, ci.nama_barang) as nama_barang,
             pd.item_type,
             SUM(pd.quantity) as total_terjual,
+            SUM(pd.quantity * pd.price) as total_bruto,
+            SUM(pd.discount) as total_diskon_item,
             SUM(pd.subtotal) as total_penjualan,
             SUM(pd.subtotal - (pd.quantity * COALESCE(i.harga_beli, ci.harga_beli, 0))) as total_profit
         FROM penjualan_details pd
