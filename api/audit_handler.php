@@ -153,6 +153,7 @@ try {
                 $keterangan = $res_h['keterangan'];
                 $total = $res_h['total'];
                 $bayar = $res_h['bayar'];
+                $discount = (float)$res_h['discount'];
                 $anggota_id = $res_h['customer_id'];
                 $payment_method = $res_h['payment_method'];
                 
@@ -233,6 +234,16 @@ try {
                     $piutang_acc = get_setting('sales_receivable_account_id', null, $conn);
                     $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $piutang_acc, $piutang_portion, $zero, $ref_id, $null_val, $null_val, $logged_in_user_id);
                     $stmt_gl->execute();
+                }
+
+                // 1b. Debit Potongan Penjualan (Jika ada diskon global)
+                if ($discount > 0) {
+                    $discount_acc_id = get_setting('sales_discount_account_id', null, $conn);
+                    if ($discount_acc_id) {
+                        $ket_discount = "Potongan Penjualan #" . $nomor_referensi;
+                        $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $ket_discount, $nomor_referensi, $discount_acc_id, $discount, $zero, $ref_id, $null_val, $null_val, $logged_in_user_id);
+                        $stmt_gl->execute();
+                    }
                 }
 
                 // 2. Credit Revenue
