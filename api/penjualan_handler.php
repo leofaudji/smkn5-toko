@@ -584,9 +584,18 @@ function search_produk($db)
                 ci.barcode COLLATE utf8mb4_general_ci as barcode, 
                 ci.nama_barang COLLATE utf8mb4_general_ci as nama_barang, 
                 ci.harga_jual,
-                (ci.stok_awal - COALESCE(sales.qty_terjual, 0)) as stok,
+                (
+                    ci.stok_awal 
+                    + COALESCE(restock.qty_masuk, 0) 
+                    - COALESCE(sales.qty_terjual, 0)
+                ) as stok,
                 'consignment' as item_type
             FROM consignment_items ci
+            LEFT JOIN (
+                SELECT consignment_item_id, SUM(qty) as qty_masuk 
+                FROM consignment_restocks 
+                GROUP BY consignment_item_id
+            ) restock ON ci.id = restock.consignment_item_id
             LEFT JOIN (
                 SELECT consignment_item_id, SUM(IF(debit > 0, -qty, qty)) as qty_terjual 
                 FROM general_ledger 

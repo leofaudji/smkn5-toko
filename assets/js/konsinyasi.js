@@ -2,7 +2,7 @@ function initKonsinyasiPage() {
     // --- Element Selectors ---
     const supplierTableBody = document.getElementById('suppliers-table-body');
     const itemTableBody = document.getElementById('items-table-body');
-    const saleForm = document.getElementById('consignment-sale-form');
+    const filterSalesBtn = document.getElementById('filter-sales-btn');
     const reportLink = document.getElementById('view-consignment-report-link');
     const debtSummaryReportLink = document.getElementById('view-debt-summary-report-link');
     const printDebtSummaryBtn = document.getElementById('print-debt-summary-btn');
@@ -19,9 +19,11 @@ function initKonsinyasiPage() {
     flatpickr("#report-end-date", commonOptions);
     flatpickr("#sisa-utang-start-date", commonOptions);
     flatpickr("#sisa-utang-end-date", commonOptions);
-    const csTanggalPicker = flatpickr("#cs-tanggal", { ...commonOptions, defaultDate: "today" });
+    const csTanggalPicker = flatpickr("#sales-start-date", { ...commonOptions, defaultDate: "today" });
+    const csAkhirTanggalPicker = flatpickr("#sales-end-date", { ...commonOptions, defaultDate: "today" });
     const cpTanggalPicker = flatpickr("#cp-tanggal", { ...commonOptions, defaultDate: "today" });
     const terimaTanggalPicker = flatpickr("#tanggal_terima", { ...commonOptions, defaultDate: "today" });
+    const restockTanggalPicker = flatpickr("#restock-tanggal", { ...commonOptions, defaultDate: "today" });
 
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
@@ -86,6 +88,7 @@ function initKonsinyasiPage() {
         itemTableBody.innerHTML = '';
         if (result.status === 'success' && result.data.length > 0) {
             result.data.forEach(i => {
+                const totalMasuk = parseInt(i.stok_awal) + parseInt(i.total_restock);
                 itemTableBody.innerHTML += `
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
                         <td class="px-6 py-4 font-mono">
@@ -96,11 +99,14 @@ function initKonsinyasiPage() {
                         <td class="px-6 py-4 text-xs">${i.nama_pemasok}</td>
                         <td class="px-6 py-4 text-right">${currencyFormatter.format(i.harga_jual)}</td>
                         <td class="px-6 py-4 text-right">${currencyFormatter.format(i.harga_beli)}</td>
-                        <td class="px-6 py-4 text-right">${i.stok_saat_ini} / ${i.stok_awal}</td>
                         <td class="px-6 py-4 text-right">
-                            <div class="flex justify-end gap-4">
-                                <button class="text-blue-600 hover:text-blue-900 edit-item-btn" data-id="${i.id}"><i class="bi bi-pencil-fill"></i></button> 
-                                <button class="text-red-600 hover:text-red-900 delete-item-btn" data-id="${i.id}"><i class="bi bi-trash-fill"></i></button>
+                            <span class="font-bold ${i.stok_saat_ini <= 5 ? 'text-red-500' : ''}">${i.stok_saat_ini}</span> / ${totalMasuk}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-3">
+                                <button class="text-green-600 hover:text-green-900 restock-item-btn" data-id="${i.id}" data-nama="${i.nama_barang}" title="Tambah Stok"><i class="bi bi-patch-plus-fill"></i></button>
+                                <button class="text-blue-600 hover:text-blue-900 edit-item-btn" data-id="${i.id}" title="Edit Detail"><i class="bi bi-pencil-fill"></i></button> 
+                                <button class="text-red-600 hover:text-red-900 delete-item-btn" data-id="${i.id}" title="Hapus"><i class="bi bi-trash-fill"></i></button>
                             </div>
                         </td>
                     </tr>`;
@@ -110,20 +116,6 @@ function initKonsinyasiPage() {
         }
     }
 
-    async function loadItemsForSale() {
-        const select = document.getElementById('cs-item-id');
-        select.innerHTML = '<option>Memuat...</option>';
-        const response = await fetch(`${basePath}/api/konsinyasi?action=list_items`);
-        const result = await response.json();
-        select.innerHTML = '<option value="">-- Pilih Barang --</option>';
-        if (result.status === 'success') {
-            result.data.forEach(i => {
-                if (i.stok_saat_ini > 0) {
-                    select.add(new Option(`${i.nama_barang} (Stok: ${i.stok_saat_ini})`, i.id));
-                }
-            });
-        }
-    }
 
     async function loadSuppliersForPayment() {
         const select = document.getElementById('cp-supplier-id');
@@ -169,6 +161,51 @@ function initKonsinyasiPage() {
         }
     }
 
+    async function loadSalesHistory() {
+        const tableBody = document.getElementById('consignment-sales-history-body');
+        if (!tableBody) return;
+
+        const startDateInput = document.getElementById('sales-start-date');
+        const endDateInput = document.getElementById('sales-end-date');
+        
+        // Konversi format DD-MM-YYYY ke YYYY-MM-DD untuk API
+        const startDate = startDateInput.value.split('-').reverse().join('-');
+        const endDate = endDateInput.value.split('-').reverse().join('-');
+
+        tableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-gray-500"><div class="flex flex-col items-center"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div><span>Memuat riwayat...</span></div></td></tr>';
+        
+        try {
+            const params = new URLSearchParams({ action: 'list_sales', start_date: startDate, end_date: endDate });
+            const response = await fetch(`${basePath}/api/konsinyasi?${params.toString()}`);
+            const result = await response.json();
+            if (result.status === 'success') {
+                tableBody.innerHTML = '';
+                if (result.data.length > 0) {
+                    result.data.forEach(row => {
+                        const date = new Date(row.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                        tableBody.innerHTML += `
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
+                                <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${date}</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-medium text-gray-900 dark:text-white">${row.nama_barang}</div>
+                                    <div class="text-[10px] text-gray-400 font-mono tracking-tighter">${row.nomor_referensi}</div>
+                                </td>
+                                <td class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">${row.qty}</td>
+                                <td class="px-6 py-4 text-right text-sm font-semibold text-gray-900 dark:text-white">${currencyFormatter.format(row.total_jual)}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-gray-500 italic">Tidak ada histori penjualan untuk periode ini.</td></tr>';
+                }
+            }
+        } catch (error) {
+            tableBody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-red-500">Gagal memuat data: ${error.message}</td></tr>`;
+        }
+    }
+
+    if (filterSalesBtn) filterSalesBtn.addEventListener('click', loadSalesHistory);
+
     document.getElementById('consignment-payment-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData();
@@ -210,37 +247,7 @@ function initKonsinyasiPage() {
         const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
         const result = await response.json();
         showToast(result.message, result.status === 'success' ? 'success' : 'error');
-        if (result.status === 'success') { closeModal('itemModal'); loadItems(); loadItemsForSale(); }
-    });
-
-    saleForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        // Ambil detail untuk pesan konfirmasi
-        const itemSelect = document.getElementById('cs-item-id');
-        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
-        const itemName = selectedOption ? selectedOption.text.split(' (Stok:')[0] : 'barang';
-        const qty = document.getElementById('cs-qty').value;
-
-        // Tampilkan dialog konfirmasi
-        if (!confirm(`Anda yakin ingin menjual ${qty} x ${itemName}?`)) {
-            return; // Hentikan proses jika pengguna menekan "Batal"
-        }
-
-        const formData = new FormData();
-        formData.append('action', 'sell_item');
-        formData.append('item_id', document.getElementById('cs-item-id').value);
-        formData.append('qty', document.getElementById('cs-qty').value);
-        formData.append('tanggal', document.getElementById('cs-tanggal').value.split('-').reverse().join('-'));
-        
-        const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
-        const result = await response.json();
-        showToast(result.message, result.status === 'success' ? 'success' : 'error');
-        if (result.status === 'success') {
-            saleForm.reset();
-            csTanggalPicker.setDate(new Date());
-            loadItemsForSale();
-        }
+        if (result.status === 'success') { closeModal('itemModal'); loadItems(); }
     });
 
     reportLink.addEventListener('click', async (e) => {
@@ -389,7 +396,6 @@ function initKonsinyasiPage() {
             if (result.status === 'success') {
                 closeModal('importItemModal');
                 loadItems();
-                loadItemsForSale();
             }
         } catch (error) {
             showToast('Gagal mengimpor data: ' + error.message, 'error');
@@ -459,6 +465,34 @@ function initKonsinyasiPage() {
                 openModal('itemModal');
             } catch (error) { showToast(`Gagal memuat data barang: ${error.message}`, 'error'); }
         }
+
+        const restockBtn = e.target.closest('.restock-item-btn');
+        if (restockBtn) {
+            document.getElementById('restock-form').reset();
+            document.getElementById('restock-item-id').value = restockBtn.dataset.id;
+            document.getElementById('restock-item-name').textContent = restockBtn.dataset.nama;
+            restockTanggalPicker.setDate(new Date());
+            openModal('restockModal');
+        }
+    });
+
+    document.getElementById('save-restock-btn').addEventListener('click', async () => {
+        const form = document.getElementById('restock-form');
+        const formData = new FormData(form);
+        formData.append('action', 'add_restock');
+
+        const rawDate = document.getElementById('restock-tanggal').value;
+        if (rawDate && rawDate.includes('-')) {
+            formData.set('tanggal', rawDate.split('-').reverse().join('-'));
+        }
+
+        const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
+        const result = await response.json();
+        showToast(result.message, result.status === 'success' ? 'success' : 'error');
+        if (result.status === 'success') {
+            closeModal('restockModal');
+            loadItems();
+        }
     });
 
     function setupTabs() {
@@ -477,7 +511,14 @@ function initKonsinyasiPage() {
                 button.classList.toggle('dark:text-gray-400', !isActive);
             });
             // Load content for the new active tab
-            if (targetId === 'barang-pane') loadItems();
+            if (targetId === 'pemasok-pane') loadSuppliers();
+            else if (targetId === 'barang-pane') loadItems();
+            else if (targetId === 'penjualan-pane') { 
+                const now = new Date();
+                csTanggalPicker.setDate(new Date(now.getFullYear(), now.getMonth(), 1));
+                csAkhirTanggalPicker.setDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+                loadSalesHistory(); 
+            }
             else if (targetId === 'pembayaran-pane') { loadSuppliersForPayment(); loadCashAccountsForPayment(); loadPaymentHistory(); cpTanggalPicker.setDate(new Date()); }
         }
         tabButtons.forEach(button => button.addEventListener('click', () => switchTab(button.dataset.target.substring(1))));
@@ -487,7 +528,5 @@ function initKonsinyasiPage() {
     // --- Initial Load ---
     loadSuppliers();
     loadItems();
-    loadItemsForSale();
-    csTanggalPicker.setDate(new Date());
     setupTabs();
 }

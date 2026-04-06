@@ -68,29 +68,54 @@ if (!$is_spa_request) {
     <div class="konsinyasi-tab-pane hidden" id="penjualan-pane" role="tabpanel">
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                <h5 class="text-lg font-semibold text-gray-900 dark:text-white">Form Penjualan Barang Konsinyasi</h5>
-                <a href="#" id="view-consignment-report-link" class="text-sm text-primary hover:underline">Lihat Laporan Penjualan &raquo;</a>
+                <h5 class="text-lg font-semibold text-gray-900 dark:text-white">Filter Histori Barang Terjual</h5>
+                <a href="#" id="view-consignment-report-link" class="text-sm text-primary hover:underline">Rekap Laporan &raquo;</a>
             </div>
             <div class="p-6">
-                <form id="consignment-sale-form">
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                        <div class="md:col-span-4">
-                            <label for="cs-tanggal" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Penjualan</label>
-                            <input type="date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="cs-tanggal" required>
-                        </div>
-                        <div class="md:col-span-4">
-                            <label for="cs-item-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Barang</label>
-                            <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="cs-item-id" required></select>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label for="cs-qty" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah</label>
-                            <input type="number" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="cs-qty" value="1" min="1" required>
-                        </div>
-                        <div class="md:col-span-2">
-                            <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none"><i class="bi bi-cart-plus mr-2"></i> Jual</button>
-                        </div>
+                <!-- Filter Section -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div class="md:col-span-4">
+                        <label for="sales-start-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Mulai Tanggal</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="sales-start-date" placeholder="DD-MM-YYYY">
                     </div>
-                </form>
+                    <div class="md:col-span-4">
+                        <label for="sales-end-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sampai Tanggal</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="sales-end-date" placeholder="DD-MM-YYYY">
+                    </div>
+                    <div class="md:col-span-4">
+                        <button id="filter-sales-btn" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none"><i class="bi bi-filter mr-2"></i> Tampilkan Histori</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Riwayat Penjualan Terakhir -->
+        <div class="mt-8 bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h5 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider"><i class="bi bi-clock-history mr-2"></i>Riwayat Barang Terjual (Terbaru)</h5>
+                <span class="text-xs text-gray-400 font-medium">* Menampilkan 50 transaksi terakhir</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tanggal</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Barang</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Qty</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Jual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consignment-sales-history-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                        <tr>
+                            <td colspan="4" class="px-6 py-10 text-center text-gray-500">
+                                <div class="flex flex-col items-center">
+                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                                    <span>Memuat riwayat...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -287,6 +312,45 @@ if (!$is_spa_request) {
             <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none sm:ml-3 sm:w-auto sm:text-sm" id="process-import-btn">Mulai Impor</button>
                 <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm" onclick="closeModal('importItemModal')">Batal</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tambah Stok -->
+<div id="restockModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="restockModalLabel" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('restockModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h5 class="text-lg font-medium text-gray-900 dark:text-white" id="restockModalLabel">Tambah Stok Barang</h5>
+                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeModal('restockModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="p-6">
+                <form id="restock-form" class="space-y-4">
+                    <input type="hidden" name="item_id" id="restock-item-id">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Barang</label>
+                        <p id="restock-item-name" class="mt-1 text-sm font-semibold text-gray-900 dark:text-white"></p>
+                    </div>
+                    <div>
+                        <label for="restock-qty" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Tambah Stok</label>
+                        <input type="number" id="restock-qty" name="qty" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required min="1">
+                    </div>
+                    <div>
+                        <label for="restock-tanggal" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Terima</label>
+                        <input type="date" id="restock-tanggal" name="tanggal" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
+                    </div>
+                    <div>
+                        <label for="restock-keterangan" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan (Opsional)</label>
+                        <textarea id="restock-keterangan" name="keterangan" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" placeholder="Contoh: Kiriman batch Februari"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm" id="save-restock-btn">Simpan Stok</button>
+                <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm" onclick="closeModal('restockModal')">Batal</button>
             </div>
         </div>
     </div>

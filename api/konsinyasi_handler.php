@@ -54,13 +54,37 @@ try {
                 SELECT 
                     ci.*,
                     s.nama_pemasok,
-                    (ci.stok_awal - COALESCE((SELECT SUM(IF(debit > 0, -qty, qty)) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type IN ('jurnal', 'penjualan') AND account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')), 0)) as stok_saat_ini
+                    (
+                        ci.stok_awal 
+                        + COALESCE((SELECT SUM(qty) FROM consignment_restocks WHERE consignment_item_id = ci.id), 0)
+                        - COALESCE((SELECT SUM(IF(debit > 0, -qty, qty)) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type IN ('jurnal', 'penjualan') AND account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')), 0)
+                    ) as stok_saat_ini,
+                    COALESCE((SELECT SUM(qty) FROM consignment_restocks WHERE consignment_item_id = ci.id), 0) as total_restock
                 FROM consignment_items ci
             JOIN suppliers s ON ci.supplier_id = s.id
             WHERE ci.user_id = $user_id
             ORDER BY ci.nama_barang ASC
         ");
         echo json_encode(['status' => 'success', 'data' => $result->fetch_all(MYSQLI_ASSOC)]);
+    } elseif ($action === 'add_restock') {
+        $item_id = (int)$_POST['item_id'];
+        $qty = (int)$_POST['qty'];
+        $tanggal = $_POST['tanggal'];
+        $keterangan = trim($_POST['keterangan'] ?? '');
+
+        if ($item_id <= 0 || $qty <= 0 || empty($tanggal)) {
+            throw new Exception("Data penambahan stok tidak valid.");
+        }
+
+        $stmt = $conn->prepare("INSERT INTO consignment_restocks (user_id, consignment_item_id, qty, tanggal, keterangan, created_by) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param('iiissi', $user_id, $item_id, $qty, $tanggal, $keterangan, $logged_in_user_id);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['status' => 'success', 'message' => 'Stok berhasil ditambahkan.']);
+        } else {
+            throw new Exception("Gagal menyimpan data stok: " . $stmt->error);
+        }
+        $stmt->close();
     } elseif ($action === 'save_item') {
         $id = (int)($_POST['id'] ?? 0);
         $supplier_id = (int)$_POST['supplier_id'];
@@ -256,6 +280,35 @@ try {
 
         echo json_encode(['status' => 'success', 'message' => 'Pembayaran utang konsinyasi berhasil dicatat.']);
 
+    }
+
+    elseif ($action === 'list_sales') {
+        $start_date = $_GET['start_date'] ?? date('Y-m-01');
+        $end_date = $_GET['end_date'] ?? date('Y-m-t');
+
+        $stmt = $conn->prepare("
+            SELECT 
+                gl.id,
+                gl.tanggal, 
+                gl.keterangan, 
+                gl.nomor_referensi,
+                gl.qty,
+                ci.nama_barang,
+                ci.harga_jual,
+                (gl.qty * ci.harga_jual) as total_jual
+            FROM general_ledger gl
+            JOIN consignment_items ci ON gl.consignment_item_id = ci.id
+            WHERE gl.user_id = ?
+              AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')
+              AND gl.kredit > 0
+              AND gl.ref_type IN ('jurnal', 'penjualan')
+              AND gl.tanggal BETWEEN ? AND ?
+            ORDER BY gl.tanggal DESC, gl.id DESC
+            LIMIT 100
+        ");
+        $stmt->bind_param('iss', $user_id, $start_date, $end_date);
+        $stmt->execute();
+        echo json_encode(['status' => 'success', 'data' => stmt_fetch_all($stmt)]);
     }
 
     // --- REPORT ACTION ---
