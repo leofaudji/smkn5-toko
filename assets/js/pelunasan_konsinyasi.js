@@ -36,25 +36,49 @@ function initPelunasanKonsinyasiPage() {
 
             // 1. Render Balances
             balanceTableBody.innerHTML = '';
+            const balanceTableFoot = document.getElementById('supplier-balance-table-foot');
+            let totals = { utang: 0, bayar: 0, sisa: 0 };
+
             if (debtResult.data.length === 0) {
                 balanceTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Tidak ada data utang.</td></tr>';
+                if (balanceTableFoot) balanceTableFoot.innerHTML = '';
             } else {
                 debtResult.data.forEach(row => {
+                    const utang = parseFloat(row.total_utang);
+                    const bayar = parseFloat(row.total_bayar);
+                    const sisa = parseFloat(row.sisa_utang);
+                    
+                    totals.utang += utang;
+                    totals.bayar += bayar;
+                    totals.sisa += sisa;
+
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50';
                     tr.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${row.nama_pemasok}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">${currencyFormatter.format(row.total_utang)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 font-medium">${currencyFormatter.format(row.total_bayar)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 font-bold">${currencyFormatter.format(row.sisa_utang)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">${currencyFormatter.format(utang)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 font-medium">${currencyFormatter.format(bayar)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 font-bold">${currencyFormatter.format(sisa)}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
-                            <button class="text-primary hover:text-primary-700 pay-btn" data-id="${row.id}" data-nama="${row.nama_pemasok}" data-sisa="${row.sisa_utang}" title="Bayar">
+                            <button class="text-primary hover:text-primary-700 pay-btn" data-id="${row.id}" data-nama="${row.nama_pemasok}" data-sisa="${sisa}" title="Bayar">
                                 <i class="bi bi-cash-coin text-xl"></i>
                             </button>
                         </td>
                     `;
                     balanceTableBody.appendChild(tr);
                 });
+
+                if (balanceTableFoot) {
+                    balanceTableFoot.innerHTML = `
+                        <tr>
+                            <td class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">TOTAL KESELURUHAN</td>
+                            <td class="px-6 py-3 text-right text-sm text-gray-900 dark:text-white">${currencyFormatter.format(totals.utang)}</td>
+                            <td class="px-6 py-3 text-right text-sm text-green-600">${currencyFormatter.format(totals.bayar)}</td>
+                            <td class="px-6 py-3 text-right text-sm text-red-600">${currencyFormatter.format(totals.sisa)}</td>
+                            <td class="px-6 py-3"></td>
+                        </tr>
+                    `;
+                }
             }
 
             // 2. Populate Supplier Select

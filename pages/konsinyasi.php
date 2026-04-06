@@ -117,6 +117,15 @@ if (!$is_spa_request) {
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination Controls -->
+            <div id="consignment-sales-pagination" class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    Menampilkan <span id="sales-pagination-info" class="font-medium text-gray-900 dark:text-white">0 - 0</span> dari <span id="sales-pagination-total" class="font-medium text-gray-900 dark:text-white">0</span> transaksi
+                </div>
+                <nav class="inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination" id="sales-pagination-nav">
+                    <!-- Buttons will be rendered by JS -->
+                </nav>
+            </div>
         </div>
     </div>
 
@@ -245,11 +254,31 @@ if (!$is_spa_request) {
             </div>
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <div class="md:col-span-3"><label for="report-start-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Mulai</label><input type="date" id="report-start-date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm sm:text-sm"></div>
-                    <div class="md:col-span-3"><label for="report-end-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Akhir</label><input type="date" id="report-end-date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm sm:text-sm"></div>
-                    <div class="md:col-span-6 flex gap-2">
-                        <button id="filter-report-btn" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark"><i class="bi bi-filter mr-2"></i> Tampilkan</button>
-                        <button id="print-report-btn" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"><i class="bi bi-printer-fill mr-2"></i> Cetak PDF</button>
+                    <div class="md:col-span-2">
+                        <label for="report-start-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tgl Mulai</label>
+                        <input type="date" id="report-start-date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm sm:text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="report-end-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tgl Akhir</label>
+                        <input type="date" id="report-end-date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm sm:text-sm">
+                    </div>
+                    <div class="md:col-span-3">
+                        <label for="report-supplier-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pemasok</label>
+                        <select id="report-supplier-id" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm sm:text-sm text-xs">
+                            <option value="">-- Semua Pemasok --</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="report-status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                        <select id="report-status" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm sm:text-sm text-xs">
+                            <option value="Semua">Semua</option>
+                            <option value="Belum Lunas">Belum Lunas</option>
+                            <option value="Lunas">Lunas</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-3 flex gap-2">
+                        <button id="filter-report-btn" class="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark"><i class="bi bi-filter mr-2"></i> Tampilkan</button>
+                        <button id="print-report-btn" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700" title="Cetak PDF"><i class="bi bi-printer-fill"></i></button>
                     </div>
                 </div>
                 <div id="consignment-report-body"><p class="text-gray-500 dark:text-gray-400 text-center">Silakan atur filter tanggal dan klik "Tampilkan" untuk melihat laporan.</p></div>

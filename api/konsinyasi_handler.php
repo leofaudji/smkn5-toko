@@ -285,7 +285,26 @@ try {
     elseif ($action === 'list_sales') {
         $start_date = $_GET['start_date'] ?? date('Y-m-01');
         $end_date = $_GET['end_date'] ?? date('Y-m-t');
+        $page = (int)($_GET['page'] ?? 1);
+        $limit = (int)($_GET['limit'] ?? 10);
+        $offset = ($page - 1) * $limit;
 
+        // 1. Hitung TOTAL records untuk paging
+        $stmt_total = $conn->prepare("
+            SELECT COUNT(*) as total
+            FROM general_ledger gl
+            WHERE gl.user_id = ?
+              AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')
+              AND gl.kredit > 0
+              AND gl.ref_type IN ('jurnal', 'penjualan')
+              AND gl.tanggal BETWEEN ? AND ?
+        ");
+        $stmt_total->bind_param('iss', $user_id, $start_date, $end_date);
+        $stmt_total->execute();
+        $total_records = (int)stmt_fetch_assoc($stmt_total)['total'];
+        $stmt_total->close();
+
+        // 2. Ambil DATA untuk halaman saat ini
         $stmt = $conn->prepare("
             SELECT 
                 gl.id,
@@ -304,35 +323,76 @@ try {
               AND gl.ref_type IN ('jurnal', 'penjualan')
               AND gl.tanggal BETWEEN ? AND ?
             ORDER BY gl.tanggal DESC, gl.id DESC
-            LIMIT 100
+            LIMIT ? OFFSET ?
         ");
-        $stmt->bind_param('iss', $user_id, $start_date, $end_date);
+        $stmt->bind_param('issii', $user_id, $start_date, $end_date, $limit, $offset);
         $stmt->execute();
-        echo json_encode(['status' => 'success', 'data' => stmt_fetch_all($stmt)]);
+        $data = stmt_fetch_all($stmt);
+        $stmt->close();
+
+        echo json_encode([
+            'status' => 'success', 
+            'data' => $data,
+            'pagination' => [
+                'current_page' => $page,
+                'limit' => $limit,
+                'total_records' => $total_records,
+                'total_pages' => ceil($total_records / $limit)
+            ]
+        ]);
     }
 
     // --- REPORT ACTION ---
     elseif ($action === 'get_sales_report') {
         $start_date = $_GET['start_date'] ?? date('Y-m-01');
         $end_date = $_GET['end_date'] ?? date('Y-m-t');
+        $supplier_id = !empty($_GET['supplier_id']) ? (int)$_GET['supplier_id'] : null;
+        $status = $_GET['status'] ?? 'Semua';
 
-        $stmt = $conn->prepare("
+        $where = "WHERE gl.user_id = ? AND gl.tanggal BETWEEN ? AND ? AND gl.ref_type IN ('jurnal', 'penjualan') AND gl.consignment_item_id IS NOT NULL AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')";
+        $params = [$user_id, $start_date, $end_date];
+        $types = "iss";
+
+        if ($supplier_id) {
+            $where .= " AND ci.supplier_id = ?";
+            $params[] = $supplier_id;
+            $types .= "i";
+        }
+
+        $query = "
             SELECT 
                 s.nama_pemasok,
                 ci.nama_barang,
-                SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) as total_terjual, ci.harga_beli, (SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) * ci.harga_beli) as total_utang
+                SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) as total_terjual, 
+                ci.harga_beli, 
+                (SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) * ci.harga_beli) as total_utang,
+                IFNULL(curr_stat.total_hutang_pemasok, 0) as total_hutang_pemasok,
+                IFNULL(curr_stat.total_bayar_pemasok, 0) as total_bayar_pemasok
             FROM general_ledger gl
             JOIN consignment_items ci ON gl.consignment_item_id = ci.id
             JOIN suppliers s ON ci.supplier_id = s.id
-            WHERE gl.user_id = ?
-              AND gl.tanggal BETWEEN ? AND ?
-              AND gl.ref_type IN ('jurnal', 'penjualan') 
-              AND gl.consignment_item_id IS NOT NULL 
-              AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')
-            GROUP BY s.nama_pemasok, ci.nama_barang, ci.harga_beli
-            ORDER BY s.nama_pemasok, ci.nama_barang
-        ");
-        $stmt->bind_param('iss', $user_id, $start_date, $end_date);
+            LEFT JOIN (
+                SELECT 
+                    s2.id as sid,
+                    (SELECT SUM(gl3.kredit) FROM general_ledger gl3 JOIN consignment_items ci3 ON gl3.consignment_item_id = ci3.id WHERE ci3.supplier_id = s2.id AND gl3.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl3.ref_type IN ('jurnal', 'penjualan')) as total_hutang_pemasok,
+                    (SELECT SUM(gl4.debit) FROM general_ledger gl4 WHERE gl4.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl4.debit > 0 AND SUBSTRING_INDEX(SUBSTRING_INDEX(gl4.keterangan, 'ke ', -1), ' -', 1) = s2.nama_pemasok) as total_bayar_pemasok
+                FROM suppliers s2
+            ) curr_stat ON s.id = curr_stat.sid
+            $where
+            GROUP BY s.id, s.nama_pemasok, ci.nama_barang, ci.harga_beli, curr_stat.total_hutang_pemasok, curr_stat.total_bayar_pemasok
+            HAVING total_terjual > 0
+        ";
+
+        if ($status === 'Lunas') {
+            $query .= " AND total_hutang_pemasok <= total_bayar_pemasok AND total_hutang_pemasok > 0";
+        } elseif ($status === 'Belum Lunas') {
+            $query .= " AND (total_hutang_pemasok > total_bayar_pemasok OR total_hutang_pemasok IS NULL OR total_hutang_pemasok = 0)";
+        }
+
+        $query .= " ORDER BY s.nama_pemasok, ci.nama_barang";
+
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $report = stmt_fetch_all($stmt);
         $stmt->close();

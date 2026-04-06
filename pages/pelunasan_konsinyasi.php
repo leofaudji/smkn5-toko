@@ -36,6 +36,9 @@ check_permission('konsinyasi', 'menu'); // Reuse consignment permission
                     <tbody id="supplier-balance-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <!-- Data will be loaded here -->
                     </tbody>
+                    <tfoot id="supplier-balance-table-foot" class="bg-gray-50 dark:bg-gray-700 font-bold border-t-2 border-gray-200 dark:border-gray-600">
+                        <!-- Total will be loaded here -->
+                    </tfoot>
                 </table>
             </div>
         </div>
