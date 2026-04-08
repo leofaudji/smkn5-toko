@@ -58,9 +58,17 @@ check_permission('penjualan', 'menu');
             </table>
         </div>
         <div class="flex justify-between items-center mt-4">
-            <div id="pagination-info" class="text-sm text-gray-700 dark:text-gray-300"></div>
-            <div id="pagination"></div>
+            <div id="pagination-info" class="text-sm text-gray-700 dark:text-gray-300 italic"></div>
+            <div id="infinite-scroll-loader" class="hidden">
+                <div class="flex items-center text-sm text-primary font-medium">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                    Memuat lebih banyak...
+                </div>
+            </div>
+            <!-- Pagination lama dihapus / disembunyikan -->
+            <div id="pagination" class="hidden"></div>
         </div>
+        <div id="infinite-scroll-sentinel" class="h-4 w-full"></div>
     </div>
 </div>
 

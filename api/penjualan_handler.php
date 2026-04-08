@@ -56,23 +56,31 @@ function get_all_penjualan($db)
         $types = "";
 
         if (!empty($searchTerm)) {
-            $whereClauses[] = "(p.nomor_referensi LIKE ? OR p.customer_name LIKE ? OR u.username LIKE ?)";
             $search = "%{$searchTerm}%";
-            $params[] = $search;
-            $params[] = $search;
-            $params[] = $search;
-            $types .= "sss";
+            $whereClauses[] = "(p.nomor_referensi LIKE ? OR p.customer_name LIKE ? OR u.username LIKE ? 
+                               OR EXISTS (
+                                   SELECT 1 FROM penjualan_details pd 
+                                   WHERE pd.penjualan_id = p.id AND (
+                                       pd.deskripsi_item LIKE ? 
+                                       OR EXISTS (SELECT 1 FROM items i WHERE i.id = pd.item_id AND pd.item_type = 'normal' AND (i.sku LIKE ? OR i.barcode LIKE ?))
+                                       OR EXISTS (SELECT 1 FROM consignment_items ci WHERE ci.id = pd.item_id AND pd.item_type = 'consignment' AND (ci.sku LIKE ? OR ci.barcode LIKE ?))
+                                   )
+                               ))";
+            for ($i = 0; $i < 8; $i++) {
+                $params[] = $search;
+            }
+            $types .= "ssssssss";
         }
 
         if (!empty($startDate)) {
-            $whereClauses[] = "DATE(p.tanggal_penjualan) >= ?";
-            $params[] = $startDate;
+            $whereClauses[] = "p.tanggal_penjualan >= ?";
+            $params[] = $startDate . " 00:00:00";
             $types .= "s";
         }
 
         if (!empty($endDate)) {
-            $whereClauses[] = "DATE(p.tanggal_penjualan) <= ?";
-            $params[] = $endDate;
+            $whereClauses[] = "p.tanggal_penjualan <= ?";
+            $params[] = $endDate . " 23:59:59";
             $types .= "s";
         }
 

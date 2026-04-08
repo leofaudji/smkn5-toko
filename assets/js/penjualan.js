@@ -45,7 +45,10 @@ function initPenjualanPage() {
 
     let cart = [];
     let currentPage = 1;
+    let totalPages = 1;
     const limit = 10;
+    let isLoading = false;
+    let hasMore = true;
     let searchTimeout;
 
     // Use global appSettings provided by header.php for receipt printing
@@ -187,8 +190,150 @@ function initPenjualanPage() {
         }
     };
 
+    // Export functions to window for onclick handlers in table
+    window.printReceipt = printStrukWindow;
+    
+    window.viewDetailPenjualan = async (id) => {
+        try {
+            const response = await fetch(`${basePath}/api/penjualan?action=get_detail&id=${id}`);
+            const result = await response.json();
+
+            if (result.success) {
+                const detail = result.data;
+                const itemsHtml = detail.items.map(item => `
+                    <tr class="text-sm text-gray-800 dark:text-gray-300">
+                        <td class="px-4 py-2">
+                           ${item.deskripsi_item}
+                           ${item.discount > 0 ? `<div class="text-xs text-red-500">Potongan: -${formatRupiah(item.discount)}</div>` : ''}
+                        </td>
+                        <td class="px-4 py-2 text-center">${item.quantity}</td>
+                        <td class="px-4 py-2 text-right">${formatRupiah(item.price)}</td>
+                        <td class="px-4 py-2 text-right font-medium">${formatRupiah(item.subtotal)}</td>
+                    </tr>
+                `).join('');
+
+                const detailContent = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <div class="text-gray-500 text-sm">No. Faktur</div>
+                            <div class="font-bold text-primary"><i class="bi bi-receipt mr-1"></i>${detail.nomor_referensi}</div>
+                        </div>
+                        <div class="md:text-right">
+                            <div class="text-gray-500 text-sm">Tanggal</div>
+                            <div class="font-bold"><i class="bi bi-calendar3 mr-1"></i>${new Date(detail.tanggal_penjualan).toLocaleString('id-ID')}</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 text-sm">Pelanggan</div>
+                            <div class="font-bold"><i class="bi bi-person mr-1"></i>${detail.customer_name}</div>
+                        </div>
+                        <div class="md:text-right">
+                            <div class="text-gray-500 text-sm">Kasir</div>
+                            <div class="font-bold"><i class="bi bi-person-badge mr-1"></i>${detail.created_by_username}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto mb-4 border border-gray-200 dark:border-gray-700 rounded-md">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Barang</th>
+                                    <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Qty</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">${itemsHtml}</tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                        <div class="space-y-2">
+                            ${detail.discount > 0 ? `
+                            <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                                <span>Subtotal</span>
+                                <span>${formatRupiah(detail.subtotal)}</span>
+                            </div>
+                            <div class="flex justify-between text-sm text-red-500">
+                                <span>Diskon Global</span>
+                                <span>-${formatRupiah(detail.discount)}</span>
+                            </div>` : ''}
+                            <div class="flex justify-between">
+                                <span>Total Tagihan</span>
+                                <span class="font-bold text-lg text-primary">${formatRupiah(detail.total)}</span>
+                            </div>
+                            <div class="flex justify-between text-gray-600 dark:text-gray-400">
+                                <span>Bayar</span>
+                                <span>${formatRupiah(detail.bayar)}</span>
+                            </div>
+                            <div class="border-t border-gray-200 dark:border-gray-600 my-2"></div>
+                            <div class="flex justify-between">
+                                <span class="font-bold">Kembali</span>
+                                <span class="font-bold text-green-600">${formatRupiah(detail.kembali)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('detailModalBody').innerHTML = detailContent;
+
+                const cetakBtn = document.getElementById('btn-cetak-struk');
+                if (cetakBtn) cetakBtn.dataset.id = id;
+
+                openModal('detailModal');
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            console.error(error);
+            showToast('Gagal memuat detail transaksi.', 'danger');
+        }
+    };
+
+    window.voidPenjualan = (id, referensi) => {
+        Swal.fire({
+            title: 'Batalkan Transaksi?',
+            text: `Anda akan membatalkan transaksi ${referensi}. Stok akan dikembalikan dan jurnal pembalik akan dibuat.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Batalkan!',
+            cancelButtonText: 'Tutup'
+        }).then(async (swalResult) => {
+            if (swalResult.isConfirmed) {
+                try {
+                    const response = await fetch(`${basePath}/api/penjualan?action=void`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: id })
+                    });
+                    const res = await response.json();
+                    if (res.success) {
+                        showToast(res.message, 'success');
+                        loadPenjualan(1, false); // Reload to reflect changes
+                    } else {
+                        showToast(res.message, 'danger');
+                    }
+                } catch (error) {
+                    showToast('Terjadi kesalahan saat membatalkan transaksi.', 'danger');
+                }
+            }
+        });
+    };
+
     // Fungsi memuat data utama
-    const loadPenjualan = async (page = 1) => {
+    const loadPenjualan = async (page = 1, append = false) => {
+        if (isLoading || (!hasMore && append)) return;
+        isLoading = true;
+
+        if (append) {
+            document.getElementById('infinite-scroll-loader')?.classList.remove('hidden');
+        } else {
+            // Jika bukan append (filter/search), reset tabel
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>';
+            currentPage = 1;
+            hasMore = true;
+        }
+
         currentPage = page;
         const search = document.getElementById('search-input')?.value || '';
         
@@ -208,17 +353,20 @@ function initPenjualanPage() {
             const result = await response.json();
 
             if (result.success) {
-                renderTable(result.data);
+                if (!append) tableBody.innerHTML = '';
+                
+                renderTable(result.data, append);
+                
                 if (result.pagination) {
-                    renderPagination(paginationContainer, result.pagination, loadPenjualan);
+                    totalPages = result.pagination.total_pages;
+                    hasMore = currentPage < totalPages;
                     
                     // Update pagination info
                     const info = document.getElementById('pagination-info');
                     if (info) {
                         const { total_records, current_page, limit } = result.pagination;
-                        const start = total_records === 0 ? 0 : (current_page - 1) * limit + 1;
                         const end = Math.min(current_page * limit, total_records);
-                        info.textContent = `Menampilkan ${start} - ${end} dari ${total_records} transaksi.`;
+                        info.textContent = total_records === 0 ? 'Tidak ada transaksi.' : `Menampilkan ${end} dari ${total_records} transaksi.`;
                     }
                 }
             } else {
@@ -227,60 +375,79 @@ function initPenjualanPage() {
         } catch (error) {
             console.error('loadPenjualan error:', error);
             showToast('Terjadi kesalahan saat memuat data.', 'danger');
+        } finally {
+            isLoading = false;
+            document.getElementById('infinite-scroll-loader')?.classList.add('hidden');
         }
+    };
+
+    // Setup Infinite Scroll Observer
+    const setupInfiniteScroll = () => {
+        const sentinel = document.getElementById('infinite-scroll-sentinel');
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && hasMore && !isLoading) {
+                loadPenjualan(currentPage + 1, true);
+            }
+        }, { threshold: 0.1 });
+
+        observer.observe(sentinel);
     };
 
     // Event listener untuk tombol filter
     document.getElementById('btn-filter')?.addEventListener('click', () => {
-        loadPenjualan(1);
+        loadPenjualan(1, false);
     });
 
     // Trigger filter saat tekan Enter di input pencarian
     document.getElementById('search-input')?.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
-            loadPenjualan(1);
+            loadPenjualan(1, false);
         }
     });
 
-    const renderTable = (data) => {
-        tableBody.innerHTML = '';
-        if (data.length === 0) {
+    const renderTable = (data, append = false) => {
+        if (!append) tableBody.innerHTML = '';
+        
+        if (data.length === 0 && !append) {
             tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Tidak ada data penjualan ditemukan.</td></tr>';
             return;
         }
+
         data.forEach(item => {
             const isVoid = item.status === 'void';
-            const rowClass = isVoid ? 'table-secondary text-muted' : '';
-            const textDecoration = isVoid ? 'text-decoration-line-through' : '';
+            const rowClass = isVoid ? 'table-secondary shadow-sm' : '';
+            const textDecoration = isVoid ? 'text-decoration-line-through text-gray-400' : '';
             
             const row = `
-                <tr class="${rowClass} align-middle">
+                <tr class="${rowClass} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 align-middle">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                             <div class="mr-2 text-primary"><i class="bi bi-receipt"></i></div>
                             <div>
-                                <span class="font-bold ${textDecoration}">${item.nomor_referensi}</span>
-                                ${isVoid ? '<span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">BATAL</span>' : ''}
+                                <span class="font-bold font-mono text-xs ${textDecoration}">${item.nomor_referensi}</span>
+                                ${isVoid ? '<span class="ml-1 px-2 inline-flex text-[10px] leading-5 font-semibold rounded-full bg-red-100 text-red-800">VOID</span>' : ''}
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-calendar-event mr-1 text-gray-400"></i> <span class="${textDecoration}">${formatDateTime(item.tanggal_penjualan)}</span></td>
-                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-person mr-1 text-gray-400"></i> <span class="${textDecoration}">${item.customer_name}</span></td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                        <span class="font-bold ${isVoid ? 'text-gray-500' : 'text-green-600'} ${textDecoration}">${formatRupiah(item.total)}</span>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400"><span class="${textDecoration}">${formatDateTime(item.tanggal_penjualan)}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white"><span class="${textDecoration}">${item.customer_name}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right font-bold text-gray-900 dark:text-white">
+                        <span class="${isVoid ? 'text-gray-400' : 'text-green-600'} ${textDecoration}">${formatRupiah(item.total)}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap"><i class="bi bi-person-badge mr-1 text-gray-400"></i> <span class="${textDecoration}">${item.username}</span></td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                        <div class="inline-flex rounded-md shadow-sm">
-                        <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-l-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-detail" data-id="${item.id}" title="Lihat Detail">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        <button class="px-2 py-1 border-t border-b border-gray-300 dark:border-gray-600 text-sm font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-edit" data-id="${item.id}" title="Edit Transaksi" ${isVoid ? 'disabled' : ''}>
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="px-2 py-1 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-r-md text-red-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 btn-void" data-id="${item.id}" title="Batalkan Transaksi" ${isVoid ? 'disabled' : ''}>
-                            <i class="bi bi-x-circle"></i>
-                        </button>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400"><span class="${textDecoration}">${item.username}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div class="flex justify-center space-x-2">
+                            <button onclick="window.viewDetailPenjualan(${item.id})" class="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50 transition-colors" title="Detail">
+                                <i class="bi bi-eye-fill"></i>
+                            </button>
+                            <button onclick="window.printReceipt(${item.id})" class="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-50 transition-colors" title="Cetak Struk">
+                                <i class="bi bi-printer-fill"></i>
+                            </button>
+                            <button onclick="window.voidPenjualan(${item.id}, '${item.nomor_referensi}')" class="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50 transition-colors" title="Batalkan Transaksi" ${isVoid ? 'disabled' : ''}>
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -915,151 +1082,6 @@ function initPenjualanPage() {
         }
     });
 
-    tableBody.addEventListener('click', async (e) => {
-        const voidBtn = e.target.closest('.btn-void');
-        if (voidBtn) {
-            const id = voidBtn.dataset.id;
-            
-            Swal.fire({
-                title: 'Anda yakin?',
-                text: "Transaksi ini akan dibatalkan! Stok akan dikembalikan dan jurnal pembalik akan dibuat. Aksi ini tidak dapat diurungkan.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Ya, batalkan!',
-                cancelButtonText: 'Tidak'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const response = await fetch(`${basePath}/api/penjualan?action=void`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: id })
-                        });
-                        const res = await response.json();
-                        // Ganti handleApiResponse dengan showToast dan reload tabel
-                        if (res.success) {
-                            showToast(res.message, 'success');
-                            loadPenjualan(currentPage, searchInput.value); // Muat ulang halaman saat ini
-                        } else {
-                            showToast(res.message, 'danger');
-                        }
-                    } catch (error) {
-                        showToast('Terjadi kesalahan: ' . error, 'danger');
-                    }
-                }
-            });
-        }
-    });
-
-    tableBody.addEventListener('click', async (e) => {
-        const detailBtn = e.target.closest('.btn-detail');
-        if (detailBtn) {
-            const id = detailBtn.dataset.id;
-            const response = await fetch(`${basePath}/api/penjualan?action=get_detail&id=${id}`);
-            const result = await response.json();
-
-            if (result.success) {
-                const detail = result.data;
-                const itemsHtml = detail.items.map(item => `
-                    <tr class="text-sm text-gray-800 dark:text-gray-300">
-                        <td class="px-4 py-2">
-                           ${item.deskripsi_item}
-                           ${item.discount > 0 ? `<div class="text-xs text-red-500">Potongan: -${formatRupiah(item.discount)}</div>` : ''}
-                        </td>
-                        <td class="px-4 py-2 text-center">${item.quantity}</td>
-                        <td class="px-4 py-2 text-right">${formatRupiah(item.price)}</td>
-                        <td class="px-4 py-2 text-right font-medium">${formatRupiah(item.subtotal)}</td>
-                    </tr>
-                `).join('');
-
-                const detailContent = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <div class="text-gray-500 text-sm">No. Faktur</div>
-                            <div class="font-bold text-primary"><i class="bi bi-receipt mr-1"></i>${detail.nomor_referensi}</div>
-                        </div>
-                        <div class="md:text-right">
-                            <div class="text-gray-500 text-sm">Tanggal</div>
-                            <div class="font-bold"><i class="bi bi-calendar3 mr-1"></i>${new Date(detail.tanggal_penjualan).toLocaleString('id-ID')}</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-500 text-sm">Pelanggan</div>
-                            <div class="font-bold"><i class="bi bi-person mr-1"></i>${detail.customer_name}</div>
-                        </div>
-                        <div class="md:text-right">
-                            <div class="text-gray-500 text-sm">Kasir</div>
-                            <div class="font-bold"><i class="bi bi-person-badge mr-1"></i>${detail.created_by_username}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="overflow-x-auto mb-4 border border-gray-200 dark:border-gray-700 rounded-md">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Barang</th>
-                                    <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Qty</th>
-                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga</th>
-                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">${itemsHtml}</tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                        <div class="space-y-2">
-                            ${detail.discount > 0 ? `
-                            <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                                <span>Subtotal</span>
-                                <span>${formatRupiah(detail.subtotal)}</span>
-                            </div>
-                            <div class="flex justify-between text-sm text-red-500">
-                                <span>Diskon Global</span>
-                                <span>-${formatRupiah(detail.discount)}</span>
-                            </div>` : ''}
-                            <div class="flex justify-between">
-                                <span>Total Tagihan</span>
-                                <span class="font-bold text-lg text-primary">${formatRupiah(detail.total)}</span>
-                            </div>
-                            <div class="flex justify-between text-gray-600 dark:text-gray-400">
-                                <span>Bayar</span>
-                                <span>${formatRupiah(detail.bayar)}</span>
-                            </div>
-                            <div class="border-t border-gray-200 dark:border-gray-600 my-2"></div>
-                            <div class="flex justify-between">
-                                <span class="font-bold">Kembali</span>
-                                <span class="font-bold text-green-600">${formatRupiah(detail.kembali)}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                document.getElementById('detailModalBody').innerHTML = detailContent;
-
-                // Set ID untuk tombol cetak struk
-                const cetakBtn = document.getElementById('btn-cetak-struk');
-                if (cetakBtn) {
-                    cetakBtn.dataset.id = id;
-                }
-
-                openModal('detailModal');
-            } else {
-                showToast(result.message, 'danger');
-            }
-        }
-    });
-
-    // Event listener untuk tombol cetak struk di dalam modal detail
-    document.getElementById('detailModal').addEventListener('click', (e) => {
-        const cetakBtn = e.target.closest('#btn-cetak-struk');
-        if (cetakBtn) {
-            const id = cetakBtn.dataset.id;
-            if (id) {
-                printStrukWindow(id);
-            }
-        }
-    });
 
     // Event listener untuk tombol Edit di tabel
     tableBody.addEventListener('click', async (e) => {
@@ -1145,5 +1167,6 @@ function initPenjualanPage() {
     });
 
     // Muat data saat halaman pertama kali dibuka
-    loadPenjualan();
+    loadPenjualan(1, false);
+    setupInfiniteScroll();
 }

@@ -14,7 +14,8 @@ if (!$is_spa_request) {
         <button type="button" class="konsinyasi-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm" data-target="#pemasok-pane">Kelola Pemasok</button>
         <button type="button" class="konsinyasi-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm" data-target="#barang-pane">Kelola Barang</button>
         <button type="button" class="konsinyasi-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm" data-target="#penjualan-pane">Penjualan Konsinyasi</button>
-        <button type="button" class="konsinyasi-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm" data-target="#pembayaran-pane">Pembayaran Utang</button>
+        <button type="button" class="konsinyasi-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent" data-target="#pembayaran-pane">Pembayaran Utang</button>
+        <button type="button" class="konsinyasi-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent" data-target="#mutasi-pane">Mutasi Stok</button>
     </div>
 </div>
 
@@ -164,6 +165,67 @@ if (!$is_spa_request) {
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Mutasi Stok -->
+    <div class="konsinyasi-tab-pane hidden" id="mutasi-pane" role="tabpanel">
+        <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h5 class="text-lg font-semibold text-gray-900 dark:text-white">Filter Mutasi Stok (Terima Barang)</h5>
+            </div>
+            <div class="p-6">
+                <!-- Filter Section -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div class="md:col-span-3">
+                        <label for="mutasi-supplier-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pemasok</label>
+                        <select class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="mutasi-supplier-id">
+                            <option value="">Semua Pemasok</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-3">
+                        <label for="mutasi-start-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Mulai Tanggal</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="mutasi-start-date" placeholder="DD-MM-YYYY">
+                    </div>
+                    <div class="md:col-span-3">
+                        <label for="mutasi-end-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sampai Tanggal</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="mutasi-end-date" placeholder="DD-MM-YYYY">
+                    </div>
+                    <div class="md:col-span-3">
+                        <button id="filter-mutasi-btn" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none"><i class="bi bi-filter mr-2"></i> Tampilkan Mutasi</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 font-semibold tracking-wider">
+                <i class="bi bi-arrow-down-up mr-2"></i>Riwayat Mutasi Penerimaan Barang
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tanggal</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nama Barang</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tipe</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Qty</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mutasi-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        <tr>
+                            <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                                <div class="flex flex-col items-center">
+                                    <div class="bi bi-info-circle text-4xl mb-2 opacity-20"></div>
+                                    <span>Silakan klik "Tampilkan Mutasi"</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
