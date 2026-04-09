@@ -54,7 +54,7 @@ try {
 
         // 2. AUDIT PIUTANG ANGGOTA
         $rcv_acc_id = get_setting('sales_receivable_account_id', null, $conn);
-        $sub_rcv = $conn->query("SELECT SUM(total - bayar) as total FROM penjualan WHERE user_id = $user_id AND payment_method = 'hutang' AND status = 'completed'")->fetch_assoc()['total'] ?? 0;
+        $sub_rcv = $conn->query("SELECT SUM(total - bayar - bayar_wb) as total FROM penjualan WHERE user_id = $user_id AND payment_method = 'hutang' AND status = 'completed'")->fetch_assoc()['total'] ?? 0;
         $gl_rcv = get_gl_balance($conn, $rcv_acc_id, $user_id);
         $results[] = [
             'module' => 'Piutang Anggota',

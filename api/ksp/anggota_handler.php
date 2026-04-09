@@ -37,6 +37,9 @@ switch ($action) {
     case 'sync_from_sp':
         sync_from_sp($db);
         break;
+    case 'get_purchase_history':
+        get_purchase_history($db);
+        break;
     default:
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Aksi tidak valid.']);
@@ -76,8 +79,18 @@ function get_all_anggota($db)
     $total = stmt_fetch_assoc($stmt)['total'];
     $stmt->close();
 
+    // Sorting
+    $sort_by = $_GET['sort_by'] ?? 'created_at';
+    $sort_dir = strtoupper($_GET['sort_dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+    
+    // Whitelist allowed sort columns
+    $allowed_sort = ['nomor_anggota', 'nama_lengkap', 'nik', 'no_telepon', 'status', 'tanggal_daftar', 'created_at'];
+    if (!in_array($sort_by, $allowed_sort)) {
+        $sort_by = 'created_at';
+    }
+
     // Ambil data
-    $sql .= " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    $sql .= " ORDER BY $sort_by $sort_dir LIMIT ? OFFSET ?";
     $params[] = $limit;
     $params[] = $offset;
     $types .= "ii";
@@ -310,4 +323,43 @@ function sync_from_sp($db)
         'success' => true,
         'message' => "Sinkronasi selesai. $successCount data baru ditambahkan, $skipCount data sudah ada (lewati), $errorCount gagal."
     ]);
+}
+
+function get_purchase_history($db)
+{
+    $anggota_id = $_GET['id'] ?? 0;
+    
+    $sql = "SELECT 
+                MAX(CASE WHEN t_tipe = 'belanja' THEN t_id ELSE 0 END) as sale_id,
+                nomor_referensi, 
+                MAX(t_tanggal) as tanggal, 
+                MAX(t_jumlah) as jumlah, 
+                MAX(t_status) as status, 
+                GROUP_CONCAT(DISTINCT t_tipe) as tipe_list,
+                MAX(t_item_count) as item_count,
+                MAX(CASE WHEN t_tipe = 'belanja' THEN 1 ELSE 0 END) as has_sale_detail
+            FROM (
+                SELECT id as t_id, nomor_referensi COLLATE utf8mb4_general_ci as nomor_referensi, tanggal_penjualan as t_tanggal, total as t_jumlah, status COLLATE utf8mb4_general_ci as t_status, 'belanja' COLLATE utf8mb4_general_ci as t_tipe,
+                       (SELECT COUNT(*) FROM penjualan_details pd WHERE pd.penjualan_id = p.id) as t_item_count
+                FROM penjualan p
+                WHERE p.customer_id = ?
+                
+                UNION ALL
+                
+                SELECT id as t_id, nomor_referensi COLLATE utf8mb4_general_ci as nomor_referensi, tanggal as t_tanggal, jumlah as t_jumlah, 'selesai' COLLATE utf8mb4_general_ci as t_status, CONCAT('wb_', jenis) COLLATE utf8mb4_general_ci as t_tipe,
+                       0 as t_item_count
+                FROM transaksi_wajib_belanja
+                WHERE anggota_id = ?
+            ) as combined
+            GROUP BY nomor_referensi
+            ORDER BY tanggal DESC
+            LIMIT 100";
+            
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param("ii", $anggota_id, $anggota_id);
+    $stmt->execute();
+    $data = stmt_fetch_all($stmt);
+    $stmt->close();
+    
+    echo json_encode(['success' => true, 'data' => $data]);
 }

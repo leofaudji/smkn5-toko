@@ -53,15 +53,21 @@ check_permission('menu.view.anggota');
                         <input type="checkbox" id="select-all-members"
                             class="rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
                     </th>
-                    <th scope="col"
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        No Anggota</th>
+                    <th scope="col" onclick="sortData('nomor_anggota')"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 group">
+                        <div class="flex items-center gap-1">
+                            No Anggota <i id="sort-icon-nomor_anggota" class="bi bi-arrow-down-up text-gray-300 group-hover:text-gray-500"></i>
+                        </div>
+                    </th>
                     <th scope="col"
                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         NIK</th>
-                    <th scope="col"
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Nama Lengkap</th>
+                    <th scope="col" onclick="sortData('nama_lengkap')"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 group">
+                        <div class="flex items-center gap-1">
+                            Nama Lengkap <i id="sort-icon-nama_lengkap" class="bi bi-arrow-down-up text-gray-300 group-hover:text-gray-500"></i>
+                        </div>
+                    </th>
                     <th scope="col"
                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         No Telepon</th>
@@ -164,6 +170,42 @@ check_permission('menu.view.anggota');
                         class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Batal</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Riwayat Pembelanjaan -->
+<div id="modal-history" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeHistoryModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="history-modal-title">Riwayat Pembelanjaan</h3>
+                    <button onclick="closeHistoryModal()" class="text-gray-400 hover:text-gray-500">
+                        <i class="bi bi-x-lg text-xl"></i>
+                    </button>
+                </div>
+                <div class="overflow-x-auto max-h-[60vh] overflow-y-auto mt-2 pr-1">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Transaksi</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Nominal</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- Data loaded via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 flex justify-end">
+                <button type="button" onclick="closeHistoryModal()"
+                    class="rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">Tutup</button>
+            </div>
         </div>
     </div>
 </div>

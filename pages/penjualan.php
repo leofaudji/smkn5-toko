@@ -40,7 +40,7 @@ check_permission('penjualan', 'menu');
                 </div>
             </div>
         </div>
-        <div class="overflow-auto max-h-[65vh] border border-gray-200 dark:border-gray-700 rounded-md">
+        <div id="penjualanTableContainer" class="overflow-auto max-h-[65vh] border border-gray-200 dark:border-gray-700 rounded-md">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="penjualanTable">
                 <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0">
                     <tr>
@@ -56,6 +56,7 @@ check_permission('penjualan', 'menu');
                     <!-- Data akan dimuat oleh JavaScript -->
                 </tbody>
             </table>
+            <div id="infinite-scroll-sentinel" class="h-4 w-full"></div>
         </div>
         <div class="flex justify-between items-center mt-4">
             <div id="pagination-info" class="text-sm text-gray-700 dark:text-gray-300 italic"></div>
@@ -68,7 +69,7 @@ check_permission('penjualan', 'menu');
             <!-- Pagination lama dihapus / disembunyikan -->
             <div id="pagination" class="hidden"></div>
         </div>
-        <div id="infinite-scroll-sentinel" class="h-4 w-full"></div>
+
     </div>
 </div>
 

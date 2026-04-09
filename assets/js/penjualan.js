@@ -153,7 +153,6 @@ function initPenjualanPage() {
                         <div>Tgl: ${formatDateTime(detail.tanggal_penjualan)}</div>
                         <div>Kasir: ${detail.created_by_username}</div>
                         <div>Pelanggan: ${detail.customer_name}</div>
-                        <div>Metode: ${getPaymentMethodName(detail.payment_method)}</div>
                     </div>
                     <table class="items-table mb-1">
                         ${itemsHtml}
@@ -163,7 +162,8 @@ function initPenjualanPage() {
                             ${detail.discount > 0 ? `<tr><td>Subtotal</td><td class="text-end">${formatRupiah(detail.subtotal)}</td></tr>` : ''}
                             ${detail.discount > 0 ? `<tr><td>Diskon</td><td class="text-end">-${formatRupiah(detail.discount)}</td></tr>` : ''}
                             <tr><td>Total</td><td class="text-end fw-bold">${formatRupiah(detail.total)}</td></tr>
-                            <tr><td>Bayar</td><td class="text-end">${formatRupiah(detail.bayar)}</td></tr>
+                            ${detail.bayar_wb > 0 ? `<tr><td>Potong WB</td><td class="text-end">${formatRupiah(detail.bayar_wb)}</td></tr>` : ''}
+                            ${detail.bayar > 0 ? `<tr><td>${getPaymentMethodName(detail.payment_method)}</td><td class="text-end">${formatRupiah(detail.bayar)}</td></tr>` : ''}
                             <tr><td>Kembali</td><td class="text-end">${formatRupiah(detail.kembali)}</td></tr>
                         </table>
                     </div>
@@ -257,18 +257,25 @@ function initPenjualanPage() {
                                 <span>Diskon Global</span>
                                 <span>-${formatRupiah(detail.discount)}</span>
                             </div>` : ''}
-                            <div class="flex justify-between">
+                            <div class="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-2 font-bold">
                                 <span>Total Tagihan</span>
-                                <span class="font-bold text-lg text-primary">${formatRupiah(detail.total)}</span>
+                                <span class="text-lg text-primary">${formatRupiah(detail.total)}</span>
                             </div>
-                            <div class="flex justify-between text-gray-600 dark:text-gray-400">
-                                <span>Bayar</span>
-                                <span>${formatRupiah(detail.bayar)}</span>
-                            </div>
-                            <div class="border-t border-gray-200 dark:border-gray-600 my-2"></div>
-                            <div class="flex justify-between">
-                                <span class="font-bold">Kembali</span>
-                                <span class="font-bold text-green-600">${formatRupiah(detail.kembali)}</span>
+                            <div class="space-y-1 mt-2">
+                                ${detail.bayar_wb > 0 ? `
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600 dark:text-gray-400">Potong WB</span>
+                                    <span class="font-medium">${formatRupiah(detail.bayar_wb)}</span>
+                                </div>` : ''}
+                                ${detail.bayar > 0 ? `
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600 dark:text-gray-400">${getPaymentMethodName(detail.payment_method)}</span>
+                                    <span class="font-medium">${formatRupiah(detail.bayar)}</span>
+                                </div>` : ''}
+                                <div class="flex justify-between text-sm">
+                                    <span class="font-bold">Kembali</span>
+                                    <span class="font-bold text-green-600">${formatRupiah(detail.kembali)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -384,13 +391,17 @@ function initPenjualanPage() {
     // Setup Infinite Scroll Observer
     const setupInfiniteScroll = () => {
         const sentinel = document.getElementById('infinite-scroll-sentinel');
+        const container = document.getElementById('penjualanTableContainer');
         if (!sentinel) return;
 
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting && hasMore && !isLoading) {
                 loadPenjualan(currentPage + 1, true);
             }
-        }, { threshold: 0.1 });
+        }, { 
+            root: container,
+            threshold: 0.1 
+        });
 
         observer.observe(sentinel);
     };
@@ -961,6 +972,16 @@ function initPenjualanPage() {
 
     document.getElementById('bayar').addEventListener('input', updateSummary);
     document.getElementById('discount_total').addEventListener('input', updateSummary);
+
+    // Event listener untuk tombol Cetak Struk di modal Detail
+    document.getElementById('btn-cetak-struk')?.addEventListener('click', function() {
+        const id = this.dataset.id;
+        if (id) {
+            window.printReceipt(id);
+        } else {
+            showToast('ID Transaksi tidak ditemukan.', 'warning');
+        }
+    });
 
     document.getElementById('btn-simpan-penjualan').addEventListener('click', async () => {
         const id = document.getElementById('penjualan_id').value;

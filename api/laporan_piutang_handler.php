@@ -22,8 +22,8 @@ try {
                 p.customer_name,
                 a.nomor_anggota,
                 SUM(p.total) as total_kredit,
-                SUM(p.bayar) as total_bayar,
-                SUM(p.total - p.bayar) as sisa_hutang
+                SUM(p.bayar + p.bayar_wb) as total_bayar,
+                SUM(p.total - p.bayar - p.bayar_wb) as sisa_hutang
             FROM penjualan p
             LEFT JOIN anggota a ON p.customer_id = a.id
             WHERE p.payment_method = 'hutang' 
@@ -46,9 +46,9 @@ try {
         if (!$customer_id)
             throw new Exception("ID Anggota tidak valid.");
 
-        $sql = "SELECT id, nomor_referensi, tanggal_penjualan, total, bayar, (total - bayar) as sisa 
+        $sql = "SELECT id, nomor_referensi, tanggal_penjualan, total, bayar, bayar_wb, (total - bayar - bayar_wb) as sisa 
                 FROM penjualan 
-                WHERE customer_id = ? AND payment_method = 'hutang' AND (total - bayar) > 0 AND status = 'completed'
+                WHERE customer_id = ? AND payment_method = 'hutang' AND (total - bayar - bayar_wb) > 0 AND status = 'completed'
                 ORDER BY tanggal_penjualan ASC";
 
         $stmt = $conn->prepare($sql);
@@ -101,7 +101,7 @@ try {
             if ($remaining_payment <= 0)
                 break;
 
-            $sisa_tagihan = $inv['total'] - $inv['bayar'];
+            $sisa_tagihan = $inv['total'] - $inv['bayar'] - $inv['bayar_wb'];
             $bayar_ini = min($remaining_payment, $sisa_tagihan);
             $zero = 0;
 

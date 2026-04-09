@@ -216,10 +216,10 @@ function store_penjualan($db)
         }
 
         $stmt = $db->prepare(
-            "INSERT INTO penjualan (user_id, customer_id, nomor_referensi, tanggal_penjualan, customer_name, subtotal, discount, total, bayar, kembali, keterangan, created_by, payment_method) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO penjualan (user_id, customer_id, nomor_referensi, tanggal_penjualan, customer_name, subtotal, discount, total, bayar, bayar_wb, kembali, keterangan, created_by, payment_method) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
-        $stmt->bind_param('iisssdddsssis', $user_id, $anggota_id, $nomor_referensi, $tanggal, $customer_name, $subtotal, $discount, $total, $bayar, $kembali, $keterangan, $logged_in_user_id, $payment_method);
+        $stmt->bind_param('iisssdddddssis', $user_id, $anggota_id, $nomor_referensi, $tanggal, $customer_name, $subtotal, $discount, $total, $bayar, $bayar_wb, $kembali, $keterangan, $logged_in_user_id, $payment_method);
         $stmt->execute();
         $penjualanId = $stmt->insert_id;
         $stmt->close();
@@ -516,8 +516,31 @@ function void_penjualan($db)
         }
         $stmt_gl_reverse->close();
 
+        // 4.5. Kembalikan Saldo Wajib Belanja (Jika ada)
+        // Cari apakah transaksi ini menggunakan pembayaran WB
+        $stmt_wb = $db->prepare("SELECT * FROM transaksi_wajib_belanja WHERE nomor_referensi = ? AND jenis = 'belanja'");
+        $stmt_wb->bind_param('s', $penjualan['nomor_referensi']);
+        $stmt_wb->execute();
+        $wb_records = stmt_fetch_all($stmt_wb);
+        $stmt_wb->close();
+
+        if (!empty($wb_records)) {
+            $stmt_restore_wb = $db->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja + ? WHERE id = ?");
+            $stmt_del_wb = $db->prepare("DELETE FROM transaksi_wajib_belanja WHERE id = ?");
+
+            foreach ($wb_records as $wb) {
+                $stmt_restore_wb->bind_param('di', $wb['jumlah'], $wb['anggota_id']);
+                $stmt_restore_wb->execute();
+
+                $stmt_del_wb->bind_param('i', $wb['id']);
+                $stmt_del_wb->execute();
+            }
+            $stmt_restore_wb->close();
+            $stmt_del_wb->close();
+        }
+
         // 5. Update status transaksi menjadi 'void'
-        $stmt_void = $db->prepare("UPDATE penjualan SET status = 'void', total = 0, bayar = 0, kembali = 0 WHERE id = ?");
+        $stmt_void = $db->prepare("UPDATE penjualan SET status = 'void', total = 0, bayar = 0, bayar_wb = 0, kembali = 0 WHERE id = ?");
         $stmt_void->bind_param('i', $id);
         $stmt_void->execute();
         $stmt_void->close();

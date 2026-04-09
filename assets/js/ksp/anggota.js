@@ -16,6 +16,8 @@ function initAnggotaPage() {
     let currentPage = 1;
     let limit = 10;
     let searchTimeout;
+    let currentSortBy = 'created_at';
+    let currentSortDir = 'DESC';
 
     // Load data awal
     loadData();
@@ -77,7 +79,7 @@ function initAnggotaPage() {
     // Functions
     function loadData() {
         const search = searchInput.value;
-        const url = `${basePath}/api/ksp/anggota?action=get_all&page=${currentPage}&limit=${limit}&search=${encodeURIComponent(search)}`;
+        const url = `${basePath}/api/ksp/anggota?action=get_all&page=${currentPage}&limit=${limit}&search=${encodeURIComponent(search)}&sort_by=${currentSortBy}&sort_dir=${currentSortDir}`;
 
         tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Memuat data...</td></tr>';
 
@@ -113,7 +115,9 @@ function initAnggotaPage() {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nomor_anggota}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.nik || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.nama_lengkap}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-700 dark:text-gray-200 cursor-pointer hover:text-primary hover:underline" onclick="viewPurchaseHistory(${item.id}, '${item.nama_lengkap.replace(/'/g, "\\'")}')">
+                    <i class="bi bi-person-fill mr-1 text-gray-400"></i> ${item.nama_lengkap}
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${item.no_telepon || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${formatDate(item.tanggal_daftar)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
@@ -122,9 +126,10 @@ function initAnggotaPage() {
                     </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onclick="viewPurchaseHistory(${item.id}, '${item.nama_lengkap.replace(/'/g, "\\'")}')" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3" title="Riwayat Belanja"><i class="bi bi-clock-history"></i></button>
                     <button onclick="printCard(${item.id})" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-3" title="Cetak Kartu"><i class="bi bi-person-badge"></i></button>
-                    <button onclick="editAnggota(${item.id})" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"><i class="bi bi-pencil-square"></i> Edit</button>
-                    <button onclick="deleteAnggota(${item.id})" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"><i class="bi bi-trash"></i> Hapus</button>
+                    <button onclick="editAnggota(${item.id})" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3" title="Edit"><i class="bi bi-pencil-square"></i></button>
+                    <button onclick="deleteAnggota(${item.id})" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300" title="Hapus"><i class="bi bi-trash"></i></button>
                 </td>
             </tr>
         `).join('');
@@ -240,6 +245,110 @@ function initAnggotaPage() {
 
     window.editAnggota = function (id) {
         openModal(id);
+    };
+
+    window.sortData = function (column) {
+        if (currentSortBy === column) {
+            currentSortDir = currentSortDir === 'ASC' ? 'DESC' : 'ASC';
+        } else {
+            currentSortBy = column;
+            currentSortDir = 'ASC';
+        }
+
+        // Update icons
+        document.querySelectorAll('[id^="sort-icon-"]').forEach(icon => {
+            if (icon.id === `sort-icon-${column}`) {
+                icon.className = currentSortDir === 'ASC' ? 'bi bi-sort-up text-primary' : 'bi bi-sort-down text-primary';
+            } else {
+                icon.className = 'bi bi-arrow-down-up text-gray-300 group-hover:text-gray-500';
+            }
+        });
+
+        loadData();
+    };
+
+    window.viewPurchaseHistory = function (id, name) {
+        const historyModal = document.getElementById('modal-history');
+        const historyTableBody = document.getElementById('history-table-body');
+        const historyTitle = document.getElementById('history-modal-title');
+
+        historyTitle.textContent = `Riwayat Pembelanjaan: ${name}`;
+        historyTableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">Memuat riwayat...</td></tr>';
+        historyModal.classList.remove('hidden');
+
+        fetch(`${basePath}/api/ksp/anggota?action=get_purchase_history&id=${id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.data.length === 0) {
+                        historyTableBody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-gray-500">Belum ada riwayat transaksi.</td></tr>';
+                    } else {
+                        historyTableBody.innerHTML = data.data.map(tx => {
+                            let badges = '';
+                            const types = tx.tipe_list.split(',');
+                            
+                            if (types.includes('belanja')) badges += '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-blue-100 text-blue-800 mr-1">Toko</span>';
+                            if (types.includes('wb_setor')) badges += '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-green-100 text-green-800 mr-1">WB Setor</span>';
+                            if (types.includes('wb_belanja')) badges += '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-orange-100 text-orange-800 mr-1">WB Potong</span>';
+
+                            const detailBtn = tx.has_sale_detail == 1 
+                                ? `<button onclick="viewSaleDetail(${tx.sale_id})" class="text-primary hover:underline text-xs" title="Lihat Detail"><i class="bi bi-eye"></i> Detail</button>` 
+                                : '';
+
+                            return `
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="px-4 py-2">
+                                    <div class="text-xs text-gray-500">${formatDate(tx.tanggal)}</div>
+                                    <div class="flex items-center my-1">${badges}</div>
+                                    <div class="text-[11px] font-mono text-gray-400">#${tx.nomor_referensi}</div>
+                                </td>
+                                <td class="px-4 py-2 text-right">
+                                    <div class="text-sm font-bold text-gray-900 dark:text-white">${formatRupiah(tx.jumlah)}</div>
+                                    <div class="text-[10px] text-gray-400 capitalize">${tx.status}</div>
+                                </td>
+                                <td class="px-4 py-2 text-right">
+                                    ${detailBtn}
+                                </td>
+                            </tr>
+                        `;}).join('');
+                    }
+                } else {
+                    historyTableBody.innerHTML = `<tr><td colspan="3" class="px-4 py-4 text-center text-red-500">Gagal: ${data.message}</td></tr>`;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                historyTableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-red-500">Terjadi kesalahan.</td></tr>';
+            });
+    };
+
+    window.closeHistoryModal = function () {
+        document.getElementById('modal-history').classList.add('hidden');
+    };
+
+    window.viewSaleDetail = function (id) {
+        fetch(`${basePath}/api/penjualan?action=get_detail&id=${id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const header = data.data;
+                    const items = data.data.items || [];
+                    let itemsHtml = '<div class="text-left font-sans"><table class="w-full text-xs mt-3 border-collapse">';
+                    itemsHtml += '<thead class="bg-gray-50"><tr><th class="border p-1">Barang</th><th class="border p-1 text-center">Qty</th><th class="border p-1 text-right">Subtotal</th></tr></thead><tbody>';
+                    items.forEach(it => {
+                        itemsHtml += `<tr><td class="border p-1">${it.nama_barang}</td><td class="border p-1 text-center">${it.quantity}</td><td class="border p-1 text-right">${formatRupiah(it.subtotal)}</td></tr>`;
+                    });
+                    itemsHtml += '</tbody></table>';
+                    itemsHtml += `<div class="mt-3 text-right font-bold">Total: ${formatRupiah(header.total)}</div></div>`;
+
+                    Swal.fire({
+                        title: `Detail Transaksi: ${header.nomor_referensi}`,
+                        html: itemsHtml,
+                        width: '600px',
+                        confirmButtonText: 'Tutup'
+                    });
+                }
+            });
     };
 
     function updateBatchPrintButton() {
