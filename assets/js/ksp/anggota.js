@@ -14,20 +14,24 @@ function initAnggotaPage() {
     const btnSyncSP = document.getElementById('btn-sync-sp');
 
     let currentPage = 1;
-    let limit = 10;
+    let limit = 20; // Tingkatkan limit untuk infinite scroll agar lebih smooth
     let searchTimeout;
     let currentSortBy = 'created_at';
     let currentSortDir = 'DESC';
+    let isLoading = false;
+    let hasMore = true;
 
     // Load data awal
-    loadData();
+    loadData(false);
+    setupInfiniteScroll();
 
     // Event Listeners
     searchInput.addEventListener('input', function () {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             currentPage = 1;
-            loadData();
+            hasMore = true;
+            loadData(false);
         }, 500);
     });
 
@@ -77,19 +81,34 @@ function initAnggotaPage() {
     }
 
     // Functions
-    function loadData() {
+    function loadData(append = false) {
+        if (isLoading) return;
+        
+        isLoading = true;
         const search = searchInput.value;
         const url = `${basePath}/api/ksp/anggota?action=get_all&page=${currentPage}&limit=${limit}&search=${encodeURIComponent(search)}&sort_by=${currentSortBy}&sort_dir=${currentSortDir}`;
 
-        tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Memuat data...</td></tr>';
+        const loader = document.getElementById('infinite-scroll-loader');
+        if (loader) loader.classList.remove('hidden');
+
+        if (!append) {
+            tableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Memuat data...</td></tr>';
+        }
 
         fetch(url)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    renderTable(data.data);
-                    renderPagination(data.total, data.page, data.limit);
-                    // Reset checkbox select all saat load data baru
+                    renderTable(data.data, append);
+                    
+                    const total = parseInt(data.total);
+                    const totalPages = Math.ceil(total / limit);
+                    hasMore = currentPage < totalPages;
+                    
+                    const start = (currentPage - 1) * limit + 1;
+                    const end = Math.min(currentPage * limit, total);
+                    paginationInfo.innerHTML = `Menampilkan <b>${total === 0 ? 0 : start}</b> sampai <b>${end}</b> dari <b>${total}</b> data anggota`;
+
                     if (selectAllCheckbox) selectAllCheckbox.checked = false;
                     updateBatchPrintButton();
                 } else {
@@ -98,17 +117,23 @@ function initAnggotaPage() {
             })
             .catch(error => {
                 console.error('Error:', error);
-                tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Terjadi kesalahan saat memuat data.</td></tr>';
+                if (!append) {
+                    tableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-red-500">Terjadi kesalahan saat memuat data.</td></tr>';
+                }
+            })
+            .finally(() => {
+                isLoading = false;
+                if (loader) loader.classList.add('hidden');
             });
     }
 
-    function renderTable(data) {
-        if (data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Tidak ada data anggota.</td></tr>';
+    function renderTable(data, append = false) {
+        if (!append && data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Tidak ada data anggota.</td></tr>';
             return;
         }
 
-        tableBody.innerHTML = data.map(item => `
+        const rowsHtml = data.map(item => `
             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                 <td class="px-6 py-4 whitespace-nowrap">
                     <input type="checkbox" class="member-checkbox rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50" value="${item.id}">
@@ -133,29 +158,32 @@ function initAnggotaPage() {
                 </td>
             </tr>
         `).join('');
+
+        if (append) {
+            tableBody.insertAdjacentHTML('beforeend', rowsHtml);
+        } else {
+            tableBody.innerHTML = rowsHtml;
+        }
     }
 
-    function renderPagination(total, page, limit) {
-        const totalPages = Math.ceil(total / limit);
-        const start = (page - 1) * limit + 1;
-        const end = Math.min(page * limit, total);
+    function setupInfiniteScroll() {
+        const sentinel = document.getElementById('infinite-scroll-sentinel');
+        if (!sentinel) return;
 
-        paginationInfo.textContent = `Menampilkan ${total === 0 ? 0 : start} sampai ${end} dari ${total} data`;
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && hasMore && !isLoading) {
+                currentPage++;
+                loadData(true);
+            }
+        }, {
+            root: document.getElementById('anggotaTableContainer'),
+            rootMargin: '100px',
+            threshold: 0.1
+        });
 
-        let controls = '';
-        if (page > 1) {
-            controls += `<button onclick="changePage(${page - 1})" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Sebelumnya</button>`;
-        }
-        if (page < totalPages) {
-            controls += `<button onclick="changePage(${page + 1})" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Selanjutnya</button>`;
-        }
-        paginationControls.innerHTML = controls;
+        observer.observe(sentinel);
     }
 
-    window.changePage = function (page) {
-        currentPage = page;
-        loadData();
-    };
 
     function openModal(id = null) {
         form.reset();
@@ -206,7 +234,9 @@ function initAnggotaPage() {
                 if (response.success) {
                     alert(response.message);
                     closeModal();
-                    loadData();
+                    currentPage = 1;
+                    hasMore = true;
+                    loadData(false);
                 } else {
                     alert('Gagal: ' + response.message);
                 }
@@ -228,7 +258,9 @@ function initAnggotaPage() {
             .then(response => {
                 if (response.success) {
                     alert(response.message);
-                    loadData();
+                    currentPage = 1;
+                    hasMore = true;
+                    loadData(false);
                 } else {
                     alert('Gagal sinkronasi: ' + response.message);
                 }
@@ -264,7 +296,14 @@ function initAnggotaPage() {
             }
         });
 
-        loadData();
+        // Reset to first page when sorting
+        currentPage = 1;
+        hasMore = true;
+        loadData(false);
+        
+        // Scroll back to top of container
+        const container = document.getElementById('anggotaTableContainer');
+        if (container) container.scrollTop = 0;
     };
 
     window.viewPurchaseHistory = function (id, name) {
@@ -280,6 +319,24 @@ function initAnggotaPage() {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    // Update Summary Balances
+                    const summary = data.summary || { saldo_wb: 0, total_piutang: 0 };
+                    historyTitle.innerHTML = `
+                        <div class="flex flex-col">
+                            <span>Riwayat Pembelanjaan: ${name}</span>
+                            <div class="flex gap-4 mt-2">
+                                <div class="bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-lg">
+                                    <div class="text-[10px] text-green-600 dark:text-green-400 uppercase font-bold">Saldo WB</div>
+                                    <div class="text-sm font-bold text-green-700 dark:text-green-300">${formatRupiah(summary.saldo_wb)}</div>
+                                </div>
+                                <div class="bg-red-100 dark:bg-red-900/30 px-3 py-1 rounded-lg">
+                                    <div class="text-[10px] text-red-600 dark:text-red-400 uppercase font-bold">Total Hutang</div>
+                                    <div class="text-sm font-bold text-red-700 dark:text-red-300">${formatRupiah(summary.total_piutang)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
                     if (data.data.length === 0) {
                         historyTableBody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-gray-500">Belum ada riwayat transaksi.</td></tr>';
                     } else {
@@ -427,7 +484,9 @@ function initAnggotaPage() {
                 .then(res => res.json())
                 .then(response => {
                     if (response.success) {
-                        loadData();
+                        currentPage = 1;
+                        hasMore = true;
+                        loadData(false);
                     } else {
                         alert('Gagal: ' + response.message);
                     }

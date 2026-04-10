@@ -42,11 +42,11 @@ check_permission('menu.view.anggota');
     </div>
 </div>
 
-<!-- Table -->
-<div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-700">
+<!-- Table with Fixed Height Container and Infinite Scroll -->
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+    <div id="anggotaTableContainer" class="overflow-auto max-h-[65vh]">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="anggotaTable">
+            <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                 <tr>
                     <th scope="col"
                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-10">
@@ -87,12 +87,21 @@ check_permission('menu.view.anggota');
                 <!-- Data loaded via JS -->
             </tbody>
         </table>
+        <!-- Sentinel for Infinite Scroll -->
+        <div id="infinite-scroll-sentinel" class="h-4 w-full"></div>
     </div>
-    <!-- Pagination -->
+    <!-- Footer info & Infinite Loader -->
     <div class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
         <div class="flex items-center justify-between">
-            <div id="pagination-info" class="text-sm text-gray-700 dark:text-gray-300"></div>
-            <div id="pagination-controls" class="flex gap-2"></div>
+            <div id="pagination-info" class="text-sm text-gray-700 dark:text-gray-300 italic"></div>
+            <div id="infinite-scroll-loader" class="hidden">
+                <div class="flex items-center text-sm text-primary font-medium">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                    Memuat lebih banyak...
+                </div>
+            </div>
+            <!-- Old pagination hidden -->
+            <div id="pagination-controls" class="hidden"></div>
         </div>
     </div>
 </div>

@@ -28,20 +28,29 @@ check_permission('laporan_wb_tahunan', 'menu');
 <!-- Filter -->
 <div class="bg-white dark:bg-gray-800 shadow rounded-lg mb-6 print:hidden">
     <div class="p-6">
-        <div class="flex items-end gap-4">
-            <div class="w-48">
-                <label for="laporan-wb-tahun" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pilih Tahun</label>
+        <div class="flex flex-wrap items-end gap-4">
+            <div class="w-24">
+                <label for="laporan-wb-tahun" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tahun</label>
                 <select id="laporan-wb-tahun" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
                     <!-- Opsi tahun akan diisi JS -->
                 </select>
             </div>
+            <div class="flex-1 min-w-[200px]">
+                <label for="filter-nama" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cari Nama Anggota</label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="bi bi-search text-gray-400"></i>
+                    </div>
+                    <input type="text" id="filter-nama" class="block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:ring-primary focus:border-primary" placeholder="Ketik nama anggota...">
+                </div>
+            </div>
             <div class="flex items-center pb-2">
                 <input id="filter-tunggakan" type="checkbox" class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary dark:bg-gray-700 dark:border-gray-600">
-                <label for="filter-tunggakan" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Hanya yang Menunggak</label>
+                <label for="filter-tunggakan" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Hanya Menunggak</label>
             </div>
             <div>
                 <button id="btn-tampilkan-laporan" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                    <i class="bi bi-search mr-2"></i> Tampilkan
+                    <i class="bi bi-arrow-repeat mr-2"></i> Tampilkan
                 </button>
             </div>
         </div>
@@ -52,35 +61,35 @@ check_permission('laporan_wb_tahunan', 'menu');
 <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
         <h5 class="text-lg font-medium text-gray-900 dark:text-white" id="laporan-title">Laporan Wajib Belanja Tahun <?= date('Y') ?></h5>
-        <div class="text-xs space-x-3 flex items-center">
-            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Lunas/Aman</span>
-            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-yellow-500 mr-1"></span> Kurang Bayar</span>
-            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-red-500 mr-1"></span> Menunggak</span>
+        <div class="text-[10px] space-x-3 flex items-center uppercase tracking-wider font-bold">
+            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Lunas</span>
+            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-yellow-500 mr-1"></span> Kurang</span>
+            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-red-500 mr-1"></span> Tunggak</span>
         </div>
     </div>
     
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
-            <thead class="bg-gray-50 dark:bg-gray-700">
+    <div class="overflow-auto max-h-[600px] relative">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-[11px] border-separate border-spacing-0">
+            <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-30">
                 <tr>
-                    <th scope="col" class="px-3 py-3 text-left font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky left-0 bg-gray-50 dark:bg-gray-700 z-10">Anggota</th>
+                    <th scope="col" class="px-3 py-3 text-left font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky left-0 top-0 bg-gray-50 dark:bg-gray-700 z-40 border-b border-r border-gray-200 dark:border-gray-600">Anggota</th>
                     <?php 
                     $bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
                     foreach ($bulan as $b) {
-                        echo '<th scope="col" class="px-2 py-3 text-right font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">' . $b . '</th>';
+                        echo '<th scope="col" class="px-2 py-3 text-right font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-30 border-b border-gray-200 dark:border-gray-600">' . $b . '</th>';
                     }
                     ?>
-                    <th scope="col" class="px-3 py-3 text-right font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider font-bold">Total</th>
-                    <th scope="col" class="px-3 py-3 text-right font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold">Belanja</th>
-                    <th scope="col" class="px-3 py-3 text-right font-medium text-red-600 dark:text-red-400 uppercase tracking-wider font-bold">Tunggakan</th>
-                    <th scope="col" class="px-3 py-3 text-right font-medium text-green-600 dark:text-green-400 uppercase tracking-wider font-bold">Sisa Saldo</th>
+                    <th scope="col" class="px-3 py-3 text-right font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-30 border-b border-gray-200 dark:border-gray-600">Total</th>
+                    <th scope="col" class="px-3 py-3 text-right font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-30 border-b border-gray-200 dark:border-gray-600">Belanja</th>
+                    <th scope="col" class="px-3 py-3 text-right font-bold text-red-600 dark:text-red-400 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-30 border-b border-gray-200 dark:border-gray-600">Tunggak</th>
+                    <th scope="col" class="px-3 py-3 text-right font-bold text-green-600 dark:text-green-400 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-30 border-b border-gray-200 dark:border-gray-600">Saldo</th>
                 </tr>
             </thead>
             <tbody id="laporan-wb-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 <!-- Data akan dimuat di sini -->
                 <tr><td colspan="17" class="text-center p-4">Silakan pilih tahun dan klik Tampilkan.</td></tr>
             </tbody>
-            <tfoot id="laporan-wb-footer" class="bg-gray-100 dark:bg-gray-900 font-semibold text-gray-700 dark:text-gray-300">
+            <tfoot id="laporan-wb-footer" class="bg-gray-100 dark:bg-gray-900 font-bold text-gray-700 dark:text-gray-300 sticky bottom-0 z-30">
                 <!-- Total footer akan dimuat di sini -->
             </tfoot>
         </table>

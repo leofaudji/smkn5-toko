@@ -5,6 +5,7 @@
 return [
     ['type' => 'item', 'key' => 'dashboard', 'label' => 'Dashboard', 'url' => '/dashboard', 'icon' => 'bi bi-speedometer2'],
     ['type' => 'item', 'key' => 'anggota', 'label' => 'Daftar Anggota', 'url' => '/anggota', 'icon' => 'bi bi-people-fill'],
+    ['type' => 'item', 'key' => 'leaderboard', 'label' => 'Member Leaderboard', 'url' => '/leaderboard', 'icon' => 'bi bi-award-fill'],
     ['type' => 'item', 'key' => 'buku_panduan', 'label' => 'Buku Panduan', 'url' => '/buku-panduan', 'icon' => 'bi bi-question-circle-fill'],
 
     ['type' => 'header', 'label' => 'Aktivitas Utama'],

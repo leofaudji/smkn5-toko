@@ -101,6 +101,7 @@ $router->get('/analisis-rasio', 'pages/laporan_analisis_rasio.php', ['auth']); /
 $router->get('/activity-log', 'pages/activity_log.php', ['auth', 'admin']);
 $router->get('/laporan-harian', 'pages/laporan_harian.php', ['auth']);
 $router->get('/audit-saldo', 'pages/audit_saldo.php', ['auth']);
+$router->get('/leaderboard', 'pages/leaderboard.php', ['auth']);
 
 $router->get('/buku-besar', 'pages/buku_besar.php', ['auth']);
 $router->get('/changelog', 'pages/changelog.php', ['auth']);
@@ -231,6 +232,7 @@ $router->post('/api/member/dashboard', 'api/ksp/member_dashboard_handler.php'); 
 $router->post('/api/member/profile', 'api/ksp/member_profile_handler.php'); // API Profil Anggota
 
 $router->get('/api/laporan-pertumbuhan-laba-sales', 'api/laporan_pertumbuhan_laba_sales_handler.php', ['auth']);
+$router->get('/api/leaderboard', 'api/leaderboard_handler.php', ['auth']);
 
 // Jalankan router
 $router->dispatch();

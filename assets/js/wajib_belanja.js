@@ -17,20 +17,48 @@ function initWajibBelanjaPage() {
     let currentPage = 1;
     let nominalDefault = 50000;
     let anggotaList = []; // Simpan daftar anggota untuk dropdown
+    let isFetching = false;
+    let hasMore = true;
+    let filters = {
+        search: '',
+        start_date: '',
+        end_date: ''
+    };
 
-    async function fetchWajibBelanja(page = 1) {
+    async function fetchWajibBelanja(page = 1, append = false) {
+        if (isFetching || (!hasMore && append)) return;
+
+        isFetching = true;
         currentPage = page;
-        loadingEl.style.display = 'block';
-        tableBody.innerHTML = '';
+        
+        loadingEl.style.display = 'flex';
+        const noMoreEl = document.getElementById('wb-no-more');
+        if (noMoreEl) noMoreEl.style.display = 'none';
+
+        if (!append) {
+            tableBody.innerHTML = '';
+            hasMore = true;
+        }
 
         try {
-            const response = await fetch(`${basePath}/api/wajib-belanja?action=list&page=${page}`);
+            const params = new URLSearchParams({
+                action: 'list',
+                page: page,
+                search: filters.search,
+                start_date: filters.start_date,
+                end_date: filters.end_date
+            });
+
+            const response = await fetch(`${basePath}/api/wajib-belanja?${params.toString()}`);
             const result = await response.json();
 
             if (result.success) {
-                renderTable(result.data);
-                renderPagination(paginationContainer, result.pagination, fetchWajibBelanja);
-                paginationInfo.textContent = `Menampilkan ${result.data.length} dari ${result.pagination.total_records} data.`;
+                renderTable(result.data, append);
+                hasMore = page < result.pagination.total_pages;
+                
+                if (!hasMore && (append || result.data.length > 0)) {
+                    if (noMoreEl) noMoreEl.style.display = 'block';
+                }
             } else {
                 showToast(result.message, 'error');
             }
@@ -38,33 +66,95 @@ function initWajibBelanjaPage() {
             showToast('Gagal memuat data.', 'error');
             console.error(error);
         } finally {
+            isFetching = false;
             loadingEl.style.display = 'none';
         }
     }
 
-    function renderTable(data) {
-        if (data.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">Tidak ada data.</td></tr>`;
+    function renderTable(data, append = false) {
+        if (!append && data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-500">Tidak ada data yang ditemukan.</td></tr>`;
             return;
         }
 
-        tableBody.innerHTML = data.map(item => `
-            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+        const rowsHtml = data.map(item => `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${formatDate(item.tanggal)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.nama_anggota}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">${formatRupiah(item.jumlah)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${item.metode_pembayaran}</td>
-                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${item.keterangan || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right font-mono">${formatRupiah(item.jumlah)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${item.metode_pembayaran === 'tunai' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'}">
+                        ${item.metode_pembayaran}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">${item.keterangan || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button class="text-indigo-600 hover:text-indigo-900 mr-3 btn-edit" data-id="${item.id}" title="Edit">
-                        <i class="bi bi-pencil-square"></i>
+                    <button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3 btn-edit transition-colors" data-id="${item.id}" title="Edit">
+                        <i class="bi bi-pencil-square text-lg"></i>
                     </button>
-                    <button class="text-red-600 hover:text-red-900 btn-delete" data-id="${item.id}" title="Hapus">
-                        <i class="bi bi-trash-fill"></i>
+                    <button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 btn-delete transition-colors" data-id="${item.id}" title="Hapus">
+                        <i class="bi bi-trash-fill text-lg"></i>
                     </button>
                 </td>
             </tr>
         `).join('');
+
+        if (append) {
+            tableBody.insertAdjacentHTML('beforeend', rowsHtml);
+        } else {
+            tableBody.innerHTML = rowsHtml;
+        }
+    }
+
+    // Infinite Scroll Implementation
+    const sentinel = document.getElementById('wb-infinite-sentinel');
+    if (sentinel) {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && hasMore && !isFetching) {
+                fetchWajibBelanja(currentPage + 1, true);
+            }
+        }, { threshold: 0.1 });
+        observer.observe(sentinel);
+    }
+
+    // Filter Logic
+    const filterNama = document.getElementById('filter-nama');
+    const filterDari = document.getElementById('filter-dari');
+    const filterSampai = document.getElementById('filter-sampai');
+    const resetFilterBtn = document.getElementById('wb-filter-reset');
+
+    const handleFilterChange = debounce(() => {
+        filters.search = filterNama.value;
+        filters.start_date = filterDari.value;
+        filters.end_date = filterSampai.value;
+        hasMore = true;
+        fetchWajibBelanja(1, false);
+    }, 400);
+
+    if (filterNama) filterNama.addEventListener('input', handleFilterChange);
+    if (filterDari) filterDari.addEventListener('change', handleFilterChange);
+    if (filterSampai) filterSampai.addEventListener('change', handleFilterChange);
+    if (resetFilterBtn) {
+        resetFilterBtn.addEventListener('click', () => {
+            filterNama.value = '';
+            filterDari.value = '';
+            filterSampai.value = '';
+            filters = { search: '', start_date: '', end_date: '' };
+            hasMore = true;
+            fetchWajibBelanja(1, false);
+        });
+    }
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 
     async function initForm() {
@@ -182,7 +272,7 @@ function initWajibBelanjaPage() {
             if (result.success) {
                 showToast(result.message, 'success');
                 closeModal('wb-import-modal');
-                fetchWajibBelanja(1);
+                fetchWajibBelanja(1, false);
             } else {
                 showToast(result.message, 'error');
             }
@@ -258,7 +348,7 @@ function initWajibBelanjaPage() {
             if (result.success) {
                 showToast(result.message, 'success');
                 closeModal('wb-form-modal');
-                fetchWajibBelanja(currentPage);
+                fetchWajibBelanja(1, false);
             } else {
                 showToast(result.message, 'error');
             }
@@ -287,7 +377,7 @@ function initWajibBelanjaPage() {
                     const result = await response.json();
                     if (result.success) {
                         showToast(result.message, 'success');
-                        fetchWajibBelanja(currentPage);
+                        fetchWajibBelanja(1, false);
                     } else {
                         showToast(result.message, 'error');
                     }
@@ -342,7 +432,7 @@ function initWajibBelanjaPage() {
             if (result.success) {
                 showToast(result.message, 'success');
                 closeModal('wb-edit-modal');
-                fetchWajibBelanja(currentPage);
+                fetchWajibBelanja(1, false);
             } else {
                 showToast(result.message, 'error');
             }
@@ -355,6 +445,6 @@ function initWajibBelanjaPage() {
     });
 
     // Initial load
-    fetchWajibBelanja();
+    fetchWajibBelanja(1, false);
     initForm();
 }

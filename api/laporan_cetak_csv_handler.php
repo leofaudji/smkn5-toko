@@ -469,6 +469,86 @@ try {
             break;
         }
 
+        case 'mutasi-konsinyasi': {
+            $supplier_id = !empty($_GET['supplier_id']) ? (int)$_GET['supplier_id'] : null;
+            $start_date = $_GET['start_date'] ?? '';
+            $end_date = $_GET['end_date'] ?? '';
+
+            $where_ci = "WHERE ci.user_id = ?";
+            $where_cr = "WHERE cr.user_id = ?";
+            $where_gl = "WHERE gl.user_id = ? AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl.kredit > 0 AND gl.ref_type IN ('jurnal', 'penjualan')";
+            
+            $params_ci = [$user_id];
+            $params_cr = [$user_id];
+            $params_gl = [$user_id];
+            $types_ci = "i";
+            $types_cr = "i";
+            $types_gl = "i";
+
+            if ($supplier_id) {
+                $where_ci .= " AND ci.supplier_id = ?";
+                $where_cr .= " AND ci.supplier_id = ?";
+                $where_gl .= " AND ci.supplier_id = ?";
+                $params_ci[] = $supplier_id;
+                $params_cr[] = $supplier_id;
+                $params_gl[] = $supplier_id;
+                $types_ci .= "i";
+                $types_cr .= "i";
+                $types_gl .= "i";
+            }
+
+            if ($start_date) {
+                $where_ci .= " AND ci.tanggal_terima >= ?";
+                $where_cr .= " AND cr.tanggal >= ?";
+                $where_gl .= " AND gl.tanggal >= ?";
+                $params_ci[] = $start_date;
+                $params_cr[] = $start_date;
+                $params_gl[] = $start_date;
+                $types_ci .= "s";
+                $types_cr .= "s";
+                $types_gl .= "s";
+            }
+
+            if ($end_date) {
+                $where_ci .= " AND ci.tanggal_terima <= ?";
+                $where_cr .= " AND cr.tanggal <= ?";
+                $where_gl .= " AND gl.tanggal <= ?";
+                $params_ci[] = $end_date;
+                $params_cr[] = $end_date;
+                $params_gl[] = $end_date;
+                $types_ci .= "s";
+                $types_cr .= "s";
+                $types_gl .= "s";
+            }
+
+            $query = "
+                SELECT * FROM (
+                    SELECT ci.tanggal_terima as tanggal, ci.nama_barang, s.nama_pemasok, 'Stok Awal' as tipe, ci.stok_awal as qty, 'Penerimaan awal' as keterangan FROM consignment_items ci JOIN suppliers s ON ci.supplier_id = s.id $where_ci
+                    UNION ALL
+                    SELECT cr.tanggal, ci.nama_barang, s.nama_pemasok, 'Restock' as tipe, cr.qty, cr.keterangan FROM consignment_restocks cr JOIN consignment_items ci ON cr.consignment_item_id = ci.id JOIN suppliers s ON ci.supplier_id = s.id $where_cr
+                    UNION ALL
+                    SELECT gl.tanggal, ci.nama_barang, s.nama_pemasok, 'Terjual' as tipe, SUM(gl.qty) as qty, 'Total harian' as keterangan FROM general_ledger gl JOIN consignment_items ci ON gl.consignment_item_id = ci.id JOIN suppliers s ON ci.supplier_id = s.id $where_gl GROUP BY gl.tanggal, ci.id
+                ) as combined_mutations ORDER BY tanggal DESC, nama_barang ASC
+            ";
+            $final_params = array_merge($params_ci, $params_cr, $params_gl);
+            $final_types = $types_ci . $types_cr . $types_gl;
+            $stmt = $conn->prepare($query);
+            if (!empty($final_params)) { $stmt->bind_param($final_types, ...$final_params); }
+            $stmt->execute();
+            $result = stmt_fetch_all($stmt);
+            $stmt->close();
+
+            fputcsv($output, ['Laporan Mutasi Stok Konsinyasi']);
+            fputcsv($output, ['Periode:', $start_date . ' s/d ' . $end_date]);
+            fputcsv($output, []);
+            fputcsv($output, ['No', 'Tanggal', 'Nama Barang', 'Pemasok', 'Tipe', 'Qty', 'Keterangan']);
+            $no = 1;
+            foreach ($result as $row) {
+                fputcsv($output, [ $no++, $row['tanggal'], $row['nama_barang'], $row['nama_pemasok'], $row['tipe'], $row['qty'], $row['keterangan'] ]);
+            }
+            break;
+        }
+
         default:
             fputcsv($output, ['Error: Tipe laporan tidak dikenal.']);
             break;

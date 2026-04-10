@@ -19,71 +19,68 @@ try {
         throw new Exception("Rentang tanggal wajib diisi.");
     }
 
-    // 1. Ambil semua item
-    $items_query = "SELECT id, nama_barang, sku, harga_beli FROM items WHERE user_id = ?";
-    $stmt_items = $conn->prepare($items_query);
-    $stmt_items->bind_param('i', $user_id);
-    $stmt_items->execute();
-    $items_result = stmt_fetch_all($stmt_items);
-    $stmt_items->close();
+    // Single Optimized Query for all stock data
+    $main_query = "
+        SELECT 
+            i.id, 
+            i.nama_barang, 
+            i.sku, 
+            i.harga_beli,
+            COALESCE(sa.stok_awal, 0) as stok_awal,
+            COALESCE(p.masuk, 0) as masuk,
+            COALESCE(p.keluar, 0) as keluar
+        FROM items i
+        LEFT JOIN (
+            -- Stok Awal: Sum of all movements before start_date
+            SELECT item_id, SUM(debit - kredit) as stok_awal
+            FROM kartu_stok
+            WHERE tanggal < ?
+            GROUP BY item_id
+        ) sa ON i.id = sa.item_id
+        LEFT JOIN (
+            -- Pergerakan: Sum of movements within period
+            SELECT 
+                item_id, 
+                SUM(debit) as masuk, 
+                SUM(kredit) as keluar
+            FROM kartu_stok
+            WHERE tanggal BETWEEN ? AND ?
+            GROUP BY item_id
+        ) p ON i.id = p.item_id
+        WHERE i.user_id = ?
+        ORDER BY i.nama_barang ASC
+    ";
+
+    $stmt = $conn->prepare($main_query);
+    $stmt->bind_param('sssi', $start_date, $start_date, $end_date, $user_id);
+    $stmt->execute();
+    $results = stmt_fetch_all($stmt);
+    $stmt->close();
 
     $report_data = [];
     $total_nilai_persediaan = 0;
 
-    // Siapkan prepared statements di luar loop
-    $stmt_stok_awal = $conn->prepare("
-        SELECT 
-            (
-                COALESCE((SELECT SUM(debit - kredit) FROM kartu_stok WHERE item_id = ? AND tanggal < ?), 0)
-            ) as stok_awal
-    ");
-
-    $stmt_pergerakan = $conn->prepare("
-        SELECT 
-            (
-                COALESCE((SELECT SUM(debit) FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ?), 0)
-            ) AS masuk,
-            (
-                COALESCE((SELECT SUM(kredit) FROM kartu_stok WHERE item_id = ? AND tanggal BETWEEN ? AND ?), 0)
-            ) AS keluar
-    ");
-
-    foreach ($items_result as $item) {
-        $item_id = $item['id'];
-
-        // 2. Hitung Stok Awal
-        $stmt_stok_awal->bind_param("is", $item_id, $start_date);
-        $stmt_stok_awal->execute();
-        $stok_awal = (int)stmt_fetch_assoc($stmt_stok_awal)['stok_awal'];
-
-        // 3. Hitung Pergerakan Stok (Masuk & Keluar) dalam periode
-        $stmt_pergerakan->bind_param("ississ", $item_id, $start_date, $end_date, $item_id, $start_date, $end_date);
-        $stmt_pergerakan->execute();
-        $pergerakan = stmt_fetch_assoc($stmt_pergerakan);
-        
-        $masuk = (int)$pergerakan['masuk'];
-        $keluar = (int)$pergerakan['keluar'];
-
-        // 4. Hitung Stok Akhir
+    foreach ($results as $row) {
+        $stok_awal = (int)$row['stok_awal'];
+        $masuk = (int)$row['masuk'];
+        $keluar = (int)$row['keluar'];
         $stok_akhir = $stok_awal + $masuk - $keluar;
-        $nilai_persediaan = $stok_akhir * (float)$item['harga_beli'];
+        
+        $nilai_persediaan = $stok_akhir * (float)$row['harga_beli'];
         $total_nilai_persediaan += $nilai_persediaan;
 
         $report_data[] = [
-            'id' => $item['id'],
-            'nama_barang' => $item['nama_barang'],
-            'sku' => $item['sku'],
+            'id' => $row['id'],
+            'nama_barang' => $row['nama_barang'],
+            'sku' => $row['sku'],
             'stok_awal' => $stok_awal,
             'masuk' => $masuk,
             'keluar' => $keluar,
             'stok_akhir' => $stok_akhir,
-            'harga_beli' => (float)$item['harga_beli'],
+            'harga_beli' => (float)$row['harga_beli'],
             'nilai_persediaan' => $nilai_persediaan,
         ];
     }
-
-    $stmt_stok_awal->close();
-    $stmt_pergerakan->close();
 
     echo json_encode([
         'status' => 'success',

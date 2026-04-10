@@ -23,6 +23,7 @@ require_once PROJECT_ROOT . '/includes/ReportBuilders/RekonsiliasiReportBuilder.
 require_once PROJECT_ROOT . '/includes/ReportBuilders/KonsinyasiReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/TrialBalanceReportBuilder.php'; // Tambahkan ini
 require_once PROJECT_ROOT . '/includes/ReportBuilders/KonsinyasiSisaUtangReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/MutasiKonsinyasiReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/AsetTetapReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukPenjualanReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPenjualanItemReportBuilder.php';
@@ -97,6 +98,7 @@ $builder_map = [
     'konsinyasi' => KonsinyasiReportBuilder::class,
     'trial-balance' => TrialBalanceReportBuilder::class, // Tambahkan ini
     'konsinyasi-sisa-utang' => KonsinyasiSisaUtangReportBuilder::class,
+    'mutasi-konsinyasi' => MutasiKonsinyasiReportBuilder::class,
     'aset-tetap' => AsetTetapReportBuilder::class,
     'detail_pinjaman' => DetailPinjamanReportBuilder::class,
     'struk_angsuran' => StrukAngsuranReportBuilder::class,

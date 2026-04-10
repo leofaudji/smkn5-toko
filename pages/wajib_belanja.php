@@ -138,33 +138,64 @@ check_permission('wajib_belanja', 'menu');
     </div>
 </div>
 
+<!-- Filters -->
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+    <div class="p-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+                <label for="filter-nama" class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Cari Nama Anggota</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" id="filter-nama" placeholder="Ketik nama..." class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition duration-150 ease-in-out">
+                </div>
+            </div>
+            <div>
+                <label for="filter-dari" class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Dari Tanggal</label>
+                <input type="date" id="filter-dari" class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition duration-150 ease-in-out">
+            </div>
+            <div>
+                <label for="filter-sampai" class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Sampai Tanggal</label>
+                <input type="date" id="filter-sampai" class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition duration-150 ease-in-out">
+            </div>
+            <div>
+                <button id="wb-filter-reset" class="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out">
+                    <i class="bi bi-arrow-counterclockwise mr-2"></i> Reset Filter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Table -->
-<div class="bg-white dark:bg-gray-800 shadow rounded-lg">
-    <div class="p-6">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tanggal</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Anggota</th>
-                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jumlah</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Metode</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keterangan</th>
-                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="wb-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    <!-- Data will be loaded by JS -->
-                </tbody>
-            </table>
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tanggal</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Anggota</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jumlah</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Metode</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keterangan</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="wb-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <!-- Data will be loaded by JS -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Infinite Scroll Sentinel & Loading Indicator -->
+    <div id="wb-infinite-sentinel" class="h-10 flex items-center justify-center p-6 border-t border-gray-100 dark:border-gray-700">
+        <div id="wb-loading" class="flex items-center gap-2" style="display: none;">
+            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Memuat data lebih banyak...</span>
         </div>
-        <div id="wb-loading" class="text-center p-5" style="display: none;">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Memuat data...</p>
-        </div>
-        <div class="flex justify-between items-center mt-4">
-            <div id="wb-pagination-info" class="text-sm text-gray-700 dark:text-gray-300"></div>
-            <div id="wb-pagination"></div>
+        <div id="wb-no-more" class="text-sm text-gray-400 dark:text-gray-500" style="display: none;">
+            Sudah menampilkan semua data.
         </div>
     </div>
 </div>

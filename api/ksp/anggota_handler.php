@@ -329,6 +329,23 @@ function get_purchase_history($db)
 {
     $anggota_id = $_GET['id'] ?? 0;
     
+    // 1. Ambil Saldo WB
+    $stmt_wb = $db->prepare("SELECT saldo_wajib_belanja FROM anggota WHERE id = ?");
+    $stmt_wb->bind_param("i", $anggota_id);
+    $stmt_wb->execute();
+    $anggota = stmt_fetch_assoc($stmt_wb);
+    $stmt_wb->close();
+    $saldo_wb = $anggota['saldo_wajib_belanja'] ?? 0;
+
+    // 2. Hitung Total Piutang (Status Completed & Belum lunas)
+    $stmt_piutang = $db->prepare("SELECT SUM(total - bayar - bayar_wb) as total_piutang FROM penjualan WHERE customer_id = ? AND status = 'completed'");
+    $stmt_piutang->bind_param("i", $anggota_id);
+    $stmt_piutang->execute();
+    $piutang_res = stmt_fetch_assoc($stmt_piutang);
+    $stmt_piutang->close();
+    $total_piutang = $piutang_res['total_piutang'] ?? 0;
+
+    // 3. Ambil Riwayat Transaksi
     $sql = "SELECT 
                 MAX(CASE WHEN t_tipe = 'belanja' THEN t_id ELSE 0 END) as sale_id,
                 nomor_referensi, 
@@ -361,5 +378,12 @@ function get_purchase_history($db)
     $data = stmt_fetch_all($stmt);
     $stmt->close();
     
-    echo json_encode(['success' => true, 'data' => $data]);
+    echo json_encode([
+        'success' => true, 
+        'data' => $data,
+        'summary' => [
+            'saldo_wb' => (float)$saldo_wb,
+            'total_piutang' => (float)$total_piutang
+        ]
+    ]);
 }

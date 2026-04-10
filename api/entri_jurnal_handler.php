@@ -56,14 +56,19 @@ try {
         $where_clauses = ['gl.user_id = ?'];
         $params = ['i', $user_id];
 
-        if (!empty($search)) { $where_clauses[] = 'gl.keterangan LIKE ?'; $params[0] .= 's'; $params[] = '%' . $search . '%'; }
+        if (!empty($search)) { 
+            $where_clauses[] = '(gl.keterangan LIKE ? OR gl.nomor_referensi LIKE ?)'; 
+            $params[0] .= 'ss'; 
+            $params[] = '%' . $search . '%'; 
+            $params[] = '%' . $search . '%'; 
+        }
         if (!empty($start_date)) { $where_clauses[] = 'gl.tanggal >= ?'; $params[0] .= 's'; $params[] = $start_date; }
         if (!empty($end_date)) { $where_clauses[] = 'gl.tanggal <= ?'; $params[0] .= 's'; $params[] = $end_date; }
 
         $where_sql = 'WHERE ' . implode(' AND ', $where_clauses);
 
-        // Get total count
-        $count_query = "SELECT COUNT(DISTINCT CONCAT(ref_type, ref_id)) as total FROM general_ledger gl $where_sql";
+        // Get total count of LEDGER ROWS (since the list shows detail lines)
+        $count_query = "SELECT COUNT(*) as total FROM general_ledger gl $where_sql";
 
         $total_stmt = $conn->prepare($count_query);
         $bind_params_total = [&$params[0]];
@@ -82,24 +87,28 @@ try {
                 gl.ref_type as source, 
                 gl.ref_id as entry_id, 
                 gl.nomor_referensi as ref,
-                gl.tanggal,
+                COALESCE(je.updated_at, t.updated_at, p.updated_at, gl.created_at) as tanggal,
                 gl.keterangan,
                 acc.nama_akun,
                 gl.debit,
-                gl.kredit,                
-                -- Ambil audit info dari tabel sumber (transaksi atau jurnal_entries)
-                COALESCE(creator_je.username, creator_t.username) as created_by_name,
-                COALESCE(updater_je.username, updater_t.username) as updated_by_name,
-                COALESCE(je.created_at, t.created_at) as created_at,
-                COALESCE(je.updated_at, t.updated_at) as updated_at
+                gl.kredit,
+                -- Ambil audit info dari tabel sumber
+                COALESCE(creator_je.username, creator_t.username, creator_p.username, creator_gl.username, 'sistem') as created_by_name,
+                COALESCE(updater_je.username, updater_t.username, updater_p.username, 'sistem') as updated_by_name,
+                COALESCE(je.created_at, t.created_at, p.created_at, gl.created_at) as created_at,
+                COALESCE(je.updated_at, t.updated_at, p.updated_at, gl.created_at) as latest_update
             FROM general_ledger gl
             JOIN accounts acc ON gl.account_id = acc.id
             LEFT JOIN jurnal_entries je ON gl.ref_id = je.id AND gl.ref_type = 'jurnal'
             LEFT JOIN transaksi t ON gl.ref_id = t.id AND gl.ref_type = 'transaksi'
+            LEFT JOIN penjualan p ON gl.ref_id = p.id AND gl.ref_type = 'penjualan'
             LEFT JOIN users creator_je ON je.created_by = creator_je.id
-            LEFT JOIN users updater_je ON je.updated_by = updater_je.id
             LEFT JOIN users creator_t ON t.created_by = creator_t.id
+            LEFT JOIN users creator_p ON p.created_by = creator_p.id
+            LEFT JOIN users creator_gl ON gl.created_by = creator_gl.id
+            LEFT JOIN users updater_je ON je.updated_by = updater_je.id
             LEFT JOIN users updater_t ON t.updated_by = updater_t.id
+            LEFT JOIN users updater_p ON p.updated_by = updater_p.id
             $where_sql
         ";
 
@@ -108,7 +117,8 @@ try {
         if ($sort_by === 'no_ref') {
             $query .= " ORDER BY gl.nomor_referensi DESC, gl.debit DESC";
         } else {
-            $query .= " ORDER BY gl.tanggal DESC, gl.ref_id DESC, gl.debit DESC";
+            // Default sort requested by user: updated_at desc (data terbaru ditaruh paling atas)
+            $query .= " ORDER BY latest_update DESC, gl.ref_id DESC, gl.debit DESC";
         }
 
         // Handle pagination only if limit is not -1 (ALL)

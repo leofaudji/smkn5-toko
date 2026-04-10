@@ -39,8 +39,8 @@ class TrialBalanceReportBuilder implements ReportBuilderInterface
                 a.kode_akun, 
                 a.nama_akun,
                 a.saldo_normal,
-                a.saldo_awal + COALESCE(SUM(CASE WHEN gl.tanggal <= ? THEN gl.debit ELSE 0 END), 0) as total_debit,
-                a.saldo_awal + COALESCE(SUM(CASE WHEN gl.tanggal <= ? THEN gl.kredit ELSE 0 END), 0) as total_kredit
+                COALESCE(SUM(CASE WHEN gl.tanggal <= ? THEN gl.debit ELSE 0 END), 0) + (CASE WHEN a.saldo_normal = 'Debit' THEN a.saldo_awal ELSE 0 END) as total_debit,
+                COALESCE(SUM(CASE WHEN gl.tanggal <= ? THEN gl.kredit ELSE 0 END), 0) + (CASE WHEN a.saldo_normal = 'Kredit' THEN a.saldo_awal ELSE 0 END) as total_kredit
             FROM accounts a
             LEFT JOIN general_ledger gl ON a.id = gl.account_id AND gl.tanggal <= ?
             WHERE a.user_id = ?

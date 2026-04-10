@@ -35,6 +35,8 @@ function stmt_fetch_assoc($stmt) {
         foreach ($data as $key => $val) {
             $row[$key] = $val;
         }
+        // Consume any remaining rows to prevent "Commands out of sync"
+        while ($stmt->fetch());
         return $row;
     }
     return null;
@@ -331,15 +333,12 @@ function get_account_balance_on_date($conn, $user_id, $account_id, $date) {
 }
 
 /**
- * Menemukan entri jurnal yang tidak seimbang (total debit != total kredit) hingga tanggal tertentu.
+ * Menemukan grup transaksi yang tidak seimbang (total debit != total kredit) di seluruh general_ledger.
  *
  * @param mysqli $conn Koneksi database.
  * @param int $user_id ID pengguna.
  * @param string $per_tanggal Tanggal dalam format Y-m-d.
  * @return array<array<string, mixed>> Daftar entri jurnal yang tidak seimbang.
- */
-/**
- * Menemukan grup transaksi yang tidak seimbang (total debit != total kredit) di seluruh general_ledger.
  */
 function find_imbalanced_ledger_groups($conn, $user_id, $per_tanggal) {
     $stmt = $conn->prepare("

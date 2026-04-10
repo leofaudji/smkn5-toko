@@ -77,12 +77,28 @@ check_permission('laporan_piutang', 'menu');
                     <h4 class="text-md font-bold text-gray-800 dark:text-white mb-3">Form Pembayaran</h4>
                     <form id="form-bayar-piutang">
                         <input type="hidden" id="bayar-customer-id" name="customer_id">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Metode Pembayaran</label>
+                                <select id="bayar-method" name="method" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
+                                    <option value="cash">Tunai / Transfer (Kas & Bank)</option>
+                                    <option value="wb">Potong Saldo Wajib Belanja (WB)</option>
+                                </select>
+                            </div>
+                            <div id="container-saldo-wb" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Saldo WB Tersedia</label>
+                                <div class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-green-700 dark:text-green-300 font-bold" id="display-saldo-wb">
+                                    Rp 0
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Bayar</label>
                                 <input type="date" id="bayar-tanggal" name="date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
                             </div>
-                            <div>
+                            <div id="container-bayar-akun">
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Akun Kas/Bank</label>
                                 <select id="bayar-akun" name="account_id" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
                                     <option value="">-- Pilih Akun --</option>

@@ -50,7 +50,23 @@ try {
 
     // --- ITEM ACTIONS ---
     elseif ($action === 'list_items') {
-        $result = $conn->query("
+        $search = trim($_GET['search'] ?? '');
+        $supplier_id = (int)($_GET['supplier_id'] ?? 0);
+        $stock_status = $_GET['stock_status'] ?? 'all'; // all, available, out_of_stock
+
+        $where = ["ci.user_id = $user_id"];
+        if (!empty($search)) {
+            $search_safe = $conn->real_escape_string($search);
+            $where[] = "(ci.nama_barang LIKE '%$search_safe%' OR ci.sku LIKE '%$search_safe%')";
+        }
+        if ($supplier_id > 0) {
+            $where[] = "ci.supplier_id = $supplier_id";
+        }
+
+        $where_sql = implode(' AND ', $where);
+
+        $sql = "
+            SELECT * FROM (
                 SELECT 
                     ci.*,
                     s.nama_pemasok,
@@ -61,11 +77,22 @@ try {
                     ) as stok_saat_ini,
                     COALESCE((SELECT SUM(qty) FROM consignment_restocks WHERE consignment_item_id = ci.id), 0) as total_restock
                 FROM consignment_items ci
-            JOIN suppliers s ON ci.supplier_id = s.id
-            WHERE ci.user_id = $user_id
-            ORDER BY ci.nama_barang ASC
-        ");
+                JOIN suppliers s ON ci.supplier_id = s.id
+                WHERE $where_sql
+            ) as sub
+        ";
+
+        if ($stock_status === 'out_of_stock') {
+            $sql .= " WHERE stok_saat_ini <= 0";
+        } elseif ($stock_status === 'available') {
+            $sql .= " WHERE stok_saat_ini > 0";
+        }
+
+        $sql .= " ORDER BY nama_barang ASC";
+        
+        $result = $conn->query($sql);
         echo json_encode(['status' => 'success', 'data' => $result->fetch_all(MYSQLI_ASSOC)]);
+
     } elseif ($action === 'add_restock') {
         $item_id = (int)$_POST['item_id'];
         $qty = (int)$_POST['qty'];
@@ -491,6 +518,9 @@ try {
         $supplier_id = !empty($_GET['supplier_id']) ? (int)$_GET['supplier_id'] : null;
         $start_date = $_GET['start_date'] ?? '';
         $end_date = $_GET['end_date'] ?? '';
+        $page = (int)($_GET['page'] ?? 1);
+        $limit = (int)($_GET['limit'] ?? 20);
+        $offset = ($page - 1) * $limit;
 
         $where_ci = "WHERE ci.user_id = ?";
         $where_cr = "WHERE cr.user_id = ?";
@@ -548,7 +578,8 @@ try {
                     s.nama_pemasok, 
                     'Stok Awal' as tipe, 
                     ci.stok_awal as qty, 
-                    'Penerimaan awal saat pendaftaran barang' as keterangan
+                    'Penerimaan awal saat pendaftaran barang' as keterangan,
+                    ci.id as item_id
                 FROM consignment_items ci
                 JOIN suppliers s ON ci.supplier_id = s.id
                 $where_ci
@@ -561,7 +592,8 @@ try {
                     s.nama_pemasok, 
                     'Restock' as tipe, 
                     cr.qty, 
-                    cr.keterangan
+                    cr.keterangan,
+                    ci.id as item_id
                 FROM consignment_restocks cr
                 JOIN consignment_items ci ON cr.consignment_item_id = ci.id
                 JOIN suppliers s ON ci.supplier_id = s.id
@@ -575,7 +607,8 @@ try {
                     s.nama_pemasok,
                     'Terjual' as tipe,
                     SUM(gl.qty) as qty,
-                    'Total penjualan harian' as keterangan
+                    'Total penjualan harian' as keterangan,
+                    ci.id as item_id
                 FROM general_ledger gl
                 JOIN consignment_items ci ON gl.consignment_item_id = ci.id
                 JOIN suppliers s ON ci.supplier_id = s.id
@@ -585,8 +618,23 @@ try {
             ORDER BY tanggal DESC, nama_barang ASC
         ";
 
+        // Count total results for pagination
+        $count_query = "SELECT COUNT(*) as total FROM ($query) as total_count";
+        $stmt_count = $conn->prepare($count_query);
         $final_params = array_merge($params_ci, $params_cr, $params_gl);
         $final_types = $types_ci . $types_cr . $types_gl;
+        if (!empty($final_params)) {
+            $stmt_count->bind_param($final_types, ...$final_params);
+        }
+        $stmt_count->execute();
+        $total_records = (int)stmt_fetch_assoc($stmt_count)['total'];
+        $stmt_count->close();
+
+        // Add LIMIT and OFFSET for pagination
+        $query .= " LIMIT ? OFFSET ?";
+        $final_params[] = $limit;
+        $final_params[] = $offset;
+        $final_types .= "ii";
 
         $stmt = $conn->prepare($query);
         if (!empty($final_params)) {
@@ -596,7 +644,16 @@ try {
         $mutations = stmt_fetch_all($stmt);
         $stmt->close();
 
-        echo json_encode(['status' => 'success', 'data' => $mutations]);
+        echo json_encode([
+            'status' => 'success', 
+            'data' => $mutations,
+            'pagination' => [
+                'current_page' => $page,
+                'limit' => $limit,
+                'total_records' => $total_records,
+                'total_pages' => ceil($total_records / $limit)
+            ]
+        ]);
     }
     elseif ($action === 'list_payments') {
         $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
@@ -629,6 +686,24 @@ try {
         $start_date = $_GET['start_date'] ?? '1970-01-01';
         $end_date = $_GET['end_date'] ?? date('Y-m-d');
 
+        // 1. Get Total Account Balance (matched with Trial Balance/Audit Saldo logic)
+        $stmt_total = $conn->prepare("
+            SELECT 
+                a.saldo_awal,
+                COALESCE(SUM(gl.debit), 0) as total_debit,
+                COALESCE(SUM(gl.kredit), 0) as total_kredit
+            FROM accounts a
+            LEFT JOIN general_ledger gl ON a.id = gl.account_id AND gl.tanggal <= ?
+            WHERE a.id = ? AND a.user_id = ?
+            GROUP BY a.id, a.saldo_awal
+        ");
+        $stmt_total->bind_param('sii', $end_date, $payable_acc_id, $user_id);
+        $stmt_total->execute();
+        $total_res = stmt_fetch_assoc($stmt_total);
+        $total_audit_balance = ($total_res ? $total_res['saldo_awal'] + $total_res['total_kredit'] - $total_res['total_debit'] : 0);
+        $stmt_total->close();
+
+        // 2. Get breakdown per supplier
         $stmt = $conn->prepare("
             SELECT 
                 s.id,
@@ -639,37 +714,58 @@ try {
             FROM 
                 suppliers s
             LEFT JOIN (
-                -- Subquery untuk menghitung total utang dari barang yang terjual
-                -- Sekarang mengambil dari AKUN UTANG (Kredit) karena HPP tidak lagi dijurnal per item
+                -- Subquery: Utang dari barang terjual (Kredit) dikurangi pembatalan (Debit linked to item)
                 SELECT 
                     ci.supplier_id,
-                    SUM(gl.kredit) as total_utang
+                    SUM(gl.kredit - gl.debit) as total_utang
                 FROM general_ledger gl
                 JOIN consignment_items ci ON gl.consignment_item_id = ci.id
                 WHERE gl.user_id = ?
-                  AND gl.account_id = ? AND gl.tanggal BETWEEN ? AND ? -- Akun UTANG Konsinyasi
-                  AND gl.kredit > 0
-                  AND gl.ref_type IN ('jurnal', 'penjualan')
+                  AND gl.account_id = ? AND gl.tanggal <= ?
+                  AND gl.ref_type IN ('jurnal', 'penjualan', 'penyesuaian')
                 GROUP BY ci.supplier_id
             ) utang ON s.id = utang.supplier_id
             LEFT JOIN (
-                -- Subquery untuk menghitung total pembayaran
+                -- Subquery: Total pembayaran (Debit) yang terurai per supplier via keterangan
                 SELECT 
                     s_inner.id as supplier_id,
                     SUM(gl.debit) as total_bayar
                 FROM general_ledger gl
-                JOIN suppliers s_inner ON SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s_inner.nama_pemasok
+                JOIN suppliers s_inner ON (
+                    SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s_inner.nama_pemasok
+                    OR gl.keterangan LIKE CONCAT('%Pelunasan Konsinyasi ke ', s_inner.nama_pemasok, '%')
+                )
                 WHERE gl.user_id = ?
-                  AND gl.account_id = ? AND gl.tanggal BETWEEN ? AND ? -- Akun UTANG Konsinyasi
+                  AND gl.account_id = ? AND gl.tanggal <= ?
                   AND gl.debit > 0
                 GROUP BY s_inner.id
             ) bayar ON s.id = bayar.supplier_id
             WHERE s.user_id = ?
             ORDER BY s.nama_pemasok
         ");
-        $stmt->bind_param('isssisssi', $user_id, $payable_acc_id, $start_date, $end_date, $user_id, $payable_acc_id, $start_date, $end_date, $user_id);
+        $stmt->bind_param('ississi', $user_id, $payable_acc_id, $end_date, $user_id, $payable_acc_id, $end_date, $user_id);
         $stmt->execute();
-        echo json_encode(['status' => 'success', 'data' => stmt_fetch_all($stmt)]);
+        $report_data = stmt_fetch_all($stmt);
+        $stmt->close();
+
+        // 3. Calculate "Lain-lain" (Saldo Awal or Orphan Entries)
+        $total_linked_sisa = 0;
+        foreach($report_data as $row) {
+            $total_linked_sisa += $row['sisa_utang'];
+        }
+        
+        $diff = $total_audit_balance - $total_linked_sisa;
+        if (abs($diff) > 0.01) {
+            $report_data[] = [
+                'id' => null,
+                'nama_pemasok' => 'Saldo Awal / Penyesuaian Manual',
+                'total_utang' => ($diff > 0 ? abs($diff) : 0),
+                'total_bayar' => ($diff < 0 ? abs($diff) : 0),
+                'sisa_utang' => $diff
+            ];
+        }
+
+        echo json_encode(['status' => 'success', 'data' => $report_data, 'meta' => ['total_balance_audit' => $total_audit_balance]]);
     }
 
 } catch (Exception $e) {

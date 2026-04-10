@@ -67,6 +67,11 @@ async function showDetailPiutang(customerId, customerName) {
         const result = await response.json();
 
         if (result.success) {
+            // Tampilkan Saldo WB
+            const saldoWb = result.saldo_wb || 0;
+            const displayWb = document.getElementById('display-saldo-wb');
+            if(displayWb) displayWb.textContent = `Rp ${new Intl.NumberFormat('id-ID').format(saldoWb)}`;
+            
             let html = `
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-700">
@@ -114,11 +119,41 @@ document.addEventListener('click', function(e) {
     }
 });
 
+
+
+document.getElementById('bayar-method')?.addEventListener('change', function() {
+    const method = this.value;
+    const containerWb = document.getElementById('container-saldo-wb');
+    const containerAkun = document.getElementById('container-bayar-akun');
+    const akunSelect = document.getElementById('bayar-akun');
+
+    if (method === 'wb') {
+        containerWb?.classList.remove('hidden');
+        containerAkun?.classList.add('hidden');
+        akunSelect.removeAttribute('required');
+    } else {
+        containerWb?.classList.add('hidden');
+        containerAkun?.classList.remove('hidden');
+        akunSelect.setAttribute('required', 'required');
+    }
+});
+
 document.getElementById('form-bayar-piutang')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     if(!confirm('Yakin ingin memproses pembayaran ini?')) return;
 
     const formData = Object.fromEntries(new FormData(this));
+    
+    // Validasi saldo jika menggunakan WB
+    if (formData.method === 'wb') {
+        const saldoWbText = document.getElementById('display-saldo-wb').textContent;
+        const saldoWb = parseFloat(saldoWbText.replace(/[^0-9,-]+/g, "").replace(",", ".")) || 0;
+        if (parseFloat(formData.amount) > saldoWb) {
+            showToast('Saldo Wajib Belanja tidak mencukupi.', 'error');
+            return;
+        }
+    }
+
     const response = await fetch(`${basePath}/api/laporan-piutang?action=pay`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},

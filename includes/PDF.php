@@ -153,5 +153,104 @@ class PDF extends FPDF
         $this->Cell(95, 5, $ketua_name, 0, 0, 'C');
         $this->Cell(95, 5, $bendahara_name, 0, 1, 'C');
     }
+
+    function Row($w, $data, $align = 'L', $height = 6, $border = 1, $fill = false)
+    {
+        // Compute the number of lines a MultiCell of width w will take
+        $nb = 0;
+        foreach ($data as $i => $v) {
+            $nb = max($nb, $this->NbLines($w[$i], $v));
+        }
+        $h = $height * $nb;
+        
+        // Issue a page break first if needed
+        $this->CheckPageBreak($h);
+        
+        // Draw the cells of the row
+        foreach ($data as $i => $v) {
+            $width = $w[$i];
+            $a = isset($align[$i]) ? $align[$i] : (is_string($align) ? $align : 'L');
+            
+            // Save the current position
+            $x = $this->GetX();
+            $y = $this->GetY();
+            
+            // Draw the border
+            if ($border) {
+                $this->Rect($x, $y, $width, $h);
+            }
+            
+            // Print the text
+            $this->MultiCell($width, $height, $v, 0, $a, $fill);
+            
+            // Put the position to the right of the cell
+            $this->SetXY($x + $width, $y);
+        }
+        
+        // Go to the next line
+        $this->Ln($h);
+    }
+
+    function CheckPageBreak($h)
+    {
+        // If the height h would cause an overflow, add a new page immediately
+        if ($this->GetY() + $h > $this->PageBreakTrigger) {
+            $this->AddPage($this->CurOrientation);
+        }
+    }
+
+    function NbLines($w, $txt)
+    {
+        // Computes the number of lines a MultiCell of width w will take
+        if (!isset($this->CurrentFont)) {
+            return 1;
+        }
+        $cw = &$this->CurrentFont['cw'];
+        if ($w == 0) {
+            $w = $this->w - $this->rMargin - $this->x;
+        }
+        $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
+        $s = str_replace("\r", '', (string)$txt);
+        $nb = strlen($s);
+        if ($nb > 0 and $s[$nb - 1] == "\n") {
+            $nb--;
+        }
+        $sep = -1;
+        $i = 0;
+        $j = 0;
+        $l = 0;
+        $nl = 1;
+        while ($i < $nb) {
+            $c = $s[$i];
+            if ($c == "\n") {
+                $i++;
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+                continue;
+            }
+            if ($c == ' ') {
+                $sep = $i;
+            }
+            $l += $cw[$c];
+            if ($l > $wmax) {
+                if ($sep == -1) {
+                    if ($i == $j) {
+                        $i++;
+                    }
+                } else {
+                    $i = $sep + 1;
+                }
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+            } else {
+                $i++;
+            }
+        }
+        return $nl;
+    }
 }
 ?>

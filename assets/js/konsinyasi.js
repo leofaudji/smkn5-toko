@@ -1,4 +1,5 @@
 function initKonsinyasiPage() {
+    let filterTimeout;
     // --- Element Selectors ---
     const supplierTableBody = document.getElementById('suppliers-table-body');
     const itemTableBody = document.getElementById('items-table-body');
@@ -14,6 +15,11 @@ function initKonsinyasiPage() {
 
     let salesCurrentPage = 1;
     const salesLimit = 10;
+
+    let mutasiCurrentPage = 1;
+    let mutasiTotalPages = 1;
+    let isMutasiLoading = false;
+    let mutasiObserver = null;
 
     if (!supplierTableBody || !itemTableBody) return;
 
@@ -104,7 +110,19 @@ function initKonsinyasiPage() {
 
     async function loadItems() {
         itemTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div></td></tr>';
-        const response = await fetch(`${basePath}/api/konsinyasi?action=list_items`);
+        
+        const search = document.getElementById('item-search-input')?.value || '';
+        const supplierId = document.getElementById('item-filter-supplier')?.value || '0';
+        const stockStatus = document.getElementById('item-filter-stock')?.value || 'all';
+
+        const params = new URLSearchParams({
+            action: 'list_items',
+            search: search,
+            supplier_id: supplierId,
+            stock_status: stockStatus
+        });
+
+        const response = await fetch(`${basePath}/api/konsinyasi?${params.toString()}`);
         const result = await response.json();
         itemTableBody.innerHTML = '';
         if (result.status === 'success' && result.data.length > 0) {
@@ -137,13 +155,24 @@ function initKonsinyasiPage() {
         }
     }
 
-
     async function loadSuppliersForPayment() {
         const select = document.getElementById('cp-supplier-id');
+        if (!select) return;
         select.innerHTML = '<option>Memuat...</option>';
         const response = await fetch(`${basePath}/api/konsinyasi?action=list_suppliers`);
         const result = await response.json();
         select.innerHTML = '<option value="">-- Pilih Pemasok --</option>';
+        if (result.status === 'success') {
+            result.data.forEach(s => select.add(new Option(s.nama_pemasok, s.id)));
+        }
+    }
+
+    async function loadSuppliersForFilter() {
+        const select = document.getElementById('item-filter-supplier');
+        if (!select) return;
+        const response = await fetch(`${basePath}/api/konsinyasi?action=list_suppliers`);
+        const result = await response.json();
+        select.innerHTML = '<option value="0">Semua Pemasok</option>';
         if (result.status === 'success') {
             result.data.forEach(s => select.add(new Option(s.nama_pemasok, s.id)));
         }
@@ -232,28 +261,42 @@ function initKonsinyasiPage() {
         }
     }
 
-    async function loadMutations() {
+    async function loadMutations(page = 1, append = false) {
         const tableBody = document.getElementById('mutasi-table-body');
+        const sentinel = document.getElementById('mutasi-sentinel');
         if (!tableBody) return;
+
+        if (isMutasiLoading) return;
+        
+        mutasiCurrentPage = page;
+        isMutasiLoading = true;
+        if (sentinel) sentinel.classList.remove('invisible');
 
         const supplierId = document.getElementById('mutasi-supplier-id').value;
         const startDate = document.getElementById('mutasi-start-date').value.split('-').reverse().join('-');
         const endDate = document.getElementById('mutasi-end-date').value.split('-').reverse().join('-');
 
-        tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-gray-500"><div class="flex flex-col items-center"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div><span>Memuat mutasi...</span></div></td></tr>';
+        if (!append) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-gray-500"><div class="flex flex-col items-center"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div><span>Memuat mutasi...</span></div></td></tr>';
+        }
 
         try {
             const params = new URLSearchParams({ 
                 action: 'list_mutations', 
                 supplier_id: supplierId,
                 start_date: startDate,
-                end_date: endDate
+                end_date: endDate,
+                page: mutasiCurrentPage,
+                limit: 20
             });
             const response = await fetch(`${basePath}/api/konsinyasi?${params.toString()}`);
             const result = await response.json();
             
             if (result.status === 'success') {
-                tableBody.innerHTML = '';
+                if (!append) tableBody.innerHTML = '';
+                
+                mutasiTotalPages = result.pagination.total_pages;
+
                 if (result.data.length > 0) {
                     result.data.forEach(row => {
                         const date = new Date(row.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -266,26 +309,48 @@ function initKonsinyasiPage() {
                             badgeClass = 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
                         }
                         
-                        tableBody.innerHTML += `
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 font-mono">${date}</td>
-                                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${row.nama_barang}</td>
-                                <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${row.nama_pemasok}</td>
-                                <td class="px-6 py-4 text-center">
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${badgeClass}">${row.tipe}</span>
-                                </td>
-                                <td class="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">${row.qty}</td>
-                                <td class="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">${row.keterangan || '-'}</td>
-                            </tr>
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50';
+                        tr.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 font-mono">${date}</td>
+                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${row.nama_barang}</td>
+                            <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${row.nama_pemasok}</td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${badgeClass}">${row.tipe}</span>
+                            </td>
+                            <td class="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">${row.qty}</td>
+                            <td class="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">${row.keterangan || '-'}</td>
                         `;
+                        tableBody.appendChild(tr);
                     });
                 } else {
-                    tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-gray-500 italic">Tidak ada histori mutasi untuk kriteria ini.</td></tr>';
+                    if (!append) {
+                        tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-gray-500 italic">Tidak ada histori mutasi untuk kriteria ini.</td></tr>';
+                    }
                 }
             }
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Gagal memuat data: ${error.message}</td></tr>`;
+            showToast(`Gagal memuat data: ${error.message}`, 'error');
+            if (!append) tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Gagal memuat data: ${error.message}</td></tr>`;
+        } finally {
+            isMutasiLoading = false;
+            if (sentinel) sentinel.classList.add('invisible');
         }
+    }
+
+    function initMutasiInfiniteScroll() {
+        const sentinel = document.getElementById('mutasi-sentinel');
+        if (!sentinel) return;
+
+        if (mutasiObserver) mutasiObserver.disconnect();
+
+        mutasiObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !isMutasiLoading && mutasiCurrentPage < mutasiTotalPages) {
+                loadMutations(mutasiCurrentPage + 1, true);
+            }
+        }, { threshold: 0.1 });
+
+        mutasiObserver.observe(sentinel);
     }
 
     async function loadSuppliersForMutation() {
@@ -337,7 +402,43 @@ function initKonsinyasiPage() {
     if (filterSalesBtn) filterSalesBtn.addEventListener('click', () => loadSalesHistory(1));
 
     const filterMutasiBtn = document.getElementById('filter-mutasi-btn');
-    if (filterMutasiBtn) filterMutasiBtn.addEventListener('click', loadMutations);
+    if (filterMutasiBtn) filterMutasiBtn.addEventListener('click', () => loadMutations(1, false));
+
+    const exportPdfBtn = document.getElementById('export-mutasi-pdf-btn');
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener('click', () => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `${basePath}/api/pdf`;
+            form.target = '_blank';
+            const params = { 
+                report: 'mutasi-konsinyasi', 
+                start_date: document.getElementById('mutasi-start-date').value.split('-').reverse().join('-'), 
+                end_date: document.getElementById('mutasi-end-date').value.split('-').reverse().join('-'),
+                supplier_id: document.getElementById('mutasi-supplier-id').value
+            };
+            for (const key in params) {
+                const hiddenField = document.createElement('input'); hiddenField.type = 'hidden'; hiddenField.name = key; hiddenField.value = params[key]; form.appendChild(hiddenField);
+            }
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        });
+    }
+
+    const exportCsvBtn = document.getElementById('export-mutasi-csv-btn');
+    if (exportCsvBtn) {
+        exportCsvBtn.addEventListener('click', () => {
+            const params = new URLSearchParams({
+                report: 'mutasi-konsinyasi',
+                format: 'csv',
+                start_date: document.getElementById('mutasi-start-date').value.split('-').reverse().join('-'), 
+                end_date: document.getElementById('mutasi-end-date').value.split('-').reverse().join('-'),
+                supplier_id: document.getElementById('mutasi-supplier-id').value
+            });
+            window.location.href = `${basePath}/api/csv?${params.toString()}`;
+        });
+    }
 
     document.getElementById('consignment-payment-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -353,6 +454,13 @@ function initKonsinyasiPage() {
         showToast(result.message, result.status);
         if (result.status === 'success') { e.target.reset(); cpTanggalPicker.setDate(new Date()); loadPaymentHistory(); }
     });
+
+    document.getElementById('item-search-input')?.addEventListener('input', () => {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(loadItems, 300);
+    });
+    document.getElementById('item-filter-supplier')?.addEventListener('change', loadItems);
+    document.getElementById('item-filter-stock')?.addEventListener('change', loadItems);
 
     // --- Event Listeners ---
     document.getElementById('save-supplier-btn').addEventListener('click', async () => {
@@ -668,7 +776,8 @@ function initKonsinyasiPage() {
                 const now = new Date();
                 mutasiStartPicker.setDate(new Date(now.getFullYear(), now.getMonth(), 1));
                 mutasiEndPicker.setDate(new Date());
-                loadMutations();
+                loadMutations(1, false);
+                initMutasiInfiniteScroll();
             }
         }
         tabButtons.forEach(button => button.addEventListener('click', () => switchTab(button.dataset.target.substring(1))));
@@ -678,5 +787,6 @@ function initKonsinyasiPage() {
     // --- Initial Load ---
     loadSuppliers();
     loadItems();
+    loadSuppliersForFilter();
     setupTabs();
 }

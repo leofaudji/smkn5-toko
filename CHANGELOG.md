@@ -2,6 +2,33 @@
 
 Seluruh pembaruan dan perbaikan pada aplikasi akan dicatat di sini untuk memudahkan Anda mengetahui fitur terbaru.
 
+## [1.7.0] - 2026-04-10
+### FITUR BARU
+- **Tampilan Jurnal Lebih Manis**: Daftar jurnal kini dikelompokkan per transaksi, sehingga data yang tadinya berantakan sekarang jadi lebih rapi dan enak dilihat.
+- **Tombol Pintas Pencarian**: Menambahkan tombol sekali klik untuk melihat data "Hari Ini" atau "Bulan Ini" agar Anda tidak perlu repot memilih tanggal secara manual.
+- **Ikon Kategori Transaksi**: Kini ada ikon warna-warni yang memudahkan Anda membedakan mana transaksi Penjualan, Kas masuk/keluar, dan Jurnal Umum hanya dalam sekali lihat.
+
+### PENINGKATAN
+- **Urutan Transaksi Terbaru**: Data yang baru saja Anda masukkan atau ubah sekarang otomatis muncul di paling atas agar tidak perlu dicari-cari lagi.
+- **Informasi Waktu Lebih Detail**: Kolom tanggal sekarang menampilkan jam dan menit yang akurat untuk memudahkan Anda melacak kapan tepatnya sebuah transaksi dilakukan atau dibatalkan.
+- **Navigasi Lebih Nyaman**: Judul tabel sekarang tetap terlihat di atas saat disekroll ke bawah, sehingga Anda tidak akan bingung membaca kolom data yang panjang.
+
+### PERBAIKAN
+- **Pencatatan Pembatalan Penjualan**: Memperbaiki masalah di mana jurnal pembatalan (void) terkadang tidak muncul di laporan. Sekarang, semua pembatalan akan tercatat 100% akurat.
+- **Perataan Data**: Memperbaiki posisi angka dan nama akun yang sebelumnya agak berantakan, sekarang semuanya sudah tegak lurus dan rapi sesuai kolomnya.
+- **Pembersihan Filter**: Tombol Reset baru memudahkan Anda mengembalikan semua pencarian ke kondisi awal dengan satu klik saja.
+
+## [1.6.0] - 2026-04-09
+### FITUR BARU
+- **Redesign Leaderboard Member**: Mengubah tampilan Papan Peringkat menjadi desain yang lebih simpel, bersih, dan elegan profesional.
+- **Drill-down Riwayat Transaksi**: Nama anggota kini dapat diklik untuk memunculkan modal riwayat yang menampilkan tab "Riwayat Belanja" dan "Wajib Belanja".
+- **Rincian Item Belanja**: Menambahkan kemampuan untuk melihat daftar barang yang dibeli per transaksi secara langsung di dalam modal riwayat anggota.
+- **Filter Canggih Konsinyasi**: Menambahkan fitur pencarian (Nama/SKU), filter Pemasok, dan filter Status Stok pada menu Kelola Barang Konsinyasi.
+
+### PENINGKATAN
+- **UX Modal Dinamis**: Memperbarui sistem modal agar selalu muncul di posisi yang proporsional terhadap layar (viewport), memudahkan navigasi pada daftar data yang panjang.
+- **Optimasi API Leaderboard & Konsinyasi**: Meningkatkan kecepatan penarikan data riwayat dan daftar barang melalui optimasi query database.
+
 ## [1.5.0] - 2026-04-04
 ### FITUR BARU
 - **Riwayat Transaksi WB Lengkap**: Menambahkan kolom Metode Pembayaran (Tunai, QRIS, Transfer, Saldo WB) pada modal riwayat transaksi di Laporan WB Tahunan untuk transparansi data yang lebih baik.

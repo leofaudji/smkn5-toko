@@ -18,19 +18,57 @@ try {
             $limit = 15;
             $offset = ($page - 1) * $limit;
 
+            $search = $_GET['search'] ?? '';
+            $start_date = $_GET['start_date'] ?? '';
+            $end_date = $_GET['end_date'] ?? '';
+
+            $where_clauses = ["1=1"];
+            $params = [];
+            $types = "";
+
+            if (!empty($search)) {
+                $where_clauses[] = "a.nama_lengkap LIKE ?";
+                $params[] = "%$search%";
+                $types .= "s";
+            }
+            if (!empty($start_date)) {
+                $where_clauses[] = "twb.tanggal >= ?";
+                $params[] = $start_date;
+                $types .= "s";
+            }
+            if (!empty($end_date)) {
+                $where_clauses[] = "twb.tanggal <= ?";
+                $params[] = $end_date;
+                $types .= "s";
+            }
+
+            $where_sql = implode(" AND ", $where_clauses);
+
+            // Fetch Data
             $sql = "SELECT twb.*, a.nama_lengkap as nama_anggota 
                     FROM transaksi_wajib_belanja twb
                     JOIN anggota a ON twb.anggota_id = a.id
+                    WHERE $where_sql
                     ORDER BY twb.tanggal DESC, twb.id DESC
                     LIMIT ? OFFSET ?";
+            
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param('ii', $limit, $offset);
+            $stmt_types = $types . "ii";
+            $stmt_params = array_merge($params, [$limit, $offset]);
+            $stmt->bind_param($stmt_types, ...$stmt_params);
             $stmt->execute();
             $data = stmt_fetch_all($stmt);
             $stmt->close();
 
-            $total_sql = "SELECT COUNT(*) as total FROM transaksi_wajib_belanja";
+            // Total Records for Pagination
+            $total_sql = "SELECT COUNT(*) as total 
+                          FROM transaksi_wajib_belanja twb
+                          JOIN anggota a ON twb.anggota_id = a.id
+                          WHERE $where_sql";
             $total_stmt = $conn->prepare($total_sql);
+            if (!empty($types)) {
+                $total_stmt->bind_param($types, ...$params);
+            }
             $total_stmt->execute();
             $total_records = stmt_fetch_assoc($total_stmt)['total'];
             $total_stmt->close();

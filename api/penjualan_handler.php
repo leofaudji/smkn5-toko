@@ -495,7 +495,7 @@ function void_penjualan($db)
 
         $stmt_gl_reverse = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, consignment_item_id, qty, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?, ?, ?)");
 
-        $reversal_date = date('Y-m-d'); // Tanggal pembatalan adalah hari ini
+        $reversal_date = date('Y-m-d H:i:s'); // Tanggal pembatalan adalah saat ini (dengan jam)
         $reversal_keterangan = "PEMBATALAN: " . $penjualan['keterangan'];
         if (empty(trim($reversal_keterangan))) {
             $reversal_keterangan = "Pembatalan transaksi " . $penjualan['nomor_referensi'];

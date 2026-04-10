@@ -23,6 +23,9 @@ function initLaporanWbTahunanPage() {
     async function fetchReport() {
         const tahun = tahunSelect.value;
         const onlyArrears = filterTunggakan.checked;
+        const searchInput = document.getElementById('filter-nama');
+        const search = searchInput ? searchInput.value : '';
+        
         titleEl.textContent = `Laporan Wajib Belanja Tahun ${tahun}`;
         
         tbody.innerHTML = '';
@@ -30,7 +33,7 @@ function initLaporanWbTahunanPage() {
         loadingEl.classList.remove('hidden');
 
         try {
-            const response = await fetch(`${basePath}/api/laporan-wb-tahunan?tahun=${tahun}&only_arrears=${onlyArrears}`);
+            const response = await fetch(`${basePath}/api/laporan-wb-tahunan?tahun=${tahun}&only_arrears=${onlyArrears}&search=${encodeURIComponent(search)}`);
             const result = await response.json();
 
             if (result.status === 'success') {
@@ -48,7 +51,7 @@ function initLaporanWbTahunanPage() {
 
     function renderTable(data, summary, meta) {
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="17" class="text-center p-4">Tidak ada data anggota.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="17" class="text-center p-4 text-gray-500 py-10 italic">Tidak ada data yang cocok dengan kriteria filter.</td></tr>`;
             return;
         }
 
@@ -65,7 +68,7 @@ function initLaporanWbTahunanPage() {
         tbody.innerHTML = data.map(row => {
             let cells = `<td class="px-3 py-2 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800 z-10 border-r border-gray-200 dark:border-gray-700">
                             <div class="font-medium text-primary hover:text-primary-600 cursor-pointer member-name" data-id="${row.id}" data-name="${row.nama_lengkap}">${row.nama_lengkap}</div>
-                            <div class="text-xs text-gray-500">${row.nomor_anggota}</div>
+                            <div class="text-[10px] text-gray-400 font-mono">${row.nomor_anggota}</div>
                          </td>`;
             
             const totalPaid = parseFloat(row.total_tahun); // Total yang sudah dibayar tahun ini
@@ -86,32 +89,32 @@ function initLaporanWbTahunanPage() {
                         display = `<span class="text-green-600 font-medium">${formatRupiahCompact(amount)}</span>`;
                     } else {
                         // Ada bayar, tapi total kumulatif masih kurang (Tunggakan)
-                        display = `<span class="text-yellow-600 font-bold" title="Total belum menutup target s/d bulan ini (Kurang)">${formatRupiahCompact(amount)} <i class="bi bi-exclamation-circle-fill text-xs"></i></span>`;
+                        display = `<span class="text-yellow-600 font-bold" title="Kumulatif masih kurang (Kurang Bayar)">${formatRupiahCompact(amount)} <i class="bi bi-exclamation-triangle"></i></span>`;
                     }
                 } else if (isCovered) {
-                    display = `<span class="text-green-600 font-bold text-xs bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full" title="Tercover pembayaran bulan lain">Lunas</span>`;
+                    display = `<span class="text-green-600/30 font-medium text-[10px]" title="Tercover pembayaran bulan lain">LUNAS</span>`;
                 } else if ((selectedYear === currentYear && m <= currentMonth) || (selectedYear < currentYear)) {
                     // Jika belum bayar dan sudah lewat bulannya (atau bulan ini)
-                    display = `<span class="text-red-600 font-bold text-xs bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded-full">Belum</span>`;
+                    display = `<span class="text-red-500 font-bold text-[9px] bg-red-50 dark:bg-red-900/10 px-1 py-0.5 rounded border border-red-100 dark:border-red-900/20">BELUM</span>`;
                 } else {
-                    display = `<span class="text-gray-300">-</span>`;
+                    display = `<span class="text-gray-200">-</span>`;
                 }
                 
-                cells += `<td class="px-2 py-2 text-right whitespace-nowrap border-r border-gray-100 dark:border-gray-700 last:border-0">${display}</td>`;
+                cells += `<td class="px-2 py-2 text-right whitespace-nowrap border-r border-gray-50 dark:border-gray-700/50 last:border-0">${display}</td>`;
             }
             
-            cells += `<td class="px-3 py-2 text-right font-bold whitespace-nowrap bg-gray-50 dark:bg-gray-900/50">${formatRupiahCompact(row.total_tahun)}</td>`;
+            cells += `<td class="px-3 py-2 text-right font-bold whitespace-nowrap bg-gray-50/50 dark:bg-gray-900/30">${formatRupiahCompact(row.total_tahun)}</td>`;
             
             // Kolom Belanja
-            cells += `<td class="px-3 py-2 text-right whitespace-nowrap text-blue-600 font-medium">${formatRupiahCompact(row.total_belanja)}</td>`;
+            cells += `<td class="px-3 py-2 text-right whitespace-nowrap text-blue-600 font-bold">${formatRupiahCompact(row.total_belanja)}</td>`;
 
             // Kolom Sisa Tunggakan
             const tunggakan = parseFloat(row.sisa_tunggakan) || 0;
-            const tunggakanDisplay = tunggakan > 0 ? `<span class="text-red-600 font-bold">${formatRupiahCompact(tunggakan)}</span>` : `<span class="text-green-600 font-bold"><i class="bi bi-check-lg"></i></span>`;
-            cells += `<td class="px-3 py-2 text-right whitespace-nowrap bg-red-50 dark:bg-red-900/20 border-l border-gray-200 dark:border-gray-700">${tunggakanDisplay}</td>`;
+            const tunggakanDisplay = tunggakan > 0 ? `<span class="text-red-500 font-bold">${formatRupiahCompact(tunggakan)}</span>` : `<span class="text-green-500"><i class="bi bi-check-circle-fill"></i></span>`;
+            cells += `<td class="px-3 py-2 text-right whitespace-nowrap bg-red-50/30 dark:bg-red-900/5 border-l border-gray-100 dark:border-gray-800">${tunggakanDisplay}</td>`;
             
             // Kolom Sisa Saldo
-            cells += `<td class="px-3 py-2 text-right whitespace-nowrap font-bold text-green-700 bg-green-50 dark:bg-green-900/20">${formatRupiahCompact(row.saldo_akhir)}</td>`;
+            cells += `<td class="px-3 py-2 text-right whitespace-nowrap font-bold text-green-700 bg-green-50/50 dark:bg-green-900/10">${formatRupiahCompact(row.saldo_akhir)}</td>`;
             
             return `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">${cells}</tr>`;
         }).join('');
@@ -120,11 +123,11 @@ function initLaporanWbTahunanPage() {
         let footerCells = `<td class="px-3 py-3 font-bold sticky left-0 bg-gray-100 dark:bg-gray-900 z-10 border-r border-gray-300 dark:border-gray-600">TOTAL</td>`;
         for (let m = 1; m <= 12; m++) {
             const totalMonth = summary.totals_per_month[m];
-            footerCells += `<td class="px-2 py-3 text-right font-bold border-r border-gray-300 dark:border-gray-600">${formatRupiahCompact(totalMonth)}</td>`;
+            footerCells += `<td class="px-2 py-3 text-right font-bold border-r border-gray-100 dark:border-gray-800">${formatRupiahCompact(totalMonth)}</td>`;
         }
         footerCells += `<td class="px-3 py-3 text-right font-bold text-primary">${formatRupiahCompact(summary.grand_total)}</td>`;
         footerCells += `<td class="px-3 py-3 text-right font-bold text-blue-600">${formatRupiahCompact(summary.grand_total_belanja)}</td>`;
-        footerCells += `<td class="px-3 py-3 text-right font-bold text-red-600 border-l border-gray-300 dark:border-gray-600">${formatRupiahCompact(summary.grand_total_tunggakan)}</td>`;
+        footerCells += `<td class="px-3 py-3 text-right font-bold text-red-600 border-l border-gray-100 dark:border-gray-800">${formatRupiahCompact(summary.grand_total_tunggakan)}</td>`;
         footerCells += `<td class="px-3 py-3 text-right font-bold text-green-700">${formatRupiahCompact(summary.grand_total_saldo)}</td>`;
         
         tfoot.innerHTML = `<tr>${footerCells}</tr>`;
@@ -199,19 +202,33 @@ function initLaporanWbTahunanPage() {
     });
 
     btnTampilkan.addEventListener('click', fetchReport);
+    
+    // Support enter key on search input
+    const filterNamaInput = document.getElementById('filter-nama');
+    if (filterNamaInput) {
+        filterNamaInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') fetchReport();
+        });
+    }
 
     if (btnExportPdf) {
         btnExportPdf.addEventListener('click', (e) => {
             e.preventDefault();
             const tahun = tahunSelect.value;
             const onlyArrears = filterTunggakan.checked ? 1 : 0;
+            const search = document.getElementById('filter-nama').value;
             
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = `${basePath}/api/pdf`;
             form.target = '_blank';
             
-            const params = { report: 'laporan-wb-tahunan', tahun: tahun, only_arrears: onlyArrears };
+            const params = { 
+                report: 'laporan-wb-tahunan', 
+                tahun: tahun, 
+                only_arrears: onlyArrears,
+                search: search
+            };
             for (const key in params) {
                 const hiddenField = document.createElement('input');
                 hiddenField.type = 'hidden';
@@ -230,7 +247,8 @@ function initLaporanWbTahunanPage() {
             e.preventDefault();
             const tahun = tahunSelect.value;
             const onlyArrears = filterTunggakan.checked ? 1 : 0;
-            const url = `${basePath}/api/csv?report=laporan-wb-tahunan&format=csv&tahun=${tahun}&only_arrears=${onlyArrears}`;
+            const search = document.getElementById('filter-nama').value;
+            const url = `${basePath}/api/csv?report=laporan-wb-tahunan&format=csv&tahun=${tahun}&only_arrears=${onlyArrears}&search=${encodeURIComponent(search)}`;
             window.open(url, '_blank');
         });
     }

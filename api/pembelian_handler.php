@@ -299,7 +299,7 @@ try {
                 $stmt_kartu_stok = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, 0, ?, ?, 'pembelian', ?)");
 
                 // Jurnal Sisi Debit (Agregasi per Akun Persediaan)
-                $stmt_update_stock = $conn->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
+                $stmt_update_stock = $conn->prepare("UPDATE items SET stok = stok + ?, harga_beli = ? WHERE id = ? AND user_id = ?");
                 $aggregated_inventory_totals = [];
 
                 foreach ($lines as $line) {
@@ -313,8 +313,8 @@ try {
                     $stmt_details->bind_param('iiiddi', $pembelian_id, $item_id, $quantity, $price, $subtotal, $inventory_account_id);
                     $stmt_details->execute();
 
-                    // Update stok barang
-                    $stmt_update_stock->bind_param('iii', $quantity, $item_id, $user_id);
+                    // Update stok barang DAN harga beli otomatis
+                    $stmt_update_stock->bind_param('idii', $quantity, $price, $item_id, $user_id);
                     $stmt_update_stock->execute();
 
                     // Catat ke Kartu Stok

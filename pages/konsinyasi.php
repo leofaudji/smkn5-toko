@@ -40,9 +40,35 @@ if (!$is_spa_request) {
     <!-- Tab Kelola Barang -->
     <div class="konsinyasi-tab-pane hidden" id="barang-pane" role="tabpanel">
         <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                <button class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none" id="import-csv-btn"><i class="bi bi-file-earmark-arrow-up mr-2"></i> Impor CSV</button>
-                <button class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none" id="add-item-btn"><i class="bi bi-plus-circle mr-2"></i> Tambah Barang</button>
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-3 flex-1">
+                        <div class="w-full md:w-64">
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" id="item-search-input" class="block w-full pl-10 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm" placeholder="Cari Nama Barang / SKU...">
+                            </div>
+                        </div>
+                        <div class="w-full md:w-48">
+                            <select id="item-filter-supplier" class="block w-full py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm text-gray-700 dark:text-gray-200">
+                                <option value="0">Semua Pemasok</option>
+                            </select>
+                        </div>
+                        <div class="w-full md:w-40">
+                            <select id="item-filter-stock" class="block w-full py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm text-gray-700 dark:text-gray-200">
+                                <option value="all">Semua Stok</option>
+                                <option value="available">Tersedia</option>
+                                <option value="out_of_stock">Stok Habis</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none" id="import-csv-btn"><i class="bi bi-file-earmark-arrow-up mr-2"></i> Impor</button>
+                        <button class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none" id="add-item-btn"><i class="bi bi-plus-circle mr-2"></i> Tambah</button>
+                    </div>
+                </div>
             </div>
             <div class="p-6">
                 <div class="overflow-x-auto">
@@ -192,8 +218,10 @@ if (!$is_spa_request) {
                         <label for="mutasi-end-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sampai Tanggal</label>
                         <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="mutasi-end-date" placeholder="DD-MM-YYYY">
                     </div>
-                    <div class="md:col-span-3">
-                        <button id="filter-mutasi-btn" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none"><i class="bi bi-filter mr-2"></i> Tampilkan Mutasi</button>
+                    <div class="md:col-span-3 flex gap-2">
+                        <button id="filter-mutasi-btn" class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-xs font-semibold rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none"><i class="bi bi-filter mr-1"></i> Tampilkan</button>
+                        <button id="export-mutasi-pdf-btn" class="inline-flex justify-center items-center px-3 py-2 border border-transparent text-xs font-semibold rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none" title="Export PDF"><i class="bi bi-file-pdf"></i></button>
+                        <button id="export-mutasi-csv-btn" class="inline-flex justify-center items-center px-3 py-2 border border-transparent text-xs font-semibold rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none" title="Export CSV"><i class="bi bi-file-earmark-excel"></i></button>
                     </div>
                 </div>
             </div>
@@ -226,6 +254,10 @@ if (!$is_spa_request) {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            <!-- Sentinel for infinite scroll -->
+            <div id="mutasi-sentinel" class="h-10 flex items-center justify-center invisible">
+                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
             </div>
         </div>
     </div>

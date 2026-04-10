@@ -46,6 +46,14 @@ try {
         if (!$customer_id)
             throw new Exception("ID Anggota tidak valid.");
 
+        // Ambil Saldo WB Anggota
+        $sql_bal = "SELECT saldo_wajib_belanja FROM anggota WHERE id = ?";
+        $stmt_bal = $conn->prepare($sql_bal);
+        $stmt_bal->bind_param('i', $customer_id);
+        $stmt_bal->execute();
+        $anggota = stmt_fetch_assoc($stmt_bal);
+        $stmt_bal->close();
+
         $sql = "SELECT id, nomor_referensi, tanggal_penjualan, total, bayar, bayar_wb, (total - bayar - bayar_wb) as sisa 
                 FROM penjualan 
                 WHERE customer_id = ? AND payment_method = 'hutang' AND (total - bayar - bayar_wb) > 0 AND status = 'completed'
@@ -57,7 +65,11 @@ try {
         $result = stmt_fetch_all($stmt);
         $stmt->close();
 
-        echo json_encode(['success' => true, 'data' => $result]);
+        echo json_encode([
+            'success' => true, 
+            'data' => $result, 
+            'saldo_wb' => (float)($anggota['saldo_wajib_belanja'] ?? 0)
+        ]);
 
     } elseif ($action === 'pay') {
         // Proses pembayaran piutang
@@ -65,19 +77,40 @@ try {
         $customer_id = (int) ($input['customer_id'] ?? 0);
         $amount = (float) ($input['amount'] ?? 0);
         $account_id = (int) ($input['account_id'] ?? 0);
+        $method = $input['method'] ?? 'cash'; // 'cash' or 'wb'
         $date = $input['date'] ?? date('Y-m-d');
         $note = $input['note'] ?? 'Pembayaran Piutang';
         $created_by = $_SESSION['user_id'];
 
-        if (!$customer_id || $amount <= 0 || !$account_id) {
+        if (!$customer_id || $amount <= 0 || ($method === 'cash' && !$account_id)) {
             throw new Exception("Data pembayaran tidak lengkap.");
         }
 
         $conn->begin_transaction();
 
+        // 1. Validasi Saldo jika menggunakan WB
+        if ($method === 'wb') {
+            $stmt_bal = $conn->prepare("SELECT saldo_wajib_belanja, nama_lengkap FROM anggota WHERE id = ?");
+            $stmt_bal->bind_param('i', $customer_id);
+            $stmt_bal->execute();
+            $anggota = stmt_fetch_assoc($stmt_bal);
+            $stmt_bal->close();
+
+            if (!$anggota) throw new Exception("Data anggota tidak ditemukan.");
+            if ($anggota['saldo_wajib_belanja'] < $amount) {
+                throw new Exception("Saldo Wajib Belanja tidak mencukupi (Tersedia: " . number_format($anggota['saldo_wajib_belanja'], 0, ',', '.') . ")");
+            }
+
+            // Kurangi Saldo WB di database Anggota
+            $stmt_upd_bal = $conn->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja - ? WHERE id = ?");
+            $stmt_upd_bal->bind_param('di', $amount, $customer_id);
+            $stmt_upd_bal->execute();
+            $stmt_upd_bal->close();
+        }
+
         // Ambil faktur yang belum lunas (FIFO)
-        $sql = "SELECT id, nomor_referensi, total, bayar FROM penjualan 
-                WHERE customer_id = ? AND payment_method = 'hutang' AND (total - bayar) > 0 AND status = 'completed'
+        $sql = "SELECT id, nomor_referensi, total, bayar, bayar_wb FROM penjualan 
+                WHERE customer_id = ? AND payment_method = 'hutang' AND (total - bayar - bayar_wb) > 0 AND status = 'completed'
                 ORDER BY tanggal_penjualan ASC";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param('i', $customer_id);
@@ -89,13 +122,19 @@ try {
         if (!$receivable_acc_id)
             throw new Exception("Akun Piutang belum diatur.");
 
+        $wb_liability_acc_id = null;
+        if ($method === 'wb') {
+            $wb_liability_acc_id = get_setting('wajib_belanja_liability_account_id', null, $conn);
+            if (!$wb_liability_acc_id) throw new Exception("Akun Kewajiban Wajib Belanja belum diatur.");
+        }
+
         $remaining_payment = $amount;
-        $stmt_upd = $conn->prepare("UPDATE penjualan SET bayar = bayar + ? WHERE id = ?");
+        $stmt_upd_cash = $conn->prepare("UPDATE penjualan SET bayar = bayar + ? WHERE id = ?");
+        $stmt_upd_wb = $conn->prepare("UPDATE penjualan SET bayar_wb = bayar_wb + ? WHERE id = ?");
         $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?)");
 
         // Generate Nomor Referensi Pembayaran Unik
-        // Format: PAY-RCV-{YYYYMMDD}-{Random 4 digit}
-        $payment_ref = "PAY-RCV-" . date('Ymd') . "-" . rand(1000, 9999);
+        $payment_ref = ($method === 'wb' ? "PAY-WB-" : "PAY-RCV-") . date('Ymd') . "-" . rand(1000, 9999);
 
         foreach ($invoices as $inv) {
             if ($remaining_payment <= 0)
@@ -106,15 +145,27 @@ try {
             $zero = 0;
 
             // 1. Update Penjualan
-            $stmt_upd->bind_param('di', $bayar_ini, $inv['id']);
-            $stmt_upd->execute();
+            if ($method === 'wb') {
+                $stmt_upd_wb->bind_param('di', $bayar_ini, $inv['id']);
+                $stmt_upd_wb->execute();
 
-            // 2. Jurnal: Debit Kas, Kredit Piutang
-            // Catatan: Hanya mencatat aliran kas dan pengurangan piutang.
-            // Pendapatan dan Persediaan sudah dicatat saat transaksi penjualan (Accrual Basis).
-            $ket_jurnal = "Pelunasan Piutang " . $inv['nomor_referensi'] . " ($note)";
-            // Debit Kas (Uang Masuk)
-            $stmt_gl->bind_param('isssiddii', $user_id, $date, $ket_jurnal, $payment_ref, $account_id, $bayar_ini, $zero, $inv['id'], $created_by);
+                // Log Transaksi WB
+                $ket_wb = "Bayar Hutang #" . $inv['nomor_referensi'] . " ($note)";
+                $stmt_log_wb = $conn->prepare("INSERT INTO transaksi_wajib_belanja (user_id, anggota_id, tanggal, jenis, jumlah, metode_pembayaran, keterangan, nomor_referensi, created_by) VALUES (?, ?, ?, 'belanja', ?, 'potong_saldo', ?, ?, ?)");
+                $stmt_log_wb->bind_param('iisdssi', $user_id, $customer_id, $date, $bayar_ini, $ket_wb, $payment_ref, $created_by);
+                $stmt_log_wb->execute();
+                $stmt_log_wb->close();
+            } else {
+                $stmt_upd_cash->bind_param('di', $bayar_ini, $inv['id']);
+                $stmt_upd_cash->execute();
+            }
+
+            // 2. Jurnal
+            $ket_jurnal = ($method === 'wb' ? "Pelunasan Hutang via WB " : "Pelunasan Piutang ") . $inv['nomor_referensi'] . " ($note)";
+            $debit_account = ($method === 'wb' ? $wb_liability_acc_id : $account_id);
+            
+            // Debit (WB Liability berkurang atau Kas bertambah)
+            $stmt_gl->bind_param('isssiddii', $user_id, $date, $ket_jurnal, $payment_ref, $debit_account, $bayar_ini, $zero, $inv['id'], $created_by);
             $stmt_gl->execute();
             // Kredit Piutang (Piutang Berkurang)
             $stmt_gl->bind_param('isssiddii', $user_id, $date, $ket_jurnal, $payment_ref, $receivable_acc_id, $zero, $bayar_ini, $inv['id'], $created_by);
@@ -123,15 +174,8 @@ try {
             $remaining_payment -= $bayar_ini;
         }
 
-        if ($remaining_payment > 0) {
-            // Jika masih ada sisa uang tapi hutang sudah lunas semua, 
-            // idealnya masuk ke deposit anggota atau dikembalikan.
-            // Untuk saat ini kita throw error atau biarkan (tergantung kebijakan).
-            // Disini kita biarkan saja, sisa uang tidak tercatat (atau bisa dianggap kembalian tunai).
-        }
-
         $conn->commit();
-        echo json_encode(['success' => true, 'message' => 'Pembayaran berhasil diproses.']);
+        echo json_encode(['success' => true, 'message' => 'Pembayaran ' . ($method === 'wb' ? 'via WB ' : '') . 'berhasil diproses.']);
 
     } elseif ($action === 'import_piutang') {
         if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {

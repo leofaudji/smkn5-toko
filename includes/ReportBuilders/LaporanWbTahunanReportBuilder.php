@@ -21,9 +21,23 @@ class LaporanWbTahunanReportBuilder implements ReportBuilderInterface {
         // --- Data Fetching Logic ---
         
         // 1. Ambil semua anggota aktif
-        // Menghilangkan filter user_id sesuai kebijakan global data
-        $sql_members = "SELECT id, nomor_anggota, nama_lengkap, saldo_wajib_belanja FROM anggota WHERE status = 'aktif' ORDER BY nama_lengkap ASC";
+        $search = $this->params['search'] ?? '';
+        $sql_members = "SELECT id, nomor_anggota, nama_lengkap, saldo_wajib_belanja FROM anggota WHERE status = 'aktif'";
+        $params_members = [];
+        $types_members = "";
+
+        if (!empty($search)) {
+            $sql_members .= " AND nama_lengkap LIKE ?";
+            $params_members[] = "%$search%";
+            $types_members .= "s";
+        }
+
+        $sql_members .= " ORDER BY nama_lengkap ASC";
+        
         $stmt_members = $this->conn->prepare($sql_members);
+        if (!empty($params_members)) {
+            $stmt_members->bind_param($types_members, ...$params_members);
+        }
         $stmt_members->execute();
         $members = stmt_fetch_all($stmt_members);
         $stmt_members->close();

@@ -453,6 +453,9 @@ function initPenjualanPage() {
                             <button onclick="window.viewDetailPenjualan(${item.id})" class="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50 transition-colors" title="Detail">
                                 <i class="bi bi-eye-fill"></i>
                             </button>
+                            <button class="text-amber-600 hover:text-amber-900 p-1 rounded-full hover:bg-amber-50 transition-colors btn-edit" data-id="${item.id}" title="Edit Transaksi" ${isVoid ? 'disabled' : ''}>
+                                <i class="bi bi-pencil-fill"></i>
+                            </button>
                             <button onclick="window.printReceipt(${item.id})" class="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-50 transition-colors" title="Cetak Struk">
                                 <i class="bi bi-printer-fill"></i>
                             </button>
@@ -594,14 +597,27 @@ function initPenjualanPage() {
 
     // --- Event Listeners for Payment Section ---
     // Load bank accounts for payment method
-    fetch(`${basePath}/api/settings?action=get_cash_accounts`)
-        .then(res => res.json())
-        .then(res => {
-            if (res.status === 'success') {
+    const loadPaymentAccounts = async () => {
+        try {
+            const res = await fetch(`${basePath}/api/settings?action=get_cash_accounts`);
+            const data = await res.json();
+            if (data.status === 'success') {
                 const accSelect = document.getElementById('payment_account_id');
-                if(accSelect) res.data.forEach(acc => accSelect.add(new Option(acc.nama_akun, acc.id)));
+                if (accSelect) {
+                    // Clear existing options except the first one
+                    const firstOption = accSelect.options[0];
+                    accSelect.innerHTML = '';
+                    accSelect.add(firstOption);
+                    data.data.forEach(acc => accSelect.add(new Option(acc.nama_akun, acc.id)));
+                }
             }
-        });
+        } catch (err) {
+            console.error("Gagal memuat akun pembayaran:", err);
+        }
+    };
+
+    // Initial load
+    loadPaymentAccounts();
 
     // Handle payment method change
     document.getElementById('payment_method')?.addEventListener('change', (e) => {

@@ -75,27 +75,17 @@ class LaporanPiutangReportBuilder implements ReportBuilderInterface {
         $no = 1;
 
         foreach ($result as $row) {
-            // Check Page Break
-            if ($this->pdf->GetY() > 270) {
-                $this->pdf->AddPage('P');
-                $this->pdf->SetFont('Helvetica', 'B', 10);
-                $this->pdf->Cell($w_no, 10, 'No', 1, 0, 'C', true);
-                $this->pdf->Cell($w_name, 10, 'Nama Anggota', 1, 0, 'L', true);
-                $this->pdf->Cell($w_no_anggota, 10, 'No. Anggota', 1, 0, 'C', true);
-                $this->pdf->Cell($w_amount, 10, 'Total Kredit', 1, 0, 'R', true);
-                $this->pdf->Cell($w_amount, 10, 'Dah Bayar', 1, 0, 'R', true);
-                $this->pdf->Cell($w_amount, 10, 'Sisa Piutang', 1, 1, 'R', true);
-                $this->pdf->SetFont('Helvetica', '', 9);
-            }
-
-            $current_y_before = $this->pdf->GetY();
+            $widths = [$w_no, $w_name, $w_no_anggota, $w_amount, $w_amount, $w_amount];
+            $aligns = ['C', 'L', 'C', 'R', 'R', 'R'];
             
-            $this->pdf->Cell($w_no, 8, $no++, 1, 0, 'C');
-            $this->pdf->Cell($w_name, 8, substr($row['customer_name'], 0, 30), 1, 0, 'L');
-            $this->pdf->Cell($w_no_anggota, 8, $row['nomor_anggota'] ?: '-', 1, 0, 'C');
-            $this->pdf->Cell($w_amount, 8, number_format($row['total_kredit'], 0, ',', '.'), 1, 0, 'R');
-            $this->pdf->Cell($w_amount, 8, number_format($row['total_bayar'], 0, ',', '.'), 1, 0, 'R');
-            $this->pdf->Cell($w_amount, 8, number_format($row['sisa_hutang'], 0, ',', '.'), 1, 1, 'R');
+            $this->pdf->Row($widths, [
+                $no++,
+                $row['customer_name'],
+                $row['nomor_anggota'] ?: '-',
+                number_format($row['total_kredit'], 0, ',', '.'),
+                number_format($row['total_bayar'], 0, ',', '.'),
+                number_format($row['sisa_hutang'], 0, ',', '.')
+            ], $aligns);
 
             $grand_total_kredit += (float)$row['total_kredit'];
             $grand_total_bayar += (float)$row['total_bayar'];

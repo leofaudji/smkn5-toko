@@ -17,12 +17,13 @@ function get_gl_balance($conn, $account_id, $user_id) {
     $stmt = $conn->prepare("
         SELECT 
             a.saldo_normal,
-            SUM(gl.debit) as total_debit,
-            SUM(gl.kredit) as total_kredit
+            a.saldo_awal,
+            COALESCE(SUM(gl.debit), 0) as total_debit,
+            COALESCE(SUM(gl.kredit), 0) as total_kredit
         FROM accounts a
         LEFT JOIN general_ledger gl ON a.id = gl.account_id
         WHERE a.id = ? AND a.user_id = ?
-        GROUP BY a.id
+        GROUP BY a.id, a.saldo_normal, a.saldo_awal
     ");
     $stmt->bind_param('ii', $account_id, $user_id);
     $stmt->execute();
@@ -31,9 +32,13 @@ function get_gl_balance($conn, $account_id, $user_id) {
 
     if (!$res) return 0;
 
+    $saldo_awal = (float)$res['saldo_awal'];
+    $debit = (float)$res['total_debit'];
+    $kredit = (float)$res['total_kredit'];
+
     return ($res['saldo_normal'] === 'Debit') 
-        ? (float)$res['total_debit'] - (float)$res['total_kredit']
-        : (float)$res['total_kredit'] - (float)$res['total_debit'];
+        ? $saldo_awal + $debit - $kredit
+        : $saldo_awal + $kredit - $debit;
 }
 
 try {
@@ -78,19 +83,37 @@ try {
 
         // 4. AUDIT UTANG TITIPAN (KONSINYASI)
         $cons_acc_id = get_setting('consignment_payable_account', null, $conn);
-        // Sub-ledger Utang Konsinyasi = Total Utang (dari penjualan) - Total Bayar
+        
+        // Sub-ledger Utang Konsinyasi = (Total Utang dari Item) - (Total Pelunasan ke Supplier)
         $sub_cons_debt = $conn->query("
-            SELECT 
-                (SELECT SUM(gl.kredit) FROM general_ledger gl JOIN consignment_items ci ON gl.consignment_item_id = ci.id WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id AND gl.kredit > 0) -
-                (SELECT SUM(gl.debit) FROM general_ledger gl WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id AND gl.debit > 0) as sisa_utang
+            SELECT (
+                -- Total Utang (Kredit) linked ke item
+                SELECT COALESCE(SUM(gl.kredit - gl.debit), 0)
+                FROM general_ledger gl 
+                JOIN consignment_items ci ON gl.consignment_item_id = ci.id 
+                WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id
+            ) - (
+                -- Total Pelunasan (Debit) linked ke supplier via keterangan
+                SELECT COALESCE(SUM(gl.debit), 0)
+                FROM general_ledger gl 
+                JOIN suppliers s ON (
+                    SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s.nama_pemasok
+                    OR gl.keterangan LIKE CONCAT('%Pelunasan Konsinyasi ke ', s.nama_pemasok, '%')
+                )
+                WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id AND gl.debit > 0
+            ) as sisa_utang
         ")->fetch_assoc()['sisa_utang'] ?? 0;
         
+        // GL Balance sudah mencakup saldo_awal lewat fungsi get_gl_balance
         $gl_cons = get_gl_balance($conn, $cons_acc_id, $user_id);
+        
+        // Supaya match, sub-ledger harus ditambah dengan komponen "Lain-lain" (Manual Adjustment)
+        // Tapi di Audit Saldo, kita justru ingin menonjolkan jika ada diff tersebut.
         $results[] = [
             'module' => 'Utang Titipan (Konsinyasi)',
             'sub_ledger' => (float)$sub_cons_debt,
             'gl_balance' => (float)$gl_cons,
-            'diff' => (float)$sub_cons_debt - (float)$gl_cons,
+            'diff' => (float)$gl_cons - (float)$sub_cons_debt,
             'account' => 'Utang Konsinyasi'
         ];
 
