@@ -284,7 +284,7 @@ function store_penjualan($db)
 
                 if (!isset($revenue_totals[$rev_acc]))
                     $revenue_totals[$rev_acc] = 0;
-                $revenue_totals[$rev_acc] += $item['subtotal'];
+                $revenue_totals[$rev_acc] += ($item['harga'] * $item['qty']);
 
                 $hpp_val = $item['qty'] * (float) $item_db['harga_beli'];
                 if (!isset($normal_cogs_totals[$cogs_acc]))
@@ -313,7 +313,7 @@ function store_penjualan($db)
 
                 // NEW LOGIC: Separate Commission from Purchase Price
                 $total_harga_beli = $item['qty'] * (float) $item_cons['harga_beli'];
-                $komisi = $item['subtotal'] - $total_harga_beli;
+                $komisi = ($item['harga'] * $item['qty']) - $total_harga_beli; // Gunakan Gross agar balance dengan Debit Diskon
 
                 // Group Commission Revenue
                 $cons_rev_acc = $consignment_settings['revenue_acc_id'];
@@ -852,7 +852,7 @@ function update_penjualan($db)
 
                 if (!isset($revenue_totals[$rev_acc]))
                     $revenue_totals[$rev_acc] = 0;
-                $revenue_totals[$rev_acc] += $item['subtotal'];
+                $revenue_totals[$rev_acc] += ($item['harga'] * $item['qty']);
 
                 $hpp_val = $item['qty'] * (float) $item_db['harga_beli'];
                 if (!isset($normal_cogs_totals[$cogs_acc]))
@@ -871,7 +871,7 @@ function update_penjualan($db)
                 $stmt_cons->close();
 
                 $total_beli = $item['qty'] * (float) $item_cons['harga_beli'];
-                $komisi = $item['subtotal'] - $total_beli;
+                $komisi = ($item['harga'] * $item['qty']) - $total_beli; // Gross commission for balance
 
                 $cons_rev_acc = $consignment_settings['revenue_acc_id'];
                 if (!isset($revenue_totals[$cons_rev_acc]))

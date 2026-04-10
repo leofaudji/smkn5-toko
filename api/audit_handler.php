@@ -208,7 +208,7 @@ try {
                 while($item = $q_items->fetch_assoc()) {
                     if($item['item_type'] === 'normal') {
                         $rev_acc = $item['revenue_account_id'] ?: $def_rev;
-                        $revenue_totals[$rev_acc] = ($revenue_totals[$rev_acc] ?? 0) + $item['subtotal'];
+                        $revenue_totals[$rev_acc] = ($revenue_totals[$rev_acc] ?? 0) + ($item['price'] * $item['quantity']); // Gross revenue
                         
                         $cogs_acc = $item['cogs_account_id'] ?: $def_cogs;
                         $inv_acc = $item['inventory_account_id'] ?: $def_inv;
@@ -219,7 +219,7 @@ try {
                     } else {
                         // Konsinyasi: Komisi masuk revenue, Harga beli masuk Utang Titipan
                         $total_beli = $item['quantity'] * (float)$item['purchase_price_cons'];
-                        $komisi = $item['subtotal'] - $total_beli;
+                        $komisi = ($item['price'] * $item['quantity']) - $total_beli; // Gross commission
                         
                         $revenue_totals[$cons_rev] = ($revenue_totals[$cons_rev] ?? 0) + $komisi;
                         $consignment_entries[] = [
