@@ -230,6 +230,7 @@ function store_penjualan($db)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $updateStokStmt = $db->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
+        $updateConsStokStmt = $db->prepare("UPDATE consignment_items SET stok_awal = stok_awal - ? WHERE id = ?");
         $kartuStokStmt = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, 0, ?, ?, ?, 'penjualan', ?)");
 
         // Akun-akun konsinyasi (ambil sekali saja)
@@ -306,6 +307,9 @@ function store_penjualan($db)
                 if (!$item_cons)
                     throw new Exception("Barang konsinyasi '{$item['nama']}' tidak ditemukan.");
 
+                if ($item_cons['stok_awal'] < $item['qty'])
+                    throw new Exception("Stok konsinyasi untuk '{$item['nama']}' tidak mencukupi.");
+
                 foreach ($consignment_settings as $key => $val) {
                     if (empty($val))
                         throw new Exception("Pengaturan akun konsinyasi ($key) belum diatur.");
@@ -334,9 +338,16 @@ function store_penjualan($db)
             // Simpan Detail Transaksi
             $detailStmt->bind_param('iisidids', $penjualanId, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal'], $item_type);
             $detailStmt->execute();
+
+            // Update stok konsinyasi
+            if ($item_type === 'consignment') {
+                $updateConsStokStmt->bind_param('ii', $item['qty'], $item['id']);
+                $updateConsStokStmt->execute();
+            }
         }
         $detailStmt->close();
         $updateStokStmt->close();
+        $updateConsStokStmt->close();
         $kartuStokStmt->close();
 
         // Integrasi Keuangan
@@ -465,6 +476,7 @@ function void_penjualan($db)
         // 3. Kembalikan stok barang (Hanya untuk tipe NORMAL)
         $stmt_update_stok = $db->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
         $stmt_ks_void = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, ?, 0, ?, ?, 'void_penjualan', ?)");
+        $updateConsStokStmt = $db->prepare("UPDATE consignment_items SET stok_awal = stok_awal + ? WHERE id = ?");
 
         foreach ($details as $item) {
             $item_type = $item['item_type'] ?? 'normal';
@@ -476,10 +488,14 @@ function void_penjualan($db)
                 $ksKeterangan = "Batal Penjualan #{$penjualan['nomor_referensi']}";
                 $stmt_ks_void->bind_param('iisii', $item['item_id'], $item['quantity'], $ksKeterangan, $id, $user_id);
                 $stmt_ks_void->execute();
+            } elseif ($item_type === 'consignment') {
+                $updateConsStokStmt->bind_param('ii', $item['quantity'], $item['item_id']);
+                $updateConsStokStmt->execute();
             }
         }
         $stmt_update_stok->close();
         $stmt_ks_void->close();
+        $updateConsStokStmt->close();
 
         // 4. Buat Jurnal Pembalik (Reversal Entry) di General Ledger
         // Ambil data dari jurnal asli untuk dibalik
