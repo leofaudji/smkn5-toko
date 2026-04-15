@@ -1,269 +1,294 @@
+/**
+ * Global Tab Switcher for Pelunasan Konsinyasi
+ * Defined globally so inline onclick handlers can find it.
+ */
+window.switchTabPK = function(target) {
+    const btnPelunasan = document.getElementById('pk-btn-pelunasan');
+    const btnHistory = document.getElementById('pk-btn-history');
+    const contentPelunasan = document.getElementById('pk-content-pelunasan');
+    const contentHistory = document.getElementById('pk-content-history');
+
+    if (!btnPelunasan || !btnHistory || !contentPelunasan || !contentHistory) {
+        console.error('Tab elements not found');
+        return;
+    }
+
+    if (target === 'pelunasan') {
+        btnPelunasan.classList.add('border-primary', 'text-primary', 'active-tab');
+        btnPelunasan.classList.remove('border-transparent', 'text-gray-500');
+        btnHistory.classList.remove('border-primary', 'text-primary', 'active-tab');
+        btnHistory.classList.add('border-transparent', 'text-gray-500');
+        
+        contentPelunasan.style.display = 'block';
+        contentHistory.style.display = 'none';
+        contentPelunasan.classList.remove('hidden');
+        contentHistory.classList.add('hidden');
+    } else {
+        btnHistory.classList.add('border-primary', 'text-primary', 'active-tab');
+        btnHistory.classList.remove('border-transparent', 'text-gray-500');
+        btnPelunasan.classList.remove('border-primary', 'text-primary', 'active-tab');
+        btnPelunasan.classList.add('border-transparent', 'text-gray-500');
+        
+        contentHistory.style.display = 'block';
+        contentPelunasan.style.display = 'none';
+        contentHistory.classList.remove('hidden');
+        contentPelunasan.classList.add('hidden');
+    }
+    console.log('Switched to tab:', target);
+};
+
 function initPelunasanKonsinyasiPage() {
-    const balanceTableBody = document.getElementById('supplier-balance-table-body');
-    const paySupplierSelect = document.getElementById('pay-supplier-id');
-    const payKasAccountSelect = document.getElementById('pay-kas-account');
-    const payForm = document.getElementById('payment-form');
-    const paymentHistoryList = document.getElementById('payment-history-list');
+    console.log('Initializing Pelunasan Konsinyasi Page...');
+    
+    // Selectors with new PK- prefix
+    const balanceTableBody = document.getElementById('pk-supplier-table-body');
+    const historyTableBody = document.getElementById('pk-history-table-body');
+    const paySupplierSelect = document.getElementById('pk-pay-supplier-id');
+    const payKasAccountSelect = document.getElementById('pk-pay-kas-account');
+    const payForm = document.getElementById('pk-payment-form');
     
     const filterDateMulai = document.getElementById('filter-date-mulai');
     const filterDateAkhir = document.getElementById('filter-date-akhir');
-    const searchSupplierInput = document.getElementById('search-supplier');
+    const searchSupplierInput = document.getElementById('pk-search-supplier');
+    const searchHistoryInput = document.getElementById('pk-search-history');
+    const filterHistorySupplier = document.getElementById('pk-filter-history-supplier');
 
-    if (!balanceTableBody) return;
+    // Debug check
+    if (!balanceTableBody) {
+        console.error('CRITICAL: pk-supplier-table-body not found!');
+        return;
+    }
 
     let originalData = [];
+    let historyData = [];
+    let apiDebugInfo = null;
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
     // Initialize Flatpickr
-    flatpickr(filterDateMulai, { dateFormat: "Y-m-d", defaultDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1) });
-    flatpickr(filterDateAkhir, { dateFormat: "Y-m-d", defaultDate: "today" });
-    flatpickr("#pay-tanggal", { dateFormat: "Y-m-d", defaultDate: "today" });
+    if (filterDateMulai) flatpickr(filterDateMulai, { dateFormat: "Y-m-d", defaultDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1) });
+    if (filterDateAkhir) flatpickr(filterDateAkhir, { dateFormat: "Y-m-d", defaultDate: "today" });
+    if (document.getElementById('pk-pay-tanggal')) flatpickr("#pk-pay-tanggal", { dateFormat: "Y-m-d", defaultDate: "today" });
 
     function updateStats(data, meta) {
         let totals = { utang: 0, bayar: 0, sisa: 0 };
         data.forEach(row => {
-            totals.utang += parseFloat(row.total_utang);
-            totals.bayar += parseFloat(row.total_bayar);
-            totals.sisa += parseFloat(row.sisa_utang);
+            totals.utang += parseFloat(row.total_utang) || 0;
+            totals.bayar += parseFloat(row.total_bayar) || 0;
+            totals.sisa += parseFloat(row.sisa_utang) || 0;
         });
 
         const statUtang = document.getElementById('stat-total-utang');
         const statBayar = document.getElementById('stat-total-bayar');
         const statSisa = document.getElementById('stat-sisa-utang');
-        const syncOk = document.getElementById('stat-sync-ok');
-        const syncWarning = document.getElementById('stat-sync-warning');
-
+        
         if (statUtang) statUtang.textContent = currencyFormatter.format(totals.utang);
         if (statBayar) statBayar.textContent = currencyFormatter.format(totals.bayar);
         if (statSisa) statSisa.textContent = currencyFormatter.format(totals.sisa);
-
-        // Discrepancy check with Audit Saldo (returned in meta)
-        if (meta && meta.total_balance_audit !== undefined) {
-            const diff = Math.abs(parseFloat(meta.total_balance_audit) - totals.sisa);
-            if (diff > 1) { // 1 Rupiah threshold for floating point
-                syncOk.classList.add('hidden');
-                syncWarning.classList.remove('hidden');
-            } else {
-                syncOk.classList.remove('hidden');
-                syncWarning.classList.add('hidden');
-            }
-        }
     }
 
     function renderTable(data) {
+        if (!balanceTableBody) return;
         balanceTableBody.innerHTML = '';
         if (data.length === 0) {
-            balanceTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-gray-500"><i class="bi bi-inbox text-4xl block mb-2 opacity-20"></i> Tidak ada data utang ditemukan.</td></tr>';
+            balanceTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-gray-500"><i class="bi bi-inbox text-4xl block mb-2 opacity-20"></i> Tidak ada data utang.</td></tr>';
             return;
         }
 
         data.forEach(row => {
-            const utang = parseFloat(row.total_utang);
-            const bayar = parseFloat(row.total_bayar);
-            const sisa = parseFloat(row.sisa_utang);
+            const utang = parseFloat(row.total_utang) || 0;
+            const bayar = parseFloat(row.total_bayar) || 0;
+            const sisa = parseFloat(row.sisa_utang) || 0;
             const progress = utang > 0 ? Math.min(100, (bayar / utang) * 100) : 0;
             
             const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors group animate-fade-in';
+            tr.className = 'hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors animate-fade-in cursor-default';
             tr.innerHTML = `
                 <td class="px-6 py-4">
                     <div class="font-bold text-gray-900 dark:text-white">${row.nama_pemasok}</div>
                     <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1 mt-2 max-w-[100px]">
-                        <div class="bg-primary h-1 rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+                        <div class="bg-primary h-1 rounded-full" style="width: ${progress}%"></div>
                     </div>
                 </td>
-                <td class="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400 font-medium">${currencyFormatter.format(utang)}</td>
+                <td class="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">${currencyFormatter.format(utang)}</td>
                 <td class="px-6 py-4 text-right text-sm text-green-600 font-bold">${currencyFormatter.format(bayar)}</td>
                 <td class="px-6 py-4 text-right">
-                    <span class="text-sm font-black ${sisa > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}">${currencyFormatter.format(sisa)}</span>
+                    <span class="text-sm font-black ${sisa > 0 ? 'text-red-600' : 'text-gray-400'}">${currencyFormatter.format(sisa)}</span>
                 </td>
                 <td class="px-6 py-4 text-center">
-                    <div class="flex items-center justify-center gap-2">
-                        <button class="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all pay-btn" 
-                                data-id="${row.id}" data-nama="${row.nama_pemasok}" data-sisa="${sisa}" title="Bayar">
-                            <i class="bi bi-cash-stack"></i>
-                        </button>
-                    </div>
+                    <button class="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all pk-pay-btn" 
+                            data-id="${row.id}" data-nama="${row.nama_pemasok}" data-sisa="${sisa}">
+                        <i class="bi bi-cash-stack"></i>
+                    </button>
                 </td>
             `;
             balanceTableBody.appendChild(tr);
         });
+    }
 
-        // Update Foot
-        const balanceTableFoot = document.getElementById('supplier-balance-table-foot');
-        if (balanceTableFoot) {
-            let totals = { utang: 0, bayar: 0, sisa: 0 };
-            data.forEach(row => {
-                totals.utang += parseFloat(row.total_utang);
-                totals.bayar += parseFloat(row.total_bayar);
-                totals.sisa += parseFloat(row.sisa_utang);
-            });
-            balanceTableFoot.innerHTML = `
-                <tr class="bg-gray-50/50 dark:bg-gray-700/50">
-                    <td class="px-6 py-4 text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest text-left">Ringkasan Total</td>
-                    <td class="px-6 py-4 text-right font-bold text-gray-700 dark:text-gray-300 border-l border-gray-100 dark:border-gray-600">${currencyFormatter.format(totals.utang)}</td>
-                    <td class="px-6 py-4 text-right font-bold text-green-600 border-l border-gray-100 dark:border-gray-600">${currencyFormatter.format(totals.bayar)}</td>
-                    <td class="px-6 py-4 text-right font-bold text-red-600 border-x border-gray-100 dark:border-gray-600">${currencyFormatter.format(totals.sisa)}</td>
-                    <td></td>
-                </tr>
-            `;
+    function renderHistoryTable(data, debugInfo = null) {
+        if (!historyTableBody) return;
+        historyTableBody.innerHTML = '';
+        
+        if (!Array.isArray(data) || data.length === 0) {
+            let diag = debugInfo ? `<div class="text-[10px] mt-2 opacity-50">API status: ${debugInfo.status || 'OK'} | Count: ${debugInfo.count || 0}</div>` : '';
+            historyTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-20 text-gray-400">
+                <i class="bi bi-clock-history text-4xl block mb-2 opacity-20"></i>
+                Belum ada riwayat pembayaran.
+                ${diag}
+            </td></tr>`;
+            return;
         }
+
+        data.forEach(h => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50/80 transition-colors animate-fade-in';
+            const amount = parseFloat(h.jumlah) || 0;
+            const dateStr = h.tanggal ? new Date(h.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 text-sm text-gray-500">${dateStr}</td>
+                <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">${h.nama_pemasok || 'Pemasok Umum'}</td>
+                <td class="px-6 py-4 text-sm text-gray-500 italic">${h.keterangan || '-'}</td>
+                <td class="px-6 py-4 text-right font-black text-green-600">${currencyFormatter.format(amount)}</td>
+            `;
+            historyTableBody.appendChild(tr);
+        });
     }
 
     async function loadData() {
-        const start = filterDateMulai.value;
-        const end = filterDateAkhir.value;
+        const start = filterDateMulai ? filterDateMulai.value : '';
+        const end = filterDateAkhir ? filterDateAkhir.value : '';
         
         try {
             const [debtRes, supplierRes, coaRes, historyRes] = await Promise.all([
-                fetch(`${basePath}/api/konsinyasi?action=get_debt_summary_report&start_date=${start}&end_date=${end}`),
-                fetch(`${basePath}/api/konsinyasi?action=list_suppliers`),
-                fetch(`${basePath}/api/coa`),
-                fetch(`${basePath}/api/konsinyasi?action=list_payments`)
+                fetch(`${basePath}/api/konsinyasi?action=get_debt_summary_report&start_date=${start}&end_date=${end}&_=${Date.now()}`),
+                fetch(`${basePath}/api/konsinyasi?action=list_suppliers&_=${Date.now()}`),
+                fetch(`${basePath}/api/coa?_=${Date.now()}`),
+                fetch(`${basePath}/api/konsinyasi?action=list_payments&_=${Date.now()}`)
             ]);
 
-            const debtResult = await debtRes.json();
-            const supplierResult = await supplierRes.json();
-            const coaResult = await coaRes.json();
-            const historyResult = await historyRes.json();
+            // Handle Debt Data
+            try {
+                const debtResult = await debtRes.json();
+                originalData = debtResult.data || [];
+                updateStats(originalData, debtResult.meta);
+                applyFilters();
+            } catch (e) { console.error('Error loading debt data:', e); }
 
-            originalData = debtResult.data || [];
-            updateStats(originalData, debtResult.meta);
-            applyFilters();
+            // Handle Supplier Select
+            try {
+                const supplierResult = await supplierRes.json();
+                if (paySupplierSelect) {
+                    paySupplierSelect.innerHTML = '<option value="">-- Pilih Pemasok --</option>';
+                    (supplierResult.data || []).forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s.id; opt.textContent = s.nama_pemasok;
+                        paySupplierSelect.appendChild(opt);
 
-            // 2. Populate Supplier Select
-            paySupplierSelect.innerHTML = '<option value="">-- Pilih Pemasok --</option>';
-            supplierResult.data.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = s.nama_pemasok;
-                paySupplierSelect.appendChild(opt);
-            });
+                        // Also populate history filter
+                        if (filterHistorySupplier) {
+                            const optHistory = document.createElement('option');
+                            optHistory.value = s.nama_pemasok; // Use name for history filtering
+                            optHistory.textContent = s.nama_pemasok;
+                            filterHistorySupplier.appendChild(optHistory);
+                        }
+                    });
+                }
+            } catch (e) { console.error('Error loading suppliers:', e); }
 
-            // 3. Populate Kas Account
-            payKasAccountSelect.innerHTML = '<option value="">-- Pilih Sumber Dana --</option>';
-            const accounts = Array.isArray(coaResult) ? coaResult : (coaResult.data || []);
-            const cashAccounts = accounts.filter(a => a.kode_akun.startsWith('1') || a.is_cash == 1);
-            
-            (cashAccounts.length > 0 ? cashAccounts : accounts).forEach(a => {
-                const opt = document.createElement('option');
-                opt.value = a.id;
-                opt.textContent = `${a.kode_akun} - ${a.nama_akun}`;
-                payKasAccountSelect.appendChild(opt);
-            });
+            // Handle COA Select
+            try {
+                const coaResult = await coaRes.json();
+                if (payKasAccountSelect) {
+                    payKasAccountSelect.innerHTML = '<option value="">-- Pilih Sumber Dana --</option>';
+                    const accounts = Array.isArray(coaResult) ? coaResult : (coaResult.data || []);
+                    accounts.forEach(a => {
+                        const opt = document.createElement('option');
+                        opt.value = a.id; opt.textContent = `${a.kode_akun} - ${a.nama_akun}`;
+                        payKasAccountSelect.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.error('Error loading COA:', e); }
 
-            // 4. Render History
-            paymentHistoryList.innerHTML = '';
-            if (!historyResult.data || historyResult.data.length === 0) {
-                paymentHistoryList.innerHTML = '<div class="p-8 text-center text-gray-400 text-xs italic">Belum ada histori</div>';
-            } else {
-                historyResult.data.slice(0, 10).forEach(h => {
-                    const item = document.createElement('div');
-                    item.className = 'p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group';
-                    item.innerHTML = `
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="font-bold text-gray-800 dark:text-gray-200">${h.nama_pemasok}</span>
-                            <span class="text-green-600 font-bold">${currencyFormatter.format(h.jumlah)}</span>
-                        </div>
-                        <div class="flex justify-between items-center text-[10px] text-gray-500 uppercase tracking-tighter">
-                            <div class="flex items-center gap-1">
-                                <i class="bi bi-calendar-event"></i>
-                                <span>${new Date(h.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                            </div>
-                            <span class="truncate ml-4 max-w-[120px] italic border-b border-gray-100 dark:border-gray-700">${h.keterangan || 'Tanpa catatan'}</span>
-                        </div>
-                    `;
-                    paymentHistoryList.appendChild(item);
-                });
-            }
+            // Handle History Data
+            try {
+                const historyResult = await historyRes.json();
+                historyData = historyResult.data || [];
+                apiDebugInfo = { status: historyResult.status, count: historyData.length };
+                renderHistoryTable(historyData, apiDebugInfo);
+            } catch (e) { console.error('Error loading history:', e); }
 
         } catch (error) {
-            showToast('Gagal memuat data: ' + error.message, 'error');
+            console.error('Core loading error:', error);
+            showToast('Gagal memuat data.', 'error');
         }
     }
 
-    // Search Filtering
     function applyFilters() {
-        const term = searchSupplierInput.value.toLowerCase();
-        const onlyDebt = document.getElementById('filter-only-debt').checked;
+        const term = searchSupplierInput ? searchSupplierInput.value.toLowerCase() : '';
+        const onlyDebt = document.getElementById('pk-filter-only-debt')?.checked || false;
         
-        let filtered = originalData.filter(row => 
-            row.nama_pemasok.toLowerCase().includes(term)
-        );
-
-        if (onlyDebt) {
-            filtered = filtered.filter(row => parseFloat(row.sisa_utang) > 0);
-        }
-
+        let filtered = originalData.filter(row => row.nama_pemasok.toLowerCase().includes(term));
+        if (onlyDebt) filtered = filtered.filter(row => parseFloat(row.sisa_utang) > 0);
         renderTable(filtered);
     }
 
-    searchSupplierInput.addEventListener('input', applyFilters);
-    document.getElementById('filter-only-debt').addEventListener('change', applyFilters);
+    function applyHistoryFilters() {
+        const term = searchHistoryInput ? searchHistoryInput.value.toLowerCase() : '';
+        const supplierName = filterHistorySupplier ? filterHistorySupplier.value : '';
 
-    // Event delegation for pay button
+        let filtered = historyData;
+
+        if (supplierName) {
+            filtered = filtered.filter(h => (h.nama_pemasok || '') === supplierName);
+        }
+
+        if (term) {
+            filtered = filtered.filter(h => 
+                (h.nama_pemasok || '').toLowerCase().includes(term) || 
+                (h.keterangan || '').toLowerCase().includes(term)
+            );
+        }
+        renderHistoryTable(filtered, apiDebugInfo);
+    }
+
+    // Event Listeners
+    if (searchSupplierInput) searchSupplierInput.addEventListener('input', applyFilters);
+    if (searchHistoryInput) searchHistoryInput.addEventListener('input', applyHistoryFilters);
+    if (filterHistorySupplier) filterHistorySupplier.addEventListener('change', applyHistoryFilters);
+    if (document.getElementById('pk-filter-only-debt')) document.getElementById('pk-filter-only-debt').addEventListener('change', applyFilters);
+
     balanceTableBody.addEventListener('click', (e) => {
-        const btn = e.target.closest('.pay-btn');
+        const btn = e.target.closest('.pk-pay-btn');
         if (btn) {
-            const { id, nama, sisa } = btn.dataset;
-            if (id === 'null' || !id) {
-                // For "Saldo Awal / Penyesuaian Manual" row, we might not have a direct ID in the select
-                paySupplierSelect.value = "";
-                showToast("Pilih pemasok secara manual untuk penyesuaian.", "info");
-            } else {
-                paySupplierSelect.value = id;
-            }
-            document.getElementById('pay-jumlah').value = Math.max(0, parseInt(sisa));
-            document.getElementById('pay-jumlah').focus();
+            const { id, sisa } = btn.dataset;
+            if (paySupplierSelect) paySupplierSelect.value = id || "";
+            const payJumlah = document.getElementById('pk-pay-jumlah');
+            if (payJumlah) { payJumlah.value = Math.max(0, parseInt(sisa)); payJumlah.focus(); }
+            window.switchTabPK('pelunasan'); 
+        }
+    });
+
+    if (payForm) {
+        payForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(payForm);
+            formData.append('action', 'pay_debt');
             
-            // Add a small bounce animation to the form
-            payForm.parentElement.classList.add('ring-2', 'ring-primary', 'shadow-lg');
-            setTimeout(() => {
-                payForm.parentElement.classList.remove('ring-2', 'ring-primary', 'shadow-lg');
-            }, 1000);
-        }
-    });
-
-    payForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        // Confirmation before processing
-        const amount = document.getElementById('pay-jumlah').value;
-        const supplierName = paySupplierSelect.options[paySupplierSelect.selectedIndex].text;
-        
-        const confirm = await Swal.fire({
-            title: 'Konfirmasi Pelunasan',
-            text: `Apakah Anda yakin ingin melakukan pelunasan senilai ${currencyFormatter.format(amount)} ke ${supplierName}?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Ya, Proses Sekarang',
-            cancelButtonText: 'Batal',
-            confirmButtonColor: 'var(--color-primary)'
+            try {
+                const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
+                const result = await response.json();
+                showToast(result.message, result.status === 'success' ? 'success' : 'error');
+                if (result.status === 'success') {
+                    payForm.reset();
+                    loadData();
+                }
+            } catch (error) { showToast('Gagal memproses pembayaran.', 'error'); }
         });
+    }
 
-        if (!confirm.isConfirmed) return;
+    [filterDateMulai, filterDateAkhir].forEach(el => { if (el) el.addEventListener('change', loadData); });
 
-        const formData = new FormData(payForm);
-        formData.append('action', 'pay_debt');
-        
-        try {
-            const response = await fetch(`${basePath}/api/konsinyasi`, {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
-            showToast(result.message, result.status === 'success' ? 'success' : 'error');
-            if (result.status === 'success') {
-                payForm.reset();
-                flatpickr("#pay-tanggal", { dateFormat: "Y-m-d", defaultDate: "today" });
-                loadData();
-            }
-        } catch (error) {
-            showToast('Gagal memproses pembayaran.', 'error');
-        }
-    });
-
-    [filterDateMulai, filterDateAkhir].forEach(el => el.addEventListener('change', loadData));
-
+    // Initial Load
     loadData();
 }

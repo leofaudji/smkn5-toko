@@ -19,6 +19,39 @@ try {
     if ($action === 'list_suppliers') {
         $result = $conn->query("SELECT * FROM suppliers WHERE user_id = $user_id ORDER BY nama_pemasok ASC");
         echo json_encode(['status' => 'success', 'data' => $result->fetch_all(MYSQLI_ASSOC)]);
+    } elseif ($action === 'list_payments') {
+        $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
+        if (empty($payable_acc_id)) {
+            echo json_encode(['status' => 'success', 'data' => [], 'debug' => 'Account ID not set']);
+            exit;
+        }
+
+        $stmt = $conn->prepare("
+            SELECT gl.tanggal, gl.keterangan, gl.debit as jumlah, s.nama_pemasok
+            FROM general_ledger gl
+            LEFT JOIN suppliers s ON (
+                SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s.nama_pemasok
+                OR gl.keterangan LIKE CONCAT('%ke ', s.nama_pemasok, '%')
+            )
+            WHERE gl.account_id = ?
+              AND gl.debit > 0
+            ORDER BY gl.tanggal DESC, gl.id DESC
+        ");
+        $stmt->bind_param('i', $payable_acc_id);
+        $stmt->execute();
+        $data = stmt_fetch_all($stmt);
+        $stmt->close();
+
+        echo json_encode([
+            'status' => 'success', 
+            'data' => $data,
+            'debug' => [
+                'user_id' => $user_id,
+                'account_id' => $payable_acc_id,
+                'count' => count($data)
+            ]
+        ]);
+        exit;
     } elseif ($action === 'save_supplier') {
         $id = (int)($_POST['id'] ?? 0);
         $nama = trim($_POST['nama_pemasok'] ?? '');
@@ -654,26 +687,6 @@ try {
                 'total_pages' => ceil($total_records / $limit)
             ]
         ]);
-    }
-    elseif ($action === 'list_payments') {
-        $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
-        if (empty($payable_acc_id)) {
-            echo json_encode(['status' => 'success', 'data' => []]); // Return empty if not configured
-            exit;
-        }
-
-        $stmt = $conn->prepare("
-            SELECT gl.tanggal, gl.keterangan, gl.debit as jumlah, s.nama_pemasok
-            FROM general_ledger gl
-            LEFT JOIN suppliers s ON SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s.nama_pemasok
-            WHERE gl.user_id = ?
-              AND gl.account_id = ?
-              AND gl.debit > 0
-            ORDER BY gl.tanggal DESC, gl.id DESC
-        ");
-        $stmt->bind_param('ii', $user_id, $payable_acc_id);
-        $stmt->execute();
-        echo json_encode(['status' => 'success', 'data' => stmt_fetch_all($stmt)]);
     }
     elseif ($action === 'get_debt_summary_report') {
         $payable_acc_id = get_setting('consignment_payable_account', null, $conn);

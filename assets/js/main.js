@@ -326,7 +326,7 @@ function runPageScripts(path) {
             .then(() => initKonsinyasiPage())
             .catch(err => console.error(err));
     } else if (cleanPath === '/pelunasan-konsinyasi') {
-        loadScript(`${basePath}/assets/js/pelunasan_konsinyasi.js`)
+        loadScript(`${basePath}/assets/js/pelunasan_konsinyasi.js?v=${Date.now()}`)
             .then(() => initPelunasanKonsinyasiPage())
             .catch(err => console.error(err));
     } else if (cleanPath === '/transaksi-berulang') {
