@@ -549,6 +549,41 @@ try {
         } else {
             throw new Exception("Gagal membuka file CSV.");
         }
+    } elseif ($action === 'get_restock') {
+        $id = (int) ($_GET['id'] ?? 0);
+        if ($id <= 0)
+            throw new Exception("ID tidak valid.");
+
+        $stmt = $conn->prepare("SELECT cr.*, ci.nama_barang FROM consignment_restocks cr JOIN consignment_items ci ON cr.consignment_item_id = ci.id WHERE cr.id = ? AND cr.user_id = ?");
+        $stmt->bind_param('ii', $id, $user_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = $res->fetch_assoc();
+        $stmt->close();
+
+        if (!$data)
+            throw new Exception("Data restock tidak ditemukan.");
+
+        echo json_encode(['status' => 'success', 'data' => $data]);
+    } elseif ($action === 'update_restock') {
+        $id = (int) ($_POST['id'] ?? 0);
+        $qty = (int) $_POST['qty'];
+        $tanggal = $_POST['tanggal'];
+        $keterangan = trim($_POST['keterangan'] ?? '');
+
+        if ($id <= 0 || $qty <= 0 || empty($tanggal)) {
+            throw new Exception("Data perbaikan stok tidak valid.");
+        }
+
+        $stmt = $conn->prepare("UPDATE consignment_restocks SET qty = ?, tanggal = ?, keterangan = ? WHERE id = ? AND user_id = ?");
+        $stmt->bind_param('issii', $qty, $tanggal, $keterangan, $id, $user_id);
+
+        if ($stmt->execute()) {
+            echo json_encode(['status' => 'success', 'message' => 'Stok berhasil diperbarui.']);
+        } else {
+            throw new Exception("Gagal memperbarui data stok: " . $stmt->error);
+        }
+        $stmt->close();
     } elseif ($action === 'delete_restock') {
         $id = (int) ($_POST['id'] ?? 0);
         if ($id <= 0)

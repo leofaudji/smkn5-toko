@@ -453,6 +453,8 @@ if (!$is_spa_request) {
             <div class="p-6">
                 <form id="restock-form" class="space-y-4">
                     <input type="hidden" name="item_id" id="restock-item-id">
+                    <input type="hidden" name="id" id="restock-id">
+                    <input type="hidden" name="action" id="restock-action">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Barang</label>
                         <p id="restock-item-name" class="mt-1 text-sm font-semibold text-gray-900 dark:text-white"></p>
