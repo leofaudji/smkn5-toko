@@ -42,6 +42,7 @@ function initPelunasanKonsinyasiPage() {
     
     // Selectors with new PK- prefix
     const balanceTableBody = document.getElementById('pk-supplier-table-body');
+    const balanceTableFoot = document.getElementById('pk-supplier-table-foot');
     const historyTableBody = document.getElementById('pk-history-table-body');
     const paySupplierSelect = document.getElementById('pk-pay-supplier-id');
     const payKasAccountSelect = document.getElementById('pk-pay-kas-account');
@@ -123,6 +124,26 @@ function initPelunasanKonsinyasiPage() {
             `;
             balanceTableBody.appendChild(tr);
         });
+
+        // Update Foot Totals
+        if (balanceTableFoot) {
+            let totals = { utang: 0, bayar: 0, sisa: 0 };
+            data.forEach(row => {
+                totals.utang += parseFloat(row.total_utang) || 0;
+                totals.bayar += parseFloat(row.total_bayar) || 0;
+                totals.sisa += parseFloat(row.sisa_utang) || 0;
+            });
+
+            balanceTableFoot.innerHTML = `
+                <tr class="bg-gray-50/50 dark:bg-gray-700/50 font-bold border-t-2 border-gray-200 dark:border-gray-600">
+                    <td class="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">TOTAL RINGKASAN</td>
+                    <td class="px-6 py-4 text-right text-gray-700 dark:text-gray-300 font-bold border-l border-gray-100 dark:border-gray-700">${currencyFormatter.format(totals.utang)}</td>
+                    <td class="px-6 py-4 text-right text-green-600 font-bold border-l border-gray-100 dark:border-gray-700">${currencyFormatter.format(totals.bayar)}</td>
+                    <td class="px-6 py-4 text-right text-red-600 font-black border-l border-gray-100 dark:border-gray-700">${currencyFormatter.format(totals.sisa)}</td>
+                    <td></td>
+                </tr>
+            `;
+        }
     }
 
     function renderHistoryTable(data, debugInfo = null) {
