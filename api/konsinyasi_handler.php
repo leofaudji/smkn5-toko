@@ -27,15 +27,16 @@ try {
         }
 
         $stmt = $conn->prepare("
-            SELECT gl.tanggal, gl.keterangan, gl.debit as jumlah, s.nama_pemasok
+            SELECT gl.tanggal, gl.keterangan, SUM(gl.debit - gl.kredit) as jumlah, s.nama_pemasok
             FROM general_ledger gl
             LEFT JOIN suppliers s ON (
                 SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s.nama_pemasok
                 OR gl.keterangan LIKE CONCAT('%ke ', s.nama_pemasok, '%')
             )
             WHERE gl.account_id = ?
-              AND gl.debit > 0
-            ORDER BY gl.tanggal DESC, gl.id DESC
+            GROUP BY gl.tanggal, gl.keterangan, s.nama_pemasok, gl.nomor_referensi
+            HAVING jumlah > 0
+            ORDER BY gl.tanggal DESC, gl.nomor_referensi DESC
         ");
         $stmt->bind_param('i', $payable_acc_id);
         $stmt->execute();
@@ -354,11 +355,10 @@ try {
 
         // 1. Hitung TOTAL records untuk paging
         $stmt_total = $conn->prepare("
-            SELECT COUNT(*) as total
+            SELECT COUNT(DISTINCT gl.nomor_referensi) as total
             FROM general_ledger gl
             WHERE gl.user_id = ?
               AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')
-              AND gl.kredit > 0
               AND gl.ref_type IN ('jurnal', 'penjualan')
               AND gl.tanggal BETWEEN ? AND ?
         ");
@@ -374,18 +374,19 @@ try {
                 gl.tanggal, 
                 gl.keterangan, 
                 gl.nomor_referensi,
-                gl.qty,
+                SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) as qty,
                 ci.nama_barang,
                 ci.harga_jual,
-                (gl.qty * ci.harga_jual) as total_jual
+                (SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) * ci.harga_jual) as total_jual
             FROM general_ledger gl
             JOIN consignment_items ci ON gl.consignment_item_id = ci.id
             WHERE gl.user_id = ?
               AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')
-              AND gl.kredit > 0
               AND gl.ref_type IN ('jurnal', 'penjualan')
               AND gl.tanggal BETWEEN ? AND ?
-            ORDER BY gl.tanggal DESC, gl.id DESC
+            GROUP BY gl.nomor_referensi, ci.id, gl.tanggal, gl.keterangan
+            HAVING qty > 0 OR total_jual > 0
+            ORDER BY gl.tanggal DESC, gl.nomor_referensi DESC
             LIMIT ? OFFSET ?
         ");
         $stmt->bind_param('issii', $user_id, $start_date, $end_date, $limit, $offset);
@@ -572,7 +573,7 @@ try {
 
         $where_ci = "WHERE ci.user_id = ?";
         $where_cr = "WHERE cr.user_id = ?";
-        $where_gl = "WHERE gl.user_id = ? AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl.kredit > 0 AND gl.ref_type IN ('jurnal', 'penjualan')";
+        $where_gl = "WHERE gl.user_id = ? AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl.ref_type IN ('jurnal', 'penjualan')";
 
         $params_ci = [$user_id];
         $params_cr = [$user_id];
@@ -656,8 +657,8 @@ try {
                     ci.nama_barang,
                     s.nama_pemasok,
                     'Terjual' as tipe,
-                    SUM(gl.qty) as qty,
-                    'Total penjualan harian' as keterangan,
+                    SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) as qty,
+                    'Total penjualan harian (Netto)' as keterangan,
                     ci.id as item_id,
                     0 as mutation_id
                 FROM general_ledger gl

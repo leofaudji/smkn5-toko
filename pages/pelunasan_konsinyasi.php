@@ -96,21 +96,21 @@ check_permission('konsinyasi', 'menu'); // Reuse consignment permission
                     </div>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
-                    <thead class="bg-gray-50/50 dark:bg-gray-700/50">
+            <div class="overflow-x-auto overflow-y-auto max-h-[450px]">
+                <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700 border-separate border-spacing-0">
+                    <thead class="bg-gray-50/90 dark:bg-gray-700/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
                         <tr>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pemasok</th>
-                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Penjualan</th>
-                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Terbayar</th>
-                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sisa Utang</th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Pemasok</th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Total Penjualan</th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Terbayar</th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Sisa Utang</th>
+                            <th class="px-6 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="pk-supplier-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
                         <!-- Data loaded via JS -->
                     </tbody>
-                    <tfoot id="pk-supplier-table-foot" class="bg-gray-50/80 dark:bg-gray-700/80 font-bold">
+                    <tfoot id="pk-supplier-table-foot" class="bg-gray-50/80 dark:bg-gray-700/80 font-bold sticky bottom-0 z-10 border-t border-gray-200 dark:border-gray-600">
                         <!-- Totals loaded via JS -->
                     </tfoot>
                 </table>
@@ -185,14 +185,14 @@ check_permission('konsinyasi', 'menu'); // Reuse consignment permission
                 </div>
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
-                <thead class="bg-gray-50/50 dark:bg-gray-700/50">
+        <div class="overflow-x-auto overflow-y-auto max-h-[450px]">
+            <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700 border-separate border-spacing-0">
+                <thead class="bg-gray-50/90 dark:bg-gray-700/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
                     <tr>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pemasok</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keterangan</th>
-                        <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jumlah</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Tanggal</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Pemasok</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Keterangan</th>
+                        <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Jumlah</th>
                     </tr>
                 </thead>
                 <tbody id="pk-history-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
