@@ -33,8 +33,9 @@ try {
             exit;
         }
         if ($action === 'get_journal_entry') {
-            $id = (int)($_GET['id'] ?? 0);
-            if ($id <= 0) throw new Exception("ID transaksi tidak valid.");
+            $id = (int) ($_GET['id'] ?? 0);
+            if ($id <= 0)
+                throw new Exception("ID transaksi tidak valid.");
 
             $stmt = $conn->prepare("
                 SELECT 
@@ -54,7 +55,8 @@ try {
             $tx = stmt_fetch_assoc($stmt);
             $stmt->close();
 
-            if (!$tx) throw new Exception("Transaksi tidak ditemukan.");
+            if (!$tx)
+                throw new Exception("Transaksi tidak ditemukan.");
 
             $jurnal = [];
             if ($tx['jenis'] === 'pemasukan') {
@@ -74,8 +76,8 @@ try {
         }
 
         // Default action: list transactions
-        $limit = (int)($_GET['limit'] ?? 15);
-        $page = (int)($_GET['page'] ?? 1);
+        $limit = (int) ($_GET['limit'] ?? 15);
+        $page = (int) ($_GET['page'] ?? 1);
         $offset = ($page - 1) * $limit;
 
         $search = $_GET['search'] ?? '';
@@ -144,7 +146,7 @@ try {
             ORDER BY t.tanggal DESC, t.id DESC
             LIMIT ? OFFSET ?
         ";
-        
+
         $params[0] .= 'ii';
         $params[] = $limit;
         $params[] = $offset;
@@ -176,9 +178,9 @@ try {
             case 'add':
                 $jenis = $_POST['jenis'] ?? '';
                 $tanggal = $_POST['tanggal'] ?? '';
-                $jumlah = (float)($_POST['jumlah'] ?? 0);
+                $jumlah = (float) ($_POST['jumlah'] ?? 0);
                 $keterangan = trim($_POST['keterangan'] ?? '');
-                $id = (int)($_POST['id'] ?? 0); // Get ID for update
+                $id = (int) ($_POST['id'] ?? 0); // Get ID for update
                 $nomor_referensi = trim($_POST['nomor_referensi'] ?? '');
 
                 if (empty($jenis) || empty($tanggal) || $jumlah <= 0) {
@@ -192,20 +194,20 @@ try {
                 $kas_tujuan_account_id = null;
 
                 if ($jenis === 'pemasukan') {
-                    $kas_account_id = (int)$_POST['kas_account_id_pemasukan'];
-                    $account_id = (int)$_POST['account_id_pemasukan'];
+                    $kas_account_id = (int) $_POST['kas_account_id_pemasukan'];
+                    $account_id = (int) $_POST['account_id_pemasukan'];
                     if (empty($kas_account_id) || empty($account_id)) {
                         throw new Exception("Akun Kas dan Akun Pendapatan wajib diisi.");
                     }
                 } elseif ($jenis === 'pengeluaran') {
-                    $kas_account_id = (int)$_POST['kas_account_id_pengeluaran'];
-                    $account_id = (int)$_POST['account_id_pengeluaran'];
+                    $kas_account_id = (int) $_POST['kas_account_id_pengeluaran'];
+                    $account_id = (int) $_POST['account_id_pengeluaran'];
                     if (empty($kas_account_id) || empty($account_id)) {
                         throw new Exception("Akun Kas dan Akun Beban wajib diisi.");
                     }
                 } elseif ($jenis === 'transfer') {
-                    $kas_account_id = (int)$_POST['kas_account_id_transfer'];
-                    $kas_tujuan_account_id = (int)$_POST['kas_tujuan_account_id'];
+                    $kas_account_id = (int) $_POST['kas_account_id_transfer'];
+                    $kas_tujuan_account_id = (int) $_POST['kas_tujuan_account_id'];
                     // For transfer, main account_id is not strictly necessary for accounting, but we need a valid ID for the foreign key.
                     // We can use the source kas account as a placeholder.
                     $account_id = $kas_account_id;
@@ -244,7 +246,7 @@ try {
                     $sequence = 1;
                     if ($last_ref && !empty($last_ref['nomor_referensi'])) {
                         $parts = explode('/', $last_ref['nomor_referensi']);
-                        $last_sequence = (int)end($parts);
+                        $last_sequence = (int) end($parts);
                         $sequence = $last_sequence + 1;
                     }
 
@@ -252,12 +254,12 @@ try {
                     $nomor_referensi = sprintf('%s/%s/%s/%03d', $prefix, $year, $month, $sequence);
                 }
                 // --- Akhir Logika ---
-                
+
                 $conn->begin_transaction();
-                
+
                 $stmt = $conn->prepare("INSERT INTO transaksi (user_id, tanggal, jenis, jumlah, keterangan, nomor_referensi, account_id, kas_account_id, kas_tujuan_account_id, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"); // user_id is data owner, created_by is logged in user
                 $stmt->bind_param('issdssiiii', $user_id, $tanggal, $jenis, $jumlah, $keterangan, $nomor_referensi, $account_id, $kas_account_id, $kas_tujuan_account_id, $logged_in_user_id);
-                
+
                 if (!$stmt->execute()) {
                     $conn->rollback();
                     throw new Exception("Gagal menyimpan transaksi: " . $stmt->error);
@@ -270,16 +272,22 @@ try {
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transaksi', ?)"); // user_id is data owner, created_by is logged in user
                 if ($jenis === 'pemasukan') {
                     // Debit Akun Kas, Kredit Akun Pendapatan
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $jumlah, $zero, $transaksi_id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $account_id, $zero, $jumlah, $transaksi_id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $jumlah, $zero, $transaksi_id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $account_id, $zero, $jumlah, $transaksi_id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 } elseif ($jenis === 'pengeluaran') {
                     // Debit Akun Beban, Kredit Akun Kas
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $account_id, $jumlah, $zero, $transaksi_id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $zero, $jumlah, $transaksi_id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $account_id, $jumlah, $zero, $transaksi_id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $zero, $jumlah, $transaksi_id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 } elseif ($jenis === 'transfer') {
                     // Debit Akun Kas Tujuan, Kredit Akun Kas Sumber
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_tujuan_account_id, $jumlah, $zero, $transaksi_id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $zero, $jumlah, $transaksi_id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_tujuan_account_id, $jumlah, $zero, $transaksi_id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $zero, $jumlah, $transaksi_id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 }
                 $stmt_gl->close();
 
@@ -289,8 +297,9 @@ try {
                 break;
 
             case 'get_single':
-                $id = (int)($_POST['id'] ?? 0);
-                if ($id <= 0) throw new Exception("ID transaksi tidak valid.");
+                $id = (int) ($_POST['id'] ?? 0);
+                if ($id <= 0)
+                    throw new Exception("ID transaksi tidak valid.");
 
                 $stmt = $conn->prepare("SELECT * FROM transaksi WHERE id = ? AND user_id = ?");
                 $stmt->bind_param('ii', $id, $user_id);
@@ -298,21 +307,24 @@ try {
                 $transaction = stmt_fetch_assoc($stmt);
                 $stmt->close();
 
-                if (!$transaction) throw new Exception("Transaksi tidak ditemukan.");
-                
+                if (!$transaction)
+                    throw new Exception("Transaksi tidak ditemukan.");
+
                 echo json_encode(['status' => 'success', 'data' => $transaction]);
                 break;
 
             case 'update':
-                $id = (int)($_POST['id'] ?? 0);
+                $id = (int) ($_POST['id'] ?? 0);
                 $jenis = $_POST['jenis'] ?? '';
                 $tanggal = $_POST['tanggal'] ?? '';
-                $jumlah = (float)($_POST['jumlah'] ?? 0);
+                $jumlah = (float) ($_POST['jumlah'] ?? 0);
                 $keterangan = trim($_POST['keterangan'] ?? '');
                 $nomor_referensi = trim($_POST['nomor_referensi'] ?? '');
 
-                if ($id <= 0) throw new Exception("ID transaksi tidak valid untuk diperbarui.");
-                if (empty($jenis) || empty($tanggal) || $jumlah <= 0) throw new Exception("Jenis, tanggal, dan jumlah wajib diisi.");
+                if ($id <= 0)
+                    throw new Exception("ID transaksi tidak valid untuk diperbarui.");
+                if (empty($jenis) || empty($tanggal) || $jumlah <= 0)
+                    throw new Exception("Jenis, tanggal, dan jumlah wajib diisi.");
 
                 // Cek periode lock SEBELUM update
                 check_period_lock($tanggal, $conn);
@@ -330,22 +342,27 @@ try {
                 $kas_tujuan_account_id = null;
 
                 if ($jenis === 'pemasukan') {
-                    $kas_account_id = (int)$_POST['kas_account_id_pemasukan'];
-                    $account_id = (int)$_POST['account_id_pemasukan'];
-                    if (empty($kas_account_id) || empty($account_id)) throw new Exception("Akun Kas dan Akun Pendapatan wajib diisi.");
+                    $kas_account_id = (int) $_POST['kas_account_id_pemasukan'];
+                    $account_id = (int) $_POST['account_id_pemasukan'];
+                    if (empty($kas_account_id) || empty($account_id))
+                        throw new Exception("Akun Kas dan Akun Pendapatan wajib diisi.");
                 } elseif ($jenis === 'pengeluaran') {
-                    $kas_account_id = (int)$_POST['kas_account_id_pengeluaran'];
-                    $account_id = (int)$_POST['account_id_pengeluaran'];
-                    if (empty($kas_account_id) || empty($account_id)) throw new Exception("Akun Kas dan Akun Beban wajib diisi.");
+                    $kas_account_id = (int) $_POST['kas_account_id_pengeluaran'];
+                    $account_id = (int) $_POST['account_id_pengeluaran'];
+                    if (empty($kas_account_id) || empty($account_id))
+                        throw new Exception("Akun Kas dan Akun Beban wajib diisi.");
                 } elseif ($jenis === 'transfer') {
-                    $kas_account_id = (int)$_POST['kas_account_id_transfer'];
-                    $kas_tujuan_account_id = (int)$_POST['kas_tujuan_account_id'];
+                    $kas_account_id = (int) $_POST['kas_account_id_transfer'];
+                    $kas_tujuan_account_id = (int) $_POST['kas_tujuan_account_id'];
                     $account_id = $kas_account_id; // Placeholder
-                    if (empty($kas_account_id) || empty($kas_tujuan_account_id)) throw new Exception("Akun Kas Sumber dan Tujuan wajib diisi.");
-                    if ($kas_account_id === $kas_tujuan_account_id) throw new Exception("Akun sumber dan tujuan tidak boleh sama.");
+                    if (empty($kas_account_id) || empty($kas_tujuan_account_id))
+                        throw new Exception("Akun Kas Sumber dan Tujuan wajib diisi.");
+                    if ($kas_account_id === $kas_tujuan_account_id)
+                        throw new Exception("Akun sumber dan tujuan tidak boleh sama.");
                 }
 
-                if (empty($account_id) || empty($kas_account_id)) throw new Exception("Akun tidak valid.");
+                if (empty($account_id) || empty($kas_account_id))
+                    throw new Exception("Akun tidak valid.");
 
                 $conn->begin_transaction();
 
@@ -356,7 +373,10 @@ try {
                     WHERE id = ? AND user_id = ?
                 ");
                 $stmt->bind_param('ssdssiiiiii', $jenis, $tanggal, $jumlah, $keterangan, $nomor_referensi, $account_id, $kas_account_id, $kas_tujuan_account_id, $logged_in_user_id, $id, $user_id);
-                if (!$stmt->execute()) { $conn->rollback(); throw new Exception("Gagal memperbarui transaksi: " . $stmt->error); }
+                if (!$stmt->execute()) {
+                    $conn->rollback();
+                    throw new Exception("Gagal memperbarui transaksi: " . $stmt->error);
+                }
                 $stmt->close();
 
                 // Hapus entri GL lama dan buat yang baru
@@ -368,14 +388,20 @@ try {
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transaksi', ?)"); // user_id is data owner, updated_by is logged in user
                 $zero = 0.00;
                 if ($jenis === 'pemasukan') {
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $jumlah, $zero, $id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $account_id, $zero, $jumlah, $id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $jumlah, $zero, $id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $account_id, $zero, $jumlah, $id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 } elseif ($jenis === 'pengeluaran') {
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $account_id, $jumlah, $zero, $id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $zero, $jumlah, $id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $account_id, $jumlah, $zero, $id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $zero, $jumlah, $id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 } elseif ($jenis === 'transfer') {
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_tujuan_account_id, $jumlah, $zero, $id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $zero, $jumlah, $id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_tujuan_account_id, $jumlah, $zero, $id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $nomor_referensi, $kas_account_id, $zero, $jumlah, $id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 }
                 $stmt_gl->close();
 
@@ -385,7 +411,7 @@ try {
                 break;
 
             case 'delete':
-                $id = (int)($_POST['id'] ?? 0);
+                $id = (int) ($_POST['id'] ?? 0);
                 if ($id <= 0) {
                     throw new Exception("ID transaksi tidak valid.");
                 }

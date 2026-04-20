@@ -1,4 +1,4 @@
-window.initAuditSaldoPage = function() {
+window.initAuditSaldoPage = function () {
     const tableBody = document.getElementById('audit-table-body');
     const refreshBtn = document.getElementById('refresh-audit');
 
@@ -53,7 +53,7 @@ window.initAuditSaldoPage = function() {
     refreshBtn.addEventListener('click', loadAuditData);
 
     // Global exposed functions for repair tools
-    window.openSyncModal = function(type) {
+    window.openSyncModal = function (type) {
         const modalId = type === 'gl' ? 'syncModalGL' : 'syncModalStock';
         const modal = document.getElementById(modalId);
         if (modal) {
@@ -62,7 +62,7 @@ window.initAuditSaldoPage = function() {
         }
     };
 
-    window.closeSyncModal = function(type) {
+    window.closeSyncModal = function (type) {
         const modalId = type === 'gl' ? 'syncModalGL' : 'syncModalStock';
         const modal = document.getElementById(modalId);
         if (modal) {
@@ -71,7 +71,7 @@ window.initAuditSaldoPage = function() {
         }
     };
 
-    window.startSync = function(type) {
+    window.startSync = function (type) {
         const checkboxName = type === 'gl' ? 'sync_modules_gl' : 'sync_modules_stock';
         const checkboxes = document.querySelectorAll(`input[name="${checkboxName}"]:checked`);
         const modules = Array.from(checkboxes).map(cb => cb.value);
@@ -83,11 +83,24 @@ window.initAuditSaldoPage = function() {
 
         const action = type === 'gl' ? 'sync_gl' : 'sync_stock';
         const title = type === 'gl' ? 'Perbaikan GL' : 'Sinkronisasi Stok';
-        const confirmText = type === 'gl' ? 'Lanjutkan Perbaikan GL?' : 'Mulai Sinkronisasi Kartu Stok?';
+        let startDate = '';
+        let endDate = '';
+
+        if (type === 'gl') {
+            startDate = document.getElementById('sync_start_date').value;
+            endDate = document.getElementById('sync_end_date').value;
+        } else {
+            startDate = document.getElementById('sync_stock_start_date').value;
+            endDate = document.getElementById('sync_stock_end_date').value;
+        }
+
+        if (startDate || endDate) {
+            confirmText += `<br><small class="text-gray-500">Rentang: ${startDate || 'Awal'} s/d ${endDate || 'Sekarang'}</small>`;
+        }
 
         Swal.fire({
             title: title,
-            text: confirmText,
+            html: confirmText,
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Ya, Jalankan',
@@ -95,10 +108,17 @@ window.initAuditSaldoPage = function() {
             showLoaderOnConfirm: true,
             preConfirm: async () => {
                 try {
+                    const payload = { 
+                        action: action, 
+                        modules: modules,
+                        start_date: startDate,
+                        end_date: endDate
+                    };
+                    
                     const response = await fetch(`${basePath}/api/audit_handler.php`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: action, modules: modules })
+                        body: JSON.stringify(payload)
                     });
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.message || 'Gagal sinkronisasi');

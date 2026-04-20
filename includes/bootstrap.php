@@ -30,12 +30,13 @@ require_once __DIR__ . '/RateLimiter.php';
  * @param string $selector
  * @param string $validator
  */
-function attempt_login_with_cookie($selector, $validator) {
+function attempt_login_with_cookie($selector, $validator)
+{
     $conn = Database::getInstance()->getConnection();
     $stmt = $conn->prepare("SELECT id, username, role, nama_lengkap, remember_validator_hash FROM users WHERE remember_selector = ?");
     $stmt->bind_param("s", $selector);
     $stmt->execute();
-    
+
     // Gunakan helper stmt_fetch_assoc untuk kompatibilitas
     $user = stmt_fetch_assoc($stmt);
     $stmt->close();
@@ -92,18 +93,19 @@ function attempt_login_with_cookie($selector, $validator) {
  * @param string $keterangan Deskripsi singkat.
  * @param int|null $ref_id ID referensi dari transaksi terkait.
  */
-function addGamificationPoints(int $member_id, string $action_type, int $points, string $keterangan = '', ?int $ref_id = null) {
+function addGamificationPoints(int $member_id, string $action_type, int $points, string $keterangan = '', ?int $ref_id = null)
+{
     $conn = Database::getInstance()->getConnection();
     $conn->begin_transaction();
     try {
         $stmt_log = $conn->prepare("INSERT INTO ksp_gamification_log (anggota_id, action_type, points_awarded, keterangan, ref_id) VALUES (?, ?, ?, ?, ?)");
         $stmt_log->bind_param("isisi", $member_id, $action_type, $points, $keterangan, $ref_id);
         $stmt_log->execute();
-        
+
         $stmt_update = $conn->prepare("UPDATE anggota SET gamification_points = gamification_points + ? WHERE id = ?");
         $stmt_update->bind_param("ii", $points, $member_id);
         $stmt_update->execute();
-        
+
         $conn->commit();
     } catch (Exception $e) {
         $conn->rollback();
@@ -118,11 +120,12 @@ function addGamificationPoints(int $member_id, string $action_type, int $points,
  * @param int $bulan
  * @return float
  */
-function get_fee_for_period($tahun, $bulan) {
+function get_fee_for_period($tahun, $bulan)
+{
     $conn = Database::getInstance()->getConnection();
     // Menggunakan hari pertama dari bulan yang diminta sebagai acuan
     $date_for_period = "$tahun-$bulan-01";
-    
+
     $stmt = $conn->prepare(
         "SELECT monthly_fee FROM iuran_settings_history 
          WHERE start_date <= ? AND (end_date IS NULL OR end_date >= ?)
@@ -134,7 +137,7 @@ function get_fee_for_period($tahun, $bulan) {
     $stmt->close();
 
     // Jika ada histori, gunakan itu. Jika tidak, fallback ke pengaturan umum.
-    return $result ? (float)$result['monthly_fee'] : (float)get_setting('monthly_fee', 50000);
+    return $result ? (float) $result['monthly_fee'] : (float) get_setting('monthly_fee', 50000);
 }
 
 // Define project root path for reliable file includes.
@@ -150,7 +153,7 @@ if (!defined('BASE_PATH')) {
 
     $basePath = str_replace($docRoot, '', $projectRoot);
 
-    define('BASE_PATH', rtrim($basePath, '/')); 
+    define('BASE_PATH', rtrim($basePath, '/'));
 }
 
 // Enable error reporting for debugging if needed (set APP_DEBUG=true in environment)
@@ -166,7 +169,7 @@ if (Config::get('APP_DEBUG') === 'true') {
 // Cek apakah permintaan saat ini adalah permintaan API
 if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/api/') !== false) {
     // Batasi 60 permintaan per menit per IP
-    $rateLimiter = new RateLimiter(60, 60); 
+    $rateLimiter = new RateLimiter(60, 60);
     $clientIp = $_SERVER['REMOTE_ADDR'];
     $rateLimiter->check($clientIp);
 }

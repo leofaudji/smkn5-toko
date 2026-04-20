@@ -11,9 +11,11 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 $conn = Database::getInstance()->getConnection();
 $user_id = 1; // Semua data diakses oleh user_id 1
 
-function get_gl_balance($conn, $account_id, $user_id) {
-    if (!$account_id) return 0;
-    
+function get_gl_balance($conn, $account_id, $user_id)
+{
+    if (!$account_id)
+        return 0;
+
     $stmt = $conn->prepare("
         SELECT 
             a.saldo_normal,
@@ -30,13 +32,14 @@ function get_gl_balance($conn, $account_id, $user_id) {
     $res = stmt_fetch_assoc($stmt);
     $stmt->close();
 
-    if (!$res) return 0;
+    if (!$res)
+        return 0;
 
-    $saldo_awal = (float)$res['saldo_awal'];
-    $debit = (float)$res['total_debit'];
-    $kredit = (float)$res['total_kredit'];
+    $saldo_awal = (float) $res['saldo_awal'];
+    $debit = (float) $res['total_debit'];
+    $kredit = (float) $res['total_kredit'];
 
-    return ($res['saldo_normal'] === 'Debit') 
+    return ($res['saldo_normal'] === 'Debit')
         ? $saldo_awal + $debit - $kredit
         : $saldo_awal + $kredit - $debit;
 }
@@ -51,9 +54,9 @@ try {
         $gl_inv = get_gl_balance($conn, $inv_acc_id, $user_id);
         $results[] = [
             'module' => 'Persediaan Barang',
-            'sub_ledger' => (float)$sub_inv,
-            'gl_balance' => (float)$gl_inv,
-            'diff' => (float)$sub_inv - (float)$gl_inv,
+            'sub_ledger' => (float) $sub_inv,
+            'gl_balance' => (float) $gl_inv,
+            'diff' => (float) $sub_inv - (float) $gl_inv,
             'account' => 'Persediaan'
         ];
 
@@ -63,9 +66,9 @@ try {
         $gl_rcv = get_gl_balance($conn, $rcv_acc_id, $user_id);
         $results[] = [
             'module' => 'Piutang Anggota',
-            'sub_ledger' => (float)$sub_rcv,
-            'gl_balance' => (float)$gl_rcv,
-            'diff' => (float)$sub_rcv - (float)$gl_rcv,
+            'sub_ledger' => (float) $sub_rcv,
+            'gl_balance' => (float) $gl_rcv,
+            'diff' => (float) $sub_rcv - (float) $gl_rcv,
             'account' => 'Piutang'
         ];
 
@@ -75,15 +78,15 @@ try {
         $gl_wb = get_gl_balance($conn, $wb_acc_id, $user_id);
         $results[] = [
             'module' => 'Wajib Belanja (Anggota)',
-            'sub_ledger' => (float)$sub_wb,
-            'gl_balance' => (float)$gl_wb,
-            'diff' => (float)$sub_wb - (float)$gl_wb,
+            'sub_ledger' => (float) $sub_wb,
+            'gl_balance' => (float) $gl_wb,
+            'diff' => (float) $sub_wb - (float) $gl_wb,
             'account' => 'Utang WB'
         ];
 
         // 4. AUDIT UTANG TITIPAN (KONSINYASI)
         $cons_acc_id = get_setting('consignment_payable_account', null, $conn);
-        
+
         // Sub-ledger Utang Konsinyasi = (Total Utang dari Item) - (Total Pelunasan ke Supplier)
         $sub_cons_debt = $conn->query("
             SELECT (
@@ -103,17 +106,17 @@ try {
                 WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id AND gl.debit > 0
             ) as sisa_utang
         ")->fetch_assoc()['sisa_utang'] ?? 0;
-        
+
         // GL Balance sudah mencakup saldo_awal lewat fungsi get_gl_balance
         $gl_cons = get_gl_balance($conn, $cons_acc_id, $user_id);
-        
+
         // Supaya match, sub-ledger harus ditambah dengan komponen "Lain-lain" (Manual Adjustment)
         // Tapi di Audit Saldo, kita justru ingin menonjolkan jika ada diff tersebut.
         $results[] = [
             'module' => 'Utang Titipan (Konsinyasi)',
-            'sub_ledger' => (float)$sub_cons_debt,
-            'gl_balance' => (float)$gl_cons,
-            'diff' => (float)$gl_cons - (float)$sub_cons_debt,
+            'sub_ledger' => (float) $sub_cons_debt,
+            'gl_balance' => (float) $gl_cons,
+            'diff' => (float) $gl_cons - (float) $sub_cons_debt,
             'account' => 'Utang Konsinyasi'
         ];
 
@@ -132,7 +135,8 @@ try {
         /**
          * Re-posts a single transaction source to General Ledger.
          */
-        function repost_source_to_gl($conn, $ref_type, $ref_id, $data_user_id, $logged_in_user_id) {
+        function repost_source_to_gl($conn, $ref_type, $ref_id, $data_user_id, $logged_in_user_id)
+        {
             // 1. Delete existing entries to prevent duplicates
             $stmt_del = $conn->prepare("DELETE FROM general_ledger WHERE user_id = ? AND ref_type = ? AND ref_id = ?");
             $stmt_del->bind_param('isi', $data_user_id, $ref_type, $ref_id);
@@ -144,11 +148,12 @@ try {
 
             if ($ref_type === 'jurnal') {
                 $res_h = $conn->query("SELECT * FROM jurnal_entries WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) return false;
-                
+                if (!$res_h)
+                    return false;
+
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'jurnal', ?)");
                 $q_d = $conn->query("SELECT * FROM jurnal_details WHERE jurnal_entry_id = $ref_id");
-                while($d = $q_d->fetch_assoc()) {
+                while ($d = $q_d->fetch_assoc()) {
                     $ref_no = 'JRN-' . $ref_id;
                     $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $ref_no, $d['account_id'], $d['debit'], $d['kredit'], $ref_id, $logged_in_user_id);
                     $stmt_gl->execute();
@@ -156,36 +161,39 @@ try {
                 $stmt_gl->close();
             } elseif ($ref_type === 'pembelian') {
                 $res_h = $conn->query("SELECT * FROM pembelian WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) return false;
-                
+                if (!$res_h)
+                    return false;
+
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pembelian', ?)");
-                
+
                 $q_d = $conn->query("SELECT account_id, SUM(subtotal) as total FROM pembelian_details WHERE pembelian_id = $ref_id GROUP BY account_id");
-                while($d = $q_d->fetch_assoc()){
+                while ($d = $q_d->fetch_assoc()) {
                     $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal_pembelian'], $res_h['keterangan'], $res_h['nomor_referensi'], $d['account_id'], $d['total'], $zero, $ref_id, $logged_in_user_id);
                     $stmt_gl->execute();
                 }
-                
+
                 $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal_pembelian'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['credit_account_id'], $zero, $res_h['total'], $ref_id, $logged_in_user_id);
                 $stmt_gl->execute();
                 $stmt_gl->close();
             } elseif ($ref_type === 'penjualan') {
                 $res_h = $conn->query("SELECT * FROM penjualan WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) return false;
-                if ($res_h['status'] === 'void') return true; 
-                
+                if (!$res_h)
+                    return false;
+                if ($res_h['status'] === 'void')
+                    return true;
+
                 $nomor_referensi = $res_h['nomor_referensi'];
                 $tanggal = $res_h['tanggal_penjualan'];
                 $keterangan = $res_h['keterangan'];
                 $total = $res_h['total'];
                 $bayar = $res_h['bayar'];
-                $discount = (float)$res_h['discount'];
+                $discount = (float) $res_h['discount'];
                 $payment_method = $res_h['payment_method'];
-                
+
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, consignment_item_id, qty, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?, ?, ?)");
-                
-                $revenue_totals = []; 
-                $hpp_totals = []; 
+
+                $revenue_totals = [];
+                $hpp_totals = [];
                 $consignment_entries = [];
 
                 $q_items = $conn->query("
@@ -203,19 +211,20 @@ try {
                 $cons_rev = get_setting('consignment_revenue_account', null, $conn);
                 $cons_pay = get_setting('consignment_payable_account', null, $conn);
 
-                while($item = $q_items->fetch_assoc()) {
-                    if($item['item_type'] === 'normal') {
+                while ($item = $q_items->fetch_assoc()) {
+                    if ($item['item_type'] === 'normal') {
                         $rev_acc = $item['revenue_account_id'] ?: $def_rev;
                         $revenue_totals[$rev_acc] = ($revenue_totals[$rev_acc] ?? 0) + ($item['price'] * $item['quantity']);
-                        
+
                         $cogs_acc = $item['cogs_account_id'] ?: $def_cogs;
                         $inv_acc = $item['inventory_account_id'] ?: $def_inv;
-                        $hpp_val = $item['quantity'] * (float)$item['purchase_price_normal'];
-                        
-                        if(!isset($hpp_totals[$cogs_acc])) $hpp_totals[$cogs_acc] = [];
+                        $hpp_val = $item['quantity'] * (float) $item['purchase_price_normal'];
+
+                        if (!isset($hpp_totals[$cogs_acc]))
+                            $hpp_totals[$cogs_acc] = [];
                         $hpp_totals[$cogs_acc][$inv_acc] = ($hpp_totals[$cogs_acc][$inv_acc] ?? 0) + $hpp_val;
                     } else {
-                        $total_beli = $item['quantity'] * (float)$item['purchase_price_cons'];
+                        $total_beli = $item['quantity'] * (float) $item['purchase_price_cons'];
                         $komisi = ($item['price'] * $item['quantity']) - $total_beli;
                         $revenue_totals[$cons_rev] = ($revenue_totals[$cons_rev] ?? 0) + $komisi;
                         $consignment_entries[] = [
@@ -229,8 +238,8 @@ try {
                 }
 
                 $res_wb = $conn->query("SELECT jumlah FROM transaksi_wajib_belanja WHERE nomor_referensi = '$nomor_referensi'")->fetch_assoc();
-                $bayar_wb = (float)($res_wb['jumlah'] ?? 0);
-                
+                $bayar_wb = (float) ($res_wb['jumlah'] ?? 0);
+
                 if ($bayar_wb > 0) {
                     $akun_wb = get_setting('wajib_belanja_liability_account_id', null, $conn);
                     if ($akun_wb) {
@@ -275,19 +284,26 @@ try {
                 $stmt_gl->close();
             } elseif ($ref_type === 'transaksi') {
                 $res_h = $conn->query("SELECT * FROM transaksi WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) return false;
-                
+                if (!$res_h)
+                    return false;
+
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transaksi', ?)");
-                
+
                 if ($res_h['jenis'] === 'pemasukan') {
-                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['kas_account_id'], $res_h['jumlah'], $zero, $ref_id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['account_id'], $zero, $res_h['jumlah'], $ref_id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['kas_account_id'], $res_h['jumlah'], $zero, $ref_id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['account_id'], $zero, $res_h['jumlah'], $ref_id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 } elseif ($res_h['jenis'] === 'pengeluaran') {
-                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['account_id'], $res_h['jumlah'], $zero, $ref_id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['kas_account_id'], $zero, $res_h['jumlah'], $ref_id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['account_id'], $res_h['jumlah'], $zero, $ref_id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['kas_account_id'], $zero, $res_h['jumlah'], $ref_id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 } elseif ($res_h['jenis'] === 'transfer') {
-                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['kas_tujuan_account_id'], $res_h['jumlah'], $zero, $ref_id, $logged_in_user_id); $stmt_gl->execute();
-                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['kas_account_id'], $zero, $res_h['jumlah'], $ref_id, $logged_in_user_id); $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['kas_tujuan_account_id'], $res_h['jumlah'], $zero, $ref_id, $logged_in_user_id);
+                    $stmt_gl->execute();
+                    $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['kas_account_id'], $zero, $res_h['jumlah'], $ref_id, $logged_in_user_id);
+                    $stmt_gl->execute();
                 }
                 $stmt_gl->close();
             }
@@ -298,7 +314,8 @@ try {
         /**
          * Re-posts a single transaction source to Stock Card (kartu_stok).
          */
-        function repost_source_to_stock_card($conn, $source, $ref_id, $data_user_id) {
+        function repost_source_to_stock_card($conn, $source, $ref_id, $data_user_id)
+        {
             // 1. Delete existing entries to prevent duplicates
             $stmt_del = $conn->prepare("DELETE FROM kartu_stok WHERE user_id = ? AND source = ? AND ref_id = ?");
             $stmt_del->bind_param('isi', $data_user_id, $source, $ref_id);
@@ -307,15 +324,16 @@ try {
 
             if ($source === 'pembelian') {
                 $res_h = $conn->query("SELECT * FROM pembelian WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) return false;
-                
+                if (!$res_h)
+                    return false;
+
                 $nomor_referensi = $res_h['nomor_referensi'];
                 $tanggal = $res_h['tanggal_pembelian'];
-                
+
                 $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, 0, ?, ?, 'pembelian', ?)");
-                
-                $q_d = $conn->query("SELECT * FROM pembelian_details WHERE pembelian_id = $ref_id");
-                while($d = $q_d->fetch_assoc()) {
+
+                $q_d = $conn->query("SELECT pd.* FROM pembelian_details pd JOIN items i ON pd.item_id = i.id WHERE pd.pembelian_id = $ref_id");
+                while ($d = $q_d->fetch_assoc()) {
                     $ksKeterangan = "Pembelian #$nomor_referensi";
                     $stmt_ks->bind_param('siisii', $tanggal, $d['item_id'], $d['quantity'], $ksKeterangan, $ref_id, $data_user_id);
                     $stmt_ks->execute();
@@ -323,16 +341,18 @@ try {
                 $stmt_ks->close();
             } elseif ($source === 'penjualan') {
                 $res_h = $conn->query("SELECT * FROM penjualan WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) return false;
-                if ($res_h['status'] === 'void') return true;
+                if (!$res_h)
+                    return false;
+                if ($res_h['status'] === 'void')
+                    return true;
 
                 $nomor_referensi = $res_h['nomor_referensi'];
                 $tanggal = $res_h['tanggal_penjualan'];
 
                 $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, 0, ?, ?, ?, 'penjualan', ?)");
-                
-                $q_d = $conn->query("SELECT * FROM penjualan_details WHERE penjualan_id = $ref_id AND item_type = 'normal'");
-                while($d = $q_d->fetch_assoc()) {
+
+                $q_d = $conn->query("SELECT pd.* FROM penjualan_details pd JOIN items i ON pd.item_id = i.id WHERE pd.penjualan_id = $ref_id AND pd.item_type = 'normal'");
+                while ($d = $q_d->fetch_assoc()) {
                     $ksKeterangan = "Penjualan #$nomor_referensi";
                     $stmt_ks->bind_param('siisii', $tanggal, $d['item_id'], $d['quantity'], $ksKeterangan, $ref_id, $data_user_id);
                     $stmt_ks->execute();
@@ -345,26 +365,27 @@ try {
 
         if ($action === 'repost') {
             $ref_type = $input['ref_type'];
-            $ref_id = (int)$input['ref_id'];
+            $ref_id = (int) $input['ref_id'];
             $logged_in_user_id = $_SESSION['user_id'];
-            
+
             $conn->begin_transaction();
-            
+
             // Delete old ledger entries for this reference
             $stmt_del = $conn->prepare("DELETE FROM general_ledger WHERE user_id = ? AND ref_type = ? AND ref_id = ?");
             $stmt_del->bind_param('isi', $user_id, $ref_type, $ref_id);
             $stmt_del->execute();
             $stmt_del->close();
-            
+
             if ($ref_type === 'jurnal') {
                 // Get header
                 $res_h = $conn->query("SELECT * FROM jurnal_entries WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) throw new Exception("Data sumber jurnal tidak ditemukan.");
-                
+                if (!$res_h)
+                    throw new Exception("Data sumber jurnal tidak ditemukan.");
+
                 // Get details and re-insert
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'jurnal', ?)");
                 $q_d = $conn->query("SELECT * FROM jurnal_details WHERE jurnal_entry_id = $ref_id");
-                while($d = $q_d->fetch_assoc()) {
+                while ($d = $q_d->fetch_assoc()) {
                     $ref_no = 'JRN-' . $ref_id;
                     $stmt_gl->bind_param('isssiddii', $user_id, $res_h['tanggal'], $res_h['keterangan'], $ref_no, $d['account_id'], $d['debit'], $d['kredit'], $ref_id, $logged_in_user_id);
                     $stmt_gl->execute();
@@ -372,35 +393,37 @@ try {
                 $stmt_gl->close();
             } elseif ($ref_type === 'pembelian') {
                 $res_h = $conn->query("SELECT * FROM pembelian WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) throw new Exception("Data sumber pembelian tidak ditemukan.");
-                
+                if (!$res_h)
+                    throw new Exception("Data sumber pembelian tidak ditemukan.");
+
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pembelian', ?)");
-                
+
                 // Jurnal Sisi Debit (Agregasi per Akun Persediaan dari details)
                 $q_d = $conn->query("SELECT account_id, SUM(subtotal) as total FROM pembelian_details WHERE pembelian_id = $ref_id GROUP BY account_id");
                 $zero = 0;
-                while($d = $q_d->fetch_assoc()){
+                while ($d = $q_d->fetch_assoc()) {
                     $stmt_gl->bind_param('isssiddii', $user_id, $res_h['tanggal_pembelian'], $res_h['keterangan'], $res_h['nomor_referensi'], $d['account_id'], $d['total'], $zero, $ref_id, $logged_in_user_id);
                     $stmt_gl->execute();
                 }
-                
+
                 // Jurnal Sisi Kredit (Total dari header)
                 $stmt_gl->bind_param('isssiddii', $user_id, $res_h['tanggal_pembelian'], $res_h['keterangan'], $res_h['nomor_referensi'], $res_h['credit_account_id'], $zero, $res_h['total'], $ref_id, $logged_in_user_id);
                 $stmt_gl->execute();
                 $stmt_gl->close();
             } elseif ($ref_type === 'penjualan') {
                 $res_h = $conn->query("SELECT * FROM penjualan WHERE id = $ref_id")->fetch_assoc();
-                if (!$res_h) throw new Exception("Data sumber penjualan tidak ditemukan.");
-                
+                if (!$res_h)
+                    throw new Exception("Data sumber penjualan tidak ditemukan.");
+
                 $nomor_referensi = $res_h['nomor_referensi'];
                 $tanggal = $res_h['tanggal_penjualan'];
                 $keterangan = $res_h['keterangan'];
                 $total = $res_h['total'];
                 $bayar = $res_h['bayar'];
-                $discount = (float)$res_h['discount'];
+                $discount = (float) $res_h['discount'];
                 $anggota_id = $res_h['customer_id'];
                 $payment_method = $res_h['payment_method'];
-                
+
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, consignment_item_id, qty, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?, ?, ?)");
                 $zero = 0;
                 $null_val = null;
@@ -422,26 +445,27 @@ try {
                 $def_rev = get_setting('default_sales_revenue_account_id', null, $conn);
                 $def_cogs = get_setting('default_cogs_account_id', null, $conn);
                 $def_inv = get_setting('default_inventory_account_id', null, $conn);
-                
+
                 $cons_rev = get_setting('consignment_revenue_account', null, $conn);
                 $cons_pay = get_setting('consignment_payable_account', null, $conn);
 
-                while($item = $q_items->fetch_assoc()) {
-                    if($item['item_type'] === 'normal') {
+                while ($item = $q_items->fetch_assoc()) {
+                    if ($item['item_type'] === 'normal') {
                         $rev_acc = $item['revenue_account_id'] ?: $def_rev;
                         $revenue_totals[$rev_acc] = ($revenue_totals[$rev_acc] ?? 0) + ($item['price'] * $item['quantity']); // Gross revenue
-                        
+
                         $cogs_acc = $item['cogs_account_id'] ?: $def_cogs;
                         $inv_acc = $item['inventory_account_id'] ?: $def_inv;
-                        $hpp_val = $item['quantity'] * (float)$item['purchase_price_normal'];
-                        
-                        if(!isset($hpp_totals[$cogs_acc])) $hpp_totals[$cogs_acc] = [];
+                        $hpp_val = $item['quantity'] * (float) $item['purchase_price_normal'];
+
+                        if (!isset($hpp_totals[$cogs_acc]))
+                            $hpp_totals[$cogs_acc] = [];
                         $hpp_totals[$cogs_acc][$inv_acc] = ($hpp_totals[$cogs_acc][$inv_acc] ?? 0) + $hpp_val;
                     } else {
                         // Konsinyasi: Komisi masuk revenue, Harga beli masuk Utang Titipan
-                        $total_beli = $item['quantity'] * (float)$item['purchase_price_cons'];
+                        $total_beli = $item['quantity'] * (float) $item['purchase_price_cons'];
                         $komisi = ($item['price'] * $item['quantity']) - $total_beli; // Gross commission
-                        
+
                         $revenue_totals[$cons_rev] = ($revenue_totals[$cons_rev] ?? 0) + $komisi;
                         $consignment_entries[] = [
                             'account_id' => $cons_pay,
@@ -456,8 +480,8 @@ try {
                 // 1. Debit Kas/Piutang/WB
                 // Cek apakah ada pembayaran WB (berdasarkan log transaksi WB)
                 $res_wb = $conn->query("SELECT jumlah FROM transaksi_wajib_belanja WHERE nomor_referensi = '$nomor_referensi'")->fetch_assoc();
-                $bayar_wb = (float)($res_wb['jumlah'] ?? 0);
-                
+                $bayar_wb = (float) ($res_wb['jumlah'] ?? 0);
+
                 if ($bayar_wb > 0) {
                     $akun_wb = get_setting('wajib_belanja_liability_account_id', null, $conn);
                     if ($akun_wb) {
@@ -521,40 +545,42 @@ try {
             }
 
             $conn->commit();
-            } elseif ($action === 'sync_gl') {
-                $conn->begin_transaction();
-                $count = 0;
-                $sync_map = ['transaksi' => 'transaksi', 'penjualan' => 'penjualan', 'pembelian' => 'pembelian', 'jurnal' => 'jurnal_entries'];
-                
-                $selected_modules = $input['modules'] ?? [];
-                foreach ($sync_map as $ref_type => $table) {
-                    if (!empty($selected_modules) && !in_array($ref_type, $selected_modules)) continue;
+        } elseif ($action === 'sync_gl') {
+            $conn->begin_transaction();
+            $count = 0;
+            $sync_map = ['transaksi' => 'transaksi', 'penjualan' => 'penjualan', 'pembelian' => 'pembelian', 'jurnal' => 'jurnal_entries'];
 
-                    $q = $conn->query("SELECT id FROM $table WHERE id NOT IN (SELECT ref_id FROM general_ledger WHERE ref_type = '$ref_type' AND user_id = $user_id)");
-                    while($row = $q->fetch_assoc()) {
-                        repost_source_to_gl($conn, $ref_type, $row['id'], $user_id, $logged_in_user_id);
-                        $count++;
-                    }
-                }
-                $conn->commit();
-                echo json_encode(['status' => 'success', 'message' => "Proses sinkronisasi GL selesai. $count entri berhasil dipulihkan."]);
-            } elseif ($action === 'sync_stock') {
-                $conn->begin_transaction();
-                $count = 0;
-                $sources = ['pembelian', 'penjualan'];
-                
-                $selected_modules = $input['modules'] ?? [];
-                foreach ($sources as $source) {
-                    if (!empty($selected_modules) && !in_array($source, $selected_modules)) continue;
+            $selected_modules = $input['modules'] ?? [];
+            foreach ($sync_map as $ref_type => $table) {
+                if (!empty($selected_modules) && !in_array($ref_type, $selected_modules))
+                    continue;
 
-                    $q = $conn->query("SELECT id FROM $source WHERE user_id = $user_id");
-                    while($row = $q->fetch_assoc()) {
-                        repost_source_to_stock_card($conn, $source, $row['id'], $user_id);
-                        $count++;
-                    }
+                $q = $conn->query("SELECT id FROM $table WHERE id NOT IN (SELECT ref_id FROM general_ledger WHERE ref_type = '$ref_type' AND user_id = $user_id)");
+                while ($row = $q->fetch_assoc()) {
+                    repost_source_to_gl($conn, $ref_type, $row['id'], $user_id, $logged_in_user_id);
+                    $count++;
                 }
-                $conn->commit();
-                echo json_encode(['status' => 'success', 'message' => "Proses sinkronisasi Kartu Stok selesai. $count transaksi diproses ulang."]);
+            }
+            $conn->commit();
+            echo json_encode(['status' => 'success', 'message' => "Proses sinkronisasi GL selesai. $count entri berhasil dipulihkan."]);
+        } elseif ($action === 'sync_stock') {
+            $conn->begin_transaction();
+            $count = 0;
+            $sources = ['pembelian', 'penjualan'];
+
+            $selected_modules = $input['modules'] ?? [];
+            foreach ($sources as $source) {
+                if (!empty($selected_modules) && !in_array($source, $selected_modules))
+                    continue;
+
+                $q = $conn->query("SELECT id FROM $source WHERE user_id = $user_id");
+                while ($row = $q->fetch_assoc()) {
+                    repost_source_to_stock_card($conn, $source, $row['id'], $user_id);
+                    $count++;
+                }
+            }
+            $conn->commit();
+            echo json_encode(['status' => 'success', 'message' => "Proses sinkronisasi Kartu Stok selesai. $count transaksi diproses ulang."]);
         }
     }
 } catch (Exception $e) {

@@ -51,7 +51,7 @@ try {
                     WHERE $where_sql
                     ORDER BY twb.tanggal DESC, twb.id DESC
                     LIMIT ? OFFSET ?";
-            
+
             $stmt = $conn->prepare($sql);
             $stmt_types = $types . "ii";
             $stmt_params = array_merge($params, [$limit, $offset]);

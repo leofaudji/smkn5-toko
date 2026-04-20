@@ -18,11 +18,11 @@ try {
 
         if ($action === 'list') {
             // Pagination and Filtering
-            $limit = (int)($_GET['limit'] ?? 10);
+            $limit = (int) ($_GET['limit'] ?? 10);
             if ($limit === -1) {
                 $limit = 1000; // Set a high number for "All"
             }
-            $page = (int)($_GET['page'] ?? 1);
+            $page = (int) ($_GET['page'] ?? 1);
             $offset = ($page - 1) * $limit;
 
             $search = $_GET['search'] ?? '';
@@ -60,7 +60,9 @@ try {
             // Get total count for pagination
             $total_stmt = $conn->prepare("SELECT COUNT(*) as total FROM pembelian p LEFT JOIN suppliers s ON p.supplier_id = s.id $where_sql");
             $bind_params_total = [&$params[0]];
-            for ($i = 1; $i < count($params); $i++) { $bind_params_total[] = &$params[$i]; }
+            for ($i = 1; $i < count($params); $i++) {
+                $bind_params_total[] = &$params[$i];
+            }
             call_user_func_array([$total_stmt, 'bind_param'], $bind_params_total);
             $total_stmt->execute();
             $tr_res = stmt_fetch_assoc($total_stmt);
@@ -75,37 +77,41 @@ try {
 
             $stmt = $conn->prepare($query);
             $bind_params_main = [&$params[0]];
-            for ($i = 1; $i < count($params); $i++) { $bind_params_main[] = &$params[$i]; }
+            for ($i = 1; $i < count($params); $i++) {
+                $bind_params_main[] = &$params[$i];
+            }
             call_user_func_array([$stmt, 'bind_param'], $bind_params_main);
             $stmt->execute();
             $pembelian_list = stmt_fetch_all($stmt);
             $stmt->close();
- 
+
             $from = $total_records > 0 ? $offset + 1 : 0;
             $to = min($offset + $limit, $total_records);
 
             $pagination = [
-                'current_page' => $page, 
-                'total_pages' => ceil($total_records / $limit), 
-                'total_records' => $total_records, 
+                'current_page' => $page,
+                'total_pages' => ceil($total_records / $limit),
+                'total_records' => $total_records,
                 'limit' => $limit,
                 'from' => $from,
                 'to' => $to,
                 'total' => $total_records
             ];
             echo json_encode(['status' => 'success', 'data' => $pembelian_list, 'pagination' => $pagination]);
-        
+
         } elseif ($action === 'get_single') {
-            $id = (int)($_GET['id'] ?? 0);
-            if ($id <= 0) throw new Exception("ID Pembelian tidak valid.");
+            $id = (int) ($_GET['id'] ?? 0);
+            if ($id <= 0)
+                throw new Exception("ID Pembelian tidak valid.");
 
             $stmt_header = $conn->prepare("SELECT * FROM pembelian WHERE id = ? AND user_id = ?");
             $stmt_header->bind_param('ii', $id, $user_id);
             $stmt_header->execute();
             $header = stmt_fetch_assoc($stmt_header);
             $stmt_header->close();
-            if (!$header) throw new Exception("Pembelian tidak ditemukan.");
-            
+            if (!$header)
+                throw new Exception("Pembelian tidak ditemukan.");
+
             // Perbaiki query untuk mengambil detail item dengan benar
             $stmt_details = $conn->prepare(
                 "SELECT 
@@ -137,13 +143,13 @@ try {
             case 'add': // Fallthrough to 'update' for shared validation
             case 'update':
                 // 1. Validasi Input
-                $supplier_id = !empty($data['supplier_id']) ? (int)$data['supplier_id'] : null;
+                $supplier_id = !empty($data['supplier_id']) ? (int) $data['supplier_id'] : null;
                 $tanggal_pembelian = $data['tanggal_pembelian'] ?? '';
                 $keterangan = trim($data['keterangan'] ?? '');
                 $jatuh_tempo = !empty($data['jatuh_tempo']) ? $data['jatuh_tempo'] : null;
                 $payment_method = $data['payment_method'] ?? '';
                 $lines = $data['lines'] ?? [];
-                $id = (int)($data['id'] ?? 0);
+                $id = (int) ($data['id'] ?? 0);
 
                 if (empty($tanggal_pembelian) || empty($keterangan) || empty($payment_method) || empty($lines)) {
                     throw new Exception("Data tidak lengkap: Tanggal, Keterangan, Metode Pembayaran, dan minimal satu baris item wajib diisi.");
@@ -151,7 +157,8 @@ try {
 
                 check_period_lock($tanggal_pembelian, $conn);
                 if ($action === 'update') {
-                    if ($id <= 0) throw new Exception("ID Pembelian tidak valid untuk diperbarui.");
+                    if ($id <= 0)
+                        throw new Exception("ID Pembelian tidak valid untuk diperbarui.");
                     // Cek juga tanggal lama sebelum diubah
                     $stmt_old_date = $conn->prepare("SELECT tanggal_pembelian FROM pembelian WHERE id = ?");
                     $stmt_old_date->bind_param('i', $id);
@@ -165,13 +172,13 @@ try {
                 $credit_account_id = null;
                 if ($payment_method === 'credit') {
                     // Ambil akun Utang Usaha dari pengaturan
-                    $credit_account_id = (int)get_setting('purchase_payable_account_id', 0, $conn);
+                    $credit_account_id = (int) get_setting('purchase_payable_account_id', 0, $conn);
                     if ($credit_account_id === 0) {
                         throw new Exception("Akun Utang Usaha untuk pembelian belum diatur di Pengaturan > Akuntansi.");
                     }
                 } elseif ($payment_method === 'cash') {
                     // Jika tunai, harus ada akun kas/bank yang dipilih
-                    $credit_account_id = (int)($data['kas_account_id'] ?? 0);
+                    $credit_account_id = (int) ($data['kas_account_id'] ?? 0);
                     if ($credit_account_id === 0) {
                         throw new Exception("Untuk pembayaran tunai, Anda harus memilih 'Akun Kas/Bank Pembayaran'.");
                     }
@@ -185,10 +192,11 @@ try {
                 // 3. Hitung Total dan Validasi Baris
                 $total_pembelian = 0;
                 foreach ($lines as &$line) { // Gunakan reference (&) untuk menambahkan data ke line
-                    if (empty($line['item_id']) || !isset($line['quantity']) || (float)$line['quantity'] <= 0) {
+                    if (empty($line['item_id']) || !isset($line['quantity']) || (float) $line['quantity'] <= 0) {
                         throw new Exception("Setiap baris harus memiliki Barang dan Kuantitas yang valid.");
-                    }                    $line['subtotal'] = (float)$line['price'] * (int)$line['quantity'];
-                    $total_pembelian += (float)$line['subtotal'];
+                    }
+                    $line['subtotal'] = (float) $line['price'] * (int) $line['quantity'];
+                    $total_pembelian += (float) $line['subtotal'];
 
                     // Ambil inventory_account_id dari item
                     $stmt_item_acc = $conn->prepare("SELECT inventory_account_id FROM items WHERE id = ? AND user_id = ?");
@@ -202,7 +210,7 @@ try {
                         $inventory_account_id = $item_account['inventory_account_id'];
                     } else {
                         // Jika akun persediaan di item kosong, ambil dari pengaturan default
-                        $inventory_account_id = (int)get_setting('default_inventory_account_id', 0, $conn);
+                        $inventory_account_id = (int) get_setting('default_inventory_account_id', 0, $conn);
                     }
 
                     if (empty($inventory_account_id)) {
@@ -267,10 +275,19 @@ try {
                     );
                     $stmt_pembelian->bind_param(
                         'iissdsssii',
-                        $user_id, $supplier_id, $tanggal_pembelian, $jatuh_tempo, $total_pembelian, $keterangan, $status, $payment_method, $credit_account_id, $logged_in_user_id
+                        $user_id,
+                        $supplier_id,
+                        $tanggal_pembelian,
+                        $jatuh_tempo,
+                        $total_pembelian,
+                        $keterangan,
+                        $status,
+                        $payment_method,
+                        $credit_account_id,
+                        $logged_in_user_id
                     );
                 }
-                
+
                 if (!$stmt_pembelian->execute()) {
                     $conn->rollback();
                     throw new Exception("Gagal menyimpan header pembelian: " . $stmt_pembelian->error);
@@ -308,11 +325,11 @@ try {
                 $aggregated_inventory_totals = [];
 
                 foreach ($lines as $line) {
-                    $item_id = (int)$line['item_id'];
-                    $quantity = (int)$line['quantity'];
-                    $price = (float)$line['price'];
-                    $subtotal = (float)$line['subtotal'];
-                    $inventory_account_id = (int)$line['inventory_account_id'];
+                    $item_id = (int) $line['item_id'];
+                    $quantity = (int) $line['quantity'];
+                    $price = (float) $line['price'];
+                    $subtotal = (float) $line['subtotal'];
+                    $inventory_account_id = (int) $line['inventory_account_id'];
 
                     // Insert ke detail
                     $stmt_details->bind_param('iiiddi', $pembelian_id, $item_id, $quantity, $price, $subtotal, $inventory_account_id);
@@ -359,10 +376,11 @@ try {
                 log_activity($_SESSION['username'], 'Simpan Pembelian', $log_message);
                 echo json_encode(['status' => 'success', 'message' => $success_message, 'pembelian_id' => $pembelian_id]);
                 break;
-            
+
             case 'delete':
-                $id = (int)($data['id'] ?? 0);
-                if ($id <= 0) throw new Exception("ID Pembelian tidak valid.");
+                $id = (int) ($data['id'] ?? 0);
+                if ($id <= 0)
+                    throw new Exception("ID Pembelian tidak valid.");
 
                 // Cek periode lock sebelum hapus
                 $stmt_old_date = $conn->prepare("SELECT tanggal_pembelian FROM pembelian WHERE id = ?");
