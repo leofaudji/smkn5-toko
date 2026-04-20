@@ -310,10 +310,32 @@ function initKonsinyasiPage() {
                         }
                         
                         const tr = document.createElement('tr');
-                        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50';
+                        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50 group';
+                        
+                        let actionHtml = '';
+                        if (row.tipe === 'Restock' && row.mutation_id) {
+                            actionHtml = `
+                                <div class="flex gap-1">
+                                    <button class="p-1.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md edit-restock-btn" 
+                                            data-id="${row.mutation_id}" title="Edit Restock">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="p-1.5 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md delete-restock-btn" 
+                                            data-id="${row.mutation_id}" title="Hapus Restock Salah">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            `;
+                        }
+
                         tr.innerHTML = `
                             <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 font-mono">${date}</td>
-                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${row.nama_barang}</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center justify-between font-medium text-gray-900 dark:text-white">
+                                    <span>${row.nama_barang}</span>
+                                    ${actionHtml}
+                                </div>
+                            </td>
                             <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${row.nama_pemasok}</td>
                             <td class="px-6 py-4 text-center">
                                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${badgeClass}">${row.tipe}</span>
@@ -721,16 +743,66 @@ function initKonsinyasiPage() {
         if (restockBtn) {
             document.getElementById('restock-form').reset();
             document.getElementById('restock-item-id').value = restockBtn.dataset.id;
+            document.getElementById('restock-id').value = '';
+            document.getElementById('restock-action').value = 'add_restock';
+            document.getElementById('restockModalLabel').textContent = 'Tambah Stok Barang';
             document.getElementById('restock-item-name').textContent = restockBtn.dataset.nama;
             restockTanggalPicker.setDate(new Date());
             openModal('restockModal');
         }
     });
 
+    // --- Deletion & Edit Logic for Mutations ---
+    document.getElementById('mutasi-table-body').addEventListener('click', async e => {
+        const editBtn = e.target.closest('.edit-restock-btn');
+        if (editBtn) {
+            const id = editBtn.dataset.id;
+            try {
+                const response = await fetch(`${basePath}/api/konsinyasi?action=get_restock&id=${id}`);
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                
+                const data = result.data;
+                const form = document.getElementById('restock-form');
+                form.reset();
+                document.getElementById('restockModalLabel').textContent = 'Edit Stok Barang';
+                document.getElementById('restock-action').value = 'update_restock';
+                document.getElementById('restock-id').value = data.id;
+                document.getElementById('restock-item-id').value = data.consignment_item_id;
+                document.getElementById('restock-item-name').textContent = data.nama_barang;
+                document.getElementById('restock-qty').value = data.qty;
+                restockTanggalPicker.setDate(data.tanggal, true, "Y-m-d");
+                document.getElementById('restock-keterangan').value = data.keterangan || '';
+                
+                openModal('restockModal');
+            } catch (error) { showToast(`Gagal memuat data restock: ${error.message}`, 'error'); }
+        }
+
+        const deleteBtn = e.target.closest('.delete-restock-btn');
+        if (deleteBtn) {
+            if (!confirm('Yakin ingin menghapus catatan restock ini? Stok barang akan dikurangi secara otomatis.')) return;
+            
+            const id = deleteBtn.dataset.id;
+            const formData = new FormData();
+            formData.append('action', 'delete_restock');
+            formData.append('id', id);
+
+            try {
+                const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
+                const result = await response.json();
+                showToast(result.message, result.status === 'success' ? 'success' : 'error');
+                if (result.status === 'success') {
+                    loadMutations(1, false); // Refresh list
+                    loadItems(); // Refresh items to show updated stock
+                }
+            } catch (error) { showToast(`Gagal menghapus data: ${error.message}`, 'error'); }
+        }
+    });
+
     document.getElementById('save-restock-btn').addEventListener('click', async () => {
         const form = document.getElementById('restock-form');
         const formData = new FormData(form);
-        formData.append('action', 'add_restock');
+        // Action is now taken from hidden input in the form
 
         const rawDate = document.getElementById('restock-tanggal').value;
         if (rawDate && rawDate.includes('-')) {
@@ -743,6 +815,7 @@ function initKonsinyasiPage() {
         if (result.status === 'success') {
             closeModal('restockModal');
             loadItems();
+            loadMutations(1, false);
         }
     });
 

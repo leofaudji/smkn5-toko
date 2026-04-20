@@ -19,11 +19,46 @@ try {
     if ($action === 'list_suppliers') {
         $result = $conn->query("SELECT * FROM suppliers WHERE user_id = $user_id ORDER BY nama_pemasok ASC");
         echo json_encode(['status' => 'success', 'data' => $result->fetch_all(MYSQLI_ASSOC)]);
+    } elseif ($action === 'list_payments') {
+        $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
+        if (empty($payable_acc_id)) {
+            echo json_encode(['status' => 'success', 'data' => [], 'debug' => 'Account ID not set']);
+            exit;
+        }
+
+        $stmt = $conn->prepare("
+            SELECT gl.tanggal, gl.keterangan, SUM(gl.debit - gl.kredit) as jumlah, s.nama_pemasok
+            FROM general_ledger gl
+            LEFT JOIN suppliers s ON (
+                SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s.nama_pemasok
+                OR gl.keterangan LIKE CONCAT('%ke ', s.nama_pemasok, '%')
+            )
+            WHERE gl.account_id = ?
+            GROUP BY gl.tanggal, gl.keterangan, s.nama_pemasok, gl.nomor_referensi
+            HAVING jumlah > 0
+            ORDER BY gl.tanggal DESC, gl.nomor_referensi DESC
+        ");
+        $stmt->bind_param('i', $payable_acc_id);
+        $stmt->execute();
+        $data = stmt_fetch_all($stmt);
+        $stmt->close();
+
+        echo json_encode([
+            'status' => 'success',
+            'data' => $data,
+            'debug' => [
+                'user_id' => $user_id,
+                'account_id' => $payable_acc_id,
+                'count' => count($data)
+            ]
+        ]);
+        exit;
     } elseif ($action === 'save_supplier') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int) ($_POST['id'] ?? 0);
         $nama = trim($_POST['nama_pemasok'] ?? '');
         $kontak = trim($_POST['kontak'] ?? '');
-        if (empty($nama)) throw new Exception("Nama pemasok wajib diisi.");
+        if (empty($nama))
+            throw new Exception("Nama pemasok wajib diisi.");
 
         if ($id > 0) { // Update
             $stmt = $conn->prepare("UPDATE suppliers SET nama_pemasok = ?, kontak = ?, updated_by = ? WHERE id = ? AND user_id = ?");
@@ -36,11 +71,12 @@ try {
         $stmt->close();
         echo json_encode(['status' => 'success', 'message' => 'Pemasok berhasil disimpan.']);
     } elseif ($action === 'delete_supplier') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int) ($_POST['id'] ?? 0);
         // Cek keterkaitan sebelum hapus
         $res = $conn->query("SELECT COUNT(*) as count FROM consignment_items WHERE supplier_id = $id");
-        if ($res->fetch_assoc()['count'] > 0) throw new Exception("Tidak dapat menghapus pemasok karena masih memiliki barang konsinyasi.");
-        
+        if ($res->fetch_assoc()['count'] > 0)
+            throw new Exception("Tidak dapat menghapus pemasok karena masih memiliki barang konsinyasi.");
+
         $stmt = $conn->prepare("DELETE FROM suppliers WHERE id = ? AND user_id = ?");
         $stmt->bind_param('ii', $id, $user_id);
         $stmt->execute();
@@ -51,7 +87,7 @@ try {
     // --- ITEM ACTIONS ---
     elseif ($action === 'list_items') {
         $search = trim($_GET['search'] ?? '');
-        $supplier_id = (int)($_GET['supplier_id'] ?? 0);
+        $supplier_id = (int) ($_GET['supplier_id'] ?? 0);
         $stock_status = $_GET['stock_status'] ?? 'all'; // all, available, out_of_stock
 
         $where = ["ci.user_id = $user_id"];
@@ -89,13 +125,13 @@ try {
         }
 
         $sql .= " ORDER BY nama_barang ASC";
-        
+
         $result = $conn->query($sql);
         echo json_encode(['status' => 'success', 'data' => $result->fetch_all(MYSQLI_ASSOC)]);
 
     } elseif ($action === 'add_restock') {
-        $item_id = (int)$_POST['item_id'];
-        $qty = (int)$_POST['qty'];
+        $item_id = (int) $_POST['item_id'];
+        $qty = (int) $_POST['qty'];
         $tanggal = $_POST['tanggal'];
         $keterangan = trim($_POST['keterangan'] ?? '');
 
@@ -105,7 +141,7 @@ try {
 
         $stmt = $conn->prepare("INSERT INTO consignment_restocks (user_id, consignment_item_id, qty, tanggal, keterangan, created_by) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->bind_param('iiissi', $user_id, $item_id, $qty, $tanggal, $keterangan, $logged_in_user_id);
-        
+
         if ($stmt->execute()) {
             echo json_encode(['status' => 'success', 'message' => 'Stok berhasil ditambahkan.']);
         } else {
@@ -113,12 +149,12 @@ try {
         }
         $stmt->close();
     } elseif ($action === 'save_item') {
-        $id = (int)($_POST['id'] ?? 0);
-        $supplier_id = (int)$_POST['supplier_id'];
+        $id = (int) ($_POST['id'] ?? 0);
+        $supplier_id = (int) $_POST['supplier_id'];
         $nama_barang = trim($_POST['nama_barang']);
-        $harga_jual = (float)$_POST['harga_jual'];
-        $harga_beli = (float)$_POST['harga_beli'];
-        $stok_awal = (int)$_POST['stok_awal'];
+        $harga_jual = (float) $_POST['harga_jual'];
+        $harga_beli = (float) $_POST['harga_beli'];
+        $stok_awal = (int) $_POST['stok_awal'];
         $tanggal_terima = $_POST['tanggal_terima'];
 
         if (empty($nama_barang) || $harga_jual <= 0 || $harga_beli <= 0 || $stok_awal < 0) {
@@ -147,10 +183,11 @@ try {
         $conn->commit();
         echo json_encode(['status' => 'success', 'message' => 'Barang konsinyasi berhasil disimpan.']);
     } elseif ($action === 'delete_item') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int) ($_POST['id'] ?? 0);
         // Cek keterkaitan sebelum hapus
         $res = $conn->query("SELECT COUNT(*) as count FROM general_ledger WHERE consignment_item_id = $id");
-        if ($res->fetch_assoc()['count'] > 0) throw new Exception("Tidak dapat menghapus barang karena sudah ada riwayat penjualan.");
+        if ($res->fetch_assoc()['count'] > 0)
+            throw new Exception("Tidak dapat menghapus barang karena sudah ada riwayat penjualan.");
 
         $stmt = $conn->prepare("DELETE FROM consignment_items WHERE id = ? AND user_id = ?");
         $stmt->bind_param('ii', $id, $user_id);
@@ -158,20 +195,21 @@ try {
         $stmt->close();
         echo json_encode(['status' => 'success', 'message' => 'Barang berhasil dihapus.']);
     } elseif ($action === 'get_single_item') {
-        $id = (int)($_GET['id'] ?? 0);
+        $id = (int) ($_GET['id'] ?? 0);
         $stmt = $conn->prepare("SELECT * FROM consignment_items WHERE id = ? AND user_id = ?");
         $stmt->bind_param('ii', $id, $user_id);
         $stmt->execute();
         $item = stmt_fetch_assoc($stmt);
         $stmt->close();
-        if (!$item) throw new Exception("Barang tidak ditemukan.");
+        if (!$item)
+            throw new Exception("Barang tidak ditemukan.");
         echo json_encode(['status' => 'success', 'data' => $item]);
     }
 
     // --- SALE ACTION ---
     elseif ($action === 'sell_item') {
-        $item_id = (int)$_POST['item_id'];
-        $qty = (int)$_POST['qty'];
+        $item_id = (int) $_POST['item_id'];
+        $qty = (int) $_POST['qty'];
         $tanggal = $_POST['tanggal']; // Ini akan diambil dari form, bukan dari session
         $created_by = $_SESSION['user_id'];
 
@@ -196,15 +234,16 @@ try {
         $item = stmt_fetch_assoc($stmt_item);
         $stmt_item->close();
 
-        if (!$item) throw new Exception("Barang tidak ditemukan.");
+        if (!$item)
+            throw new Exception("Barang tidak ditemukan.");
         if (empty($item['kas_acc_id']) || empty($item['revenue_acc_id']) || empty($item['cogs_acc_id']) || empty($item['payable_acc_id']) || empty($item['inventory_acc_id'])) {
             throw new Exception("Akun untuk konsinyasi belum diatur di Pengaturan. Silakan hubungi admin.");
         }
 
-        $total_penjualan = $qty * (float)$item['harga_jual'];
-        $total_modal = $qty * (float)$item['harga_beli'];
+        $total_penjualan = $qty * (float) $item['harga_jual'];
+        $total_modal = $qty * (float) $item['harga_beli'];
         $keterangan = "Penjualan konsinyasi: $qty x {$item['nama_barang']} ({$item['nama_pemasok']})";
-        
+
         // --- Logika Nomor Referensi Otomatis untuk Penjualan Konsinyasi ---
         $prefix = 'CSL'; // Consignment Sale
         $date_parts = explode('-', $tanggal);
@@ -225,7 +264,7 @@ try {
         $sequence = 1;
         if ($last_ref && !empty($last_ref['nomor_referensi'])) {
             $parts = explode('/', $last_ref['nomor_referensi']);
-            $sequence = (int)end($parts) + 1;
+            $sequence = (int) end($parts) + 1;
         }
         $nomor_referensi = sprintf('%s/%s/%s/%03d', $prefix, $year, $month, $sequence);
         // --- Akhir Logika ---
@@ -262,10 +301,10 @@ try {
 
     // --- PAYMENT ACTION ---
     elseif ($action === 'pay_debt') {
-        $supplier_id = (int)$_POST['supplier_id'];
+        $supplier_id = (int) $_POST['supplier_id'];
         $tanggal = $_POST['tanggal'];
-        $jumlah = (float)$_POST['jumlah'];
-        $kas_account_id = (int)$_POST['kas_account_id'];
+        $jumlah = (float) $_POST['jumlah'];
+        $kas_account_id = (int) $_POST['kas_account_id'];
         $keterangan = trim($_POST['keterangan']);
         $created_by = $_SESSION['user_id'];
 
@@ -301,34 +340,31 @@ try {
         // (Cr) Kas/Bank
         $stmt_gl->bind_param('isssiddi', $user_id, $tanggal, $keterangan_jurnal, $nomor_referensi, $kas_account_id, $zero, $jumlah, $created_by);
         $stmt_gl->execute();
-        
+
         $stmt_gl->close();
         $conn->commit();
 
         echo json_encode(['status' => 'success', 'message' => 'Pembayaran utang konsinyasi berhasil dicatat.']);
 
-    }
-
-    elseif ($action === 'list_sales') {
+    } elseif ($action === 'list_sales') {
         $start_date = $_GET['start_date'] ?? date('Y-m-01');
         $end_date = $_GET['end_date'] ?? date('Y-m-t');
-        $page = (int)($_GET['page'] ?? 1);
-        $limit = (int)($_GET['limit'] ?? 10);
+        $page = (int) ($_GET['page'] ?? 1);
+        $limit = (int) ($_GET['limit'] ?? 10);
         $offset = ($page - 1) * $limit;
 
         // 1. Hitung TOTAL records untuk paging
         $stmt_total = $conn->prepare("
-            SELECT COUNT(*) as total
+            SELECT COUNT(DISTINCT gl.nomor_referensi) as total
             FROM general_ledger gl
             WHERE gl.user_id = ?
               AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')
-              AND gl.kredit > 0
               AND gl.ref_type IN ('jurnal', 'penjualan')
               AND gl.tanggal BETWEEN ? AND ?
         ");
         $stmt_total->bind_param('iss', $user_id, $start_date, $end_date);
         $stmt_total->execute();
-        $total_records = (int)stmt_fetch_assoc($stmt_total)['total'];
+        $total_records = (int) stmt_fetch_assoc($stmt_total)['total'];
         $stmt_total->close();
 
         // 2. Ambil DATA untuk halaman saat ini
@@ -338,18 +374,19 @@ try {
                 gl.tanggal, 
                 gl.keterangan, 
                 gl.nomor_referensi,
-                gl.qty,
+                SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) as qty,
                 ci.nama_barang,
                 ci.harga_jual,
-                (gl.qty * ci.harga_jual) as total_jual
+                (SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) * ci.harga_jual) as total_jual
             FROM general_ledger gl
             JOIN consignment_items ci ON gl.consignment_item_id = ci.id
             WHERE gl.user_id = ?
               AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')
-              AND gl.kredit > 0
               AND gl.ref_type IN ('jurnal', 'penjualan')
               AND gl.tanggal BETWEEN ? AND ?
-            ORDER BY gl.tanggal DESC, gl.id DESC
+            GROUP BY gl.nomor_referensi, ci.id, gl.tanggal, gl.keterangan
+            HAVING qty > 0 OR total_jual > 0
+            ORDER BY gl.tanggal DESC, gl.nomor_referensi DESC
             LIMIT ? OFFSET ?
         ");
         $stmt->bind_param('issii', $user_id, $start_date, $end_date, $limit, $offset);
@@ -358,7 +395,7 @@ try {
         $stmt->close();
 
         echo json_encode([
-            'status' => 'success', 
+            'status' => 'success',
             'data' => $data,
             'pagination' => [
                 'current_page' => $page,
@@ -373,7 +410,7 @@ try {
     elseif ($action === 'get_sales_report') {
         $start_date = $_GET['start_date'] ?? date('Y-m-01');
         $end_date = $_GET['end_date'] ?? date('Y-m-t');
-        $supplier_id = !empty($_GET['supplier_id']) ? (int)$_GET['supplier_id'] : null;
+        $supplier_id = !empty($_GET['supplier_id']) ? (int) $_GET['supplier_id'] : null;
         $status = $_GET['status'] ?? 'Semua';
 
         $where = "WHERE gl.user_id = ? AND gl.tanggal BETWEEN ? AND ? AND gl.ref_type IN ('jurnal', 'penjualan') AND gl.consignment_item_id IS NOT NULL AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')";
@@ -425,8 +462,7 @@ try {
         $stmt->close();
 
         echo json_encode(['status' => 'success', 'data' => $report]);
-    }
-    elseif ($action === 'import_items_csv') {
+    } elseif ($action === 'import_items_csv') {
         if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
             throw new Exception("File tidak terunggah dengan benar.");
         }
@@ -434,7 +470,7 @@ try {
         $file = $_FILES['csv_file']['tmp_name'];
         if (($handle = fopen($file, "r")) !== FALSE) {
             $header = fgetcsv($handle, 1000, ","); // Skip header
-            
+
             $success = 0;
             $skipped = 0;
             $errors = [];
@@ -452,8 +488,8 @@ try {
                 // no, namasupplier, namabarang, hargabeli, hargajual, sku
                 $nama_supplier = trim($data[1]);
                 $nama_barang = trim($data[2]);
-                $harga_beli = (float)str_replace(',', '.', $data[3]);
-                $harga_jual = (float)str_replace(',', '.', $data[4]);
+                $harga_beli = (float) str_replace(',', '.', $data[3]);
+                $harga_jual = (float) str_replace(',', '.', $data[4]);
                 $sku = trim($data[5]);
 
                 if (empty($nama_barang) || empty($nama_supplier)) {
@@ -506,30 +542,78 @@ try {
             $conn->commit();
 
             echo json_encode([
-                'status' => 'success', 
+                'status' => 'success',
                 'message' => "Impor selesai. $success berhasil, $skipped dilewati.",
                 'errors' => $errors
             ]);
         } else {
             throw new Exception("Gagal membuka file CSV.");
         }
-    }
-    elseif ($action === 'list_mutations') {
-        $supplier_id = !empty($_GET['supplier_id']) ? (int)$_GET['supplier_id'] : null;
+    } elseif ($action === 'get_restock') {
+        $id = (int) ($_GET['id'] ?? 0);
+        if ($id <= 0)
+            throw new Exception("ID tidak valid.");
+
+        $stmt = $conn->prepare("SELECT cr.*, ci.nama_barang FROM consignment_restocks cr JOIN consignment_items ci ON cr.consignment_item_id = ci.id WHERE cr.id = ? AND cr.user_id = ?");
+        $stmt->bind_param('ii', $id, $user_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = $res->fetch_assoc();
+        $stmt->close();
+
+        if (!$data)
+            throw new Exception("Data restock tidak ditemukan.");
+
+        echo json_encode(['status' => 'success', 'data' => $data]);
+    } elseif ($action === 'update_restock') {
+        $id = (int) ($_POST['id'] ?? 0);
+        $qty = (int) $_POST['qty'];
+        $tanggal = $_POST['tanggal'];
+        $keterangan = trim($_POST['keterangan'] ?? '');
+
+        if ($id <= 0 || $qty <= 0 || empty($tanggal)) {
+            throw new Exception("Data perbaikan stok tidak valid.");
+        }
+
+        $stmt = $conn->prepare("UPDATE consignment_restocks SET qty = ?, tanggal = ?, keterangan = ? WHERE id = ? AND user_id = ?");
+        $stmt->bind_param('issii', $qty, $tanggal, $keterangan, $id, $user_id);
+
+        if ($stmt->execute()) {
+            echo json_encode(['status' => 'success', 'message' => 'Stok berhasil diperbarui.']);
+        } else {
+            throw new Exception("Gagal memperbarui data stok: " . $stmt->error);
+        }
+        $stmt->close();
+    } elseif ($action === 'delete_restock') {
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id <= 0)
+            throw new Exception("ID restock tidak valid.");
+
+        $stmt = $conn->prepare("DELETE FROM consignment_restocks WHERE id = ? AND user_id = ?");
+        $stmt->bind_param('ii', $id, $user_id);
+
+        if ($stmt->execute()) {
+            echo json_encode(['status' => 'success', 'message' => 'Data restock berhasil dihapus.']);
+        } else {
+            throw new Exception("Gagal menghapus data restock.");
+        }
+        $stmt->close();
+    } elseif ($action === 'list_mutations') {
+        $supplier_id = !empty($_GET['supplier_id']) ? (int) $_GET['supplier_id'] : null;
         $start_date = $_GET['start_date'] ?? '';
         $end_date = $_GET['end_date'] ?? '';
-        $page = (int)($_GET['page'] ?? 1);
-        $limit = (int)($_GET['limit'] ?? 20);
+        $page = (int) ($_GET['page'] ?? 1);
+        $limit = (int) ($_GET['limit'] ?? 20);
         $offset = ($page - 1) * $limit;
 
         $where_ci = "WHERE ci.user_id = ?";
         $where_cr = "WHERE cr.user_id = ?";
-        $where_gl = "WHERE gl.user_id = ? AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl.kredit > 0 AND gl.ref_type IN ('jurnal', 'penjualan')";
-        
+        $where_gl = "WHERE gl.user_id = ? AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl.ref_type IN ('jurnal', 'penjualan')";
+
         $params_ci = [$user_id];
         $params_cr = [$user_id];
         $params_gl = [$user_id];
-        
+
         $types_ci = "i";
         $types_cr = "i";
         $types_gl = "i";
@@ -579,7 +663,8 @@ try {
                     'Stok Awal' as tipe, 
                     ci.stok_awal as qty, 
                     'Penerimaan awal saat pendaftaran barang' as keterangan,
-                    ci.id as item_id
+                    ci.id as item_id,
+                    0 as mutation_id
                 FROM consignment_items ci
                 JOIN suppliers s ON ci.supplier_id = s.id
                 $where_ci
@@ -593,22 +678,24 @@ try {
                     'Restock' as tipe, 
                     cr.qty, 
                     cr.keterangan,
-                    ci.id as item_id
+                    ci.id as item_id,
+                    cr.id as mutation_id
                 FROM consignment_restocks cr
                 JOIN consignment_items ci ON cr.consignment_item_id = ci.id
                 JOIN suppliers s ON ci.supplier_id = s.id
                 $where_cr
-
+                
                 UNION ALL
-
+                
                 SELECT 
                     gl.tanggal,
                     ci.nama_barang,
                     s.nama_pemasok,
                     'Terjual' as tipe,
-                    SUM(gl.qty) as qty,
-                    'Total penjualan harian' as keterangan,
-                    ci.id as item_id
+                    SUM(IF(gl.debit > 0, -gl.qty, gl.qty)) as qty,
+                    'Total penjualan harian (Netto)' as keterangan,
+                    ci.id as item_id,
+                    0 as mutation_id
                 FROM general_ledger gl
                 JOIN consignment_items ci ON gl.consignment_item_id = ci.id
                 JOIN suppliers s ON ci.supplier_id = s.id
@@ -627,7 +714,7 @@ try {
             $stmt_count->bind_param($final_types, ...$final_params);
         }
         $stmt_count->execute();
-        $total_records = (int)stmt_fetch_assoc($stmt_count)['total'];
+        $total_records = (int) stmt_fetch_assoc($stmt_count)['total'];
         $stmt_count->close();
 
         // Add LIMIT and OFFSET for pagination
@@ -645,7 +732,7 @@ try {
         $stmt->close();
 
         echo json_encode([
-            'status' => 'success', 
+            'status' => 'success',
             'data' => $mutations,
             'pagination' => [
                 'current_page' => $page,
@@ -654,28 +741,7 @@ try {
                 'total_pages' => ceil($total_records / $limit)
             ]
         ]);
-    }
-    elseif ($action === 'list_payments') {
-        $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
-        if (empty($payable_acc_id)) {
-            echo json_encode(['status' => 'success', 'data' => []]); // Return empty if not configured
-            exit;
-        }
-
-        $stmt = $conn->prepare("
-            SELECT gl.tanggal, gl.keterangan, gl.debit as jumlah, s.nama_pemasok
-            FROM general_ledger gl
-            LEFT JOIN suppliers s ON SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s.nama_pemasok
-            WHERE gl.user_id = ?
-              AND gl.account_id = ?
-              AND gl.debit > 0
-            ORDER BY gl.tanggal DESC, gl.id DESC
-        ");
-        $stmt->bind_param('ii', $user_id, $payable_acc_id);
-        $stmt->execute();
-        echo json_encode(['status' => 'success', 'data' => stmt_fetch_all($stmt)]);
-    }
-    elseif ($action === 'get_debt_summary_report') {
+    } elseif ($action === 'get_debt_summary_report') {
         $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
         $cogs_acc_id = get_setting('consignment_cogs_account', null, $conn);
 
@@ -750,10 +816,10 @@ try {
 
         // 3. Calculate "Lain-lain" (Saldo Awal or Orphan Entries)
         $total_linked_sisa = 0;
-        foreach($report_data as $row) {
+        foreach ($report_data as $row) {
             $total_linked_sisa += $row['sisa_utang'];
         }
-        
+
         $diff = $total_audit_balance - $total_linked_sisa;
         if (abs($diff) > 0.01) {
             $report_data[] = [
@@ -769,7 +835,8 @@ try {
     }
 
 } catch (Exception $e) {
-    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) $conn->rollback();
+    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction())
+        $conn->rollback();
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }

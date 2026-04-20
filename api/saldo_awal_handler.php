@@ -18,7 +18,7 @@ try {
         $keterangan_jurnal_lr = "Jurnal Saldo Awal Laba Rugi (YTD)";
 
         // Ambil ID akun Laba Ditahan untuk dikecualikan dari tampilan
-        $retained_earnings_acc_id = (int)get_setting('retained_earnings_account_id', 0, $conn);
+        $retained_earnings_acc_id = (int) get_setting('retained_earnings_account_id', 0, $conn);
 
         $stmt = $conn->prepare("
             SELECT 
@@ -53,8 +53,8 @@ try {
         $total_debit_input = 0;
         $total_kredit_input = 0;
         foreach ($entries as $entry) {
-            $total_debit_input += (float)($entry['debit'] ?? 0);
-            $total_kredit_input += (float)($entry['kredit'] ?? 0);
+            $total_debit_input += (float) ($entry['debit'] ?? 0);
+            $total_kredit_input += (float) ($entry['kredit'] ?? 0);
         }
 
         // Hitung selisih sebagai Laba/Rugi Berjalan (YTD)
@@ -63,7 +63,7 @@ try {
         $laba_rugi_ytd = $total_kredit_input - $total_debit_input;
 
         // Ambil akun Laba Ditahan untuk menampung selisih
-        $retained_earnings_acc_id = (int)get_setting('retained_earnings_account_id', 0, $conn);
+        $retained_earnings_acc_id = (int) get_setting('retained_earnings_account_id', 0, $conn);
         if (abs($laba_rugi_ytd) > 0.01 && $retained_earnings_acc_id === 0) {
             throw new Exception("Jurnal tidak seimbang dan Akun Laba Ditahan (Retained Earnings) belum diatur di Pengaturan > Akuntansi untuk menampung selisih.");
         }
@@ -105,10 +105,13 @@ try {
         $stmt_detail = $conn->prepare("INSERT INTO jurnal_details (jurnal_entry_id, account_id, debit, kredit) VALUES (?, ?, ?, ?)");
         $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'jurnal', ?)");
         foreach ($entries as $line) {
-            $stmt_detail->bind_param('iidd', $jurnal_id, $line['account_id'], $line['debit'], $line['kredit']); $stmt_detail->execute();
-            $stmt_gl->bind_param('isssiddii', $user_id, $opening_balance_date, $keterangan_jurnal, $nomor_ref, $line['account_id'], $line['debit'], $line['kredit'], $jurnal_id, $logged_in_user_id); $stmt_gl->execute();
+            $stmt_detail->bind_param('iidd', $jurnal_id, $line['account_id'], $line['debit'], $line['kredit']);
+            $stmt_detail->execute();
+            $stmt_gl->bind_param('isssiddii', $user_id, $opening_balance_date, $keterangan_jurnal, $nomor_ref, $line['account_id'], $line['debit'], $line['kredit'], $jurnal_id, $logged_in_user_id);
+            $stmt_gl->execute();
         }
-        $stmt_detail->close(); $stmt_gl->close();
+        $stmt_detail->close();
+        $stmt_gl->close();
 
         $conn->query("UPDATE accounts SET saldo_awal = 0 WHERE user_id = $user_id");
         $conn->commit();
@@ -117,7 +120,8 @@ try {
         echo json_encode(['status' => 'success', 'message' => 'Saldo awal berhasil disimpan.']);
     }
 } catch (Exception $e) {
-    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) $conn->rollback();
+    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction())
+        $conn->rollback();
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }
