@@ -52,6 +52,71 @@ window.initAuditSaldoPage = function() {
 
     refreshBtn.addEventListener('click', loadAuditData);
 
+    // Global exposed functions for repair tools
+    window.openSyncModal = function(type) {
+        const modalId = type === 'gl' ? 'syncModalGL' : 'syncModalStock';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+    };
+
+    window.closeSyncModal = function(type) {
+        const modalId = type === 'gl' ? 'syncModalGL' : 'syncModalStock';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+    };
+
+    window.startSync = function(type) {
+        const checkboxName = type === 'gl' ? 'sync_modules_gl' : 'sync_modules_stock';
+        const checkboxes = document.querySelectorAll(`input[name="${checkboxName}"]:checked`);
+        const modules = Array.from(checkboxes).map(cb => cb.value);
+
+        if (modules.length === 0) {
+            Swal.fire('Peringatan', 'Pilih minimal satu modul untuk disinkronkan.', 'warning');
+            return;
+        }
+
+        const action = type === 'gl' ? 'sync_gl' : 'sync_stock';
+        const title = type === 'gl' ? 'Perbaikan GL' : 'Sinkronisasi Stok';
+        const confirmText = type === 'gl' ? 'Lanjutkan Perbaikan GL?' : 'Mulai Sinkronisasi Kartu Stok?';
+
+        Swal.fire({
+            title: title,
+            text: confirmText,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Jalankan',
+            cancelButtonText: 'Batal',
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
+                try {
+                    const response = await fetch(`${basePath}/api/audit_handler.php`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: action, modules: modules })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message || 'Gagal sinkronisasi');
+                    return result;
+                } catch (error) {
+                    Swal.showValidationMessage(`Request failed: ${error}`);
+                }
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire('Berhasil', result.value.message, 'success');
+                closeSyncModal(type);
+                loadAuditData(); // Refresh audit table
+            }
+        });
+    };
+
     // Initial load
     loadAuditData();
 };

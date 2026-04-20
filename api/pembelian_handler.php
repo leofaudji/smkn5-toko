@@ -241,6 +241,11 @@ try {
                     $stmt_delete_details->execute();
                     $stmt_delete_details->close();
 
+                    $stmt_delete_ks = $conn->prepare("DELETE FROM kartu_stok WHERE ref_id = ? AND source = 'pembelian'");
+                    $stmt_delete_ks->bind_param('i', $id);
+                    $stmt_delete_ks->execute();
+                    $stmt_delete_ks->close();
+
                     // Kembalikan stok lama
                     $stmt_revert_stock = $conn->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
                     foreach ($old_items as $item) {
