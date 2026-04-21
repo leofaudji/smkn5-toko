@@ -27,15 +27,14 @@ try {
         }
 
         $stmt = $conn->prepare("
-            SELECT gl.tanggal, gl.keterangan, SUM(gl.debit - gl.kredit) as jumlah, s.nama_pemasok
+            SELECT gl.tanggal, gl.keterangan, gl.nomor_referensi, SUM(gl.debit - gl.kredit) as jumlah, s.nama_pemasok
             FROM general_ledger gl
             LEFT JOIN suppliers s ON (
                 SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s.nama_pemasok
                 OR gl.keterangan LIKE CONCAT('%ke ', s.nama_pemasok, '%')
             )
-            WHERE gl.account_id = ?
+            WHERE gl.account_id = ? AND gl.nomor_referensi LIKE 'CPY-%'
             GROUP BY gl.tanggal, gl.keterangan, s.nama_pemasok, gl.nomor_referensi
-            HAVING jumlah > 0
             ORDER BY gl.tanggal DESC, gl.nomor_referensi DESC
         ");
         $stmt->bind_param('i', $payable_acc_id);
@@ -346,6 +345,60 @@ try {
 
         echo json_encode(['status' => 'success', 'message' => 'Pembayaran utang konsinyasi berhasil dicatat.']);
 
+    } elseif ($action === 'delete_payment') {
+        $no_ref = trim($_POST['nomor_referensi'] ?? '');
+        if (empty($no_ref)) {
+            throw new Exception("Nomor referensi pembayaran tidak valid.");
+        }
+
+        // 1. Cek periode dikunci
+        $stmt_check = $conn->prepare("SELECT tanggal FROM general_ledger WHERE nomor_referensi = ? AND user_id = ? LIMIT 1");
+        $stmt_check->bind_param('si', $no_ref, $user_id);
+        $stmt_check->execute();
+        $res_check = stmt_fetch_assoc($stmt_check);
+        $stmt_check->close();
+
+        if (!$res_check) {
+            throw new Exception("Data pembayaran tidak ditemukan.");
+        }
+        check_period_lock($res_check['tanggal'], $conn);
+
+        $conn->begin_transaction();
+
+        // 2. Ambil semua baris asli
+        $stmt_orig = $conn->prepare("SELECT * FROM general_ledger WHERE nomor_referensi = ? AND user_id = ? AND ref_type = 'jurnal'");
+        $stmt_orig->bind_param('si', $no_ref, $user_id);
+        $stmt_orig->execute();
+        $originals = stmt_fetch_all($stmt_orig);
+        $stmt_orig->close();
+
+        if (empty($originals)) {
+            throw new Exception("Detail pembayaran tidak ditemukan.");
+        }
+
+        // 3. Buat Jurnal Balik (Reversal)
+        $stmt_rev = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_type, ref_id, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'jurnal', ?, ?)");
+        $stmt_upd = $conn->prepare("UPDATE general_ledger SET keterangan = ? WHERE id = ?");
+
+        foreach ($originals as $row) {
+            $new_ket = "[BATAL] " . $row['keterangan'];
+            
+            // Simpan Jurnal Balik (Dr/Cr ditukar)
+            $stmt_rev->bind_param('isssiddii', $user_id, $row['tanggal'], $new_ket, $row['nomor_referensi'], $row['account_id'], $row['kredit'], $row['debit'], $row['ref_id'], $logged_in_user_id);
+            $stmt_rev->execute();
+
+            // Update Keterangan data asli agar matching saat di-group
+            $stmt_upd->bind_param('si', $new_ket, $row['id']);
+            $stmt_upd->execute();
+        }
+
+        $stmt_rev->close();
+        $stmt_upd->close();
+        $conn->commit();
+        log_activity($_SESSION['username'], 'Batal Bayar Konsinyasi (Jurnal Balik)', "Pembatalan pelunasan dengan referensi {$no_ref}.");
+
+        echo json_encode(['status' => 'success', 'message' => 'Pembayaran berhasil dibatalkan dengan jurnal balik.']);
+
     } elseif ($action === 'list_sales') {
         $start_date = $_GET['start_date'] ?? date('Y-m-01');
         $end_date = $_GET['end_date'] ?? date('Y-m-t');
@@ -370,7 +423,6 @@ try {
         // 2. Ambil DATA untuk halaman saat ini
         $stmt = $conn->prepare("
             SELECT 
-                gl.id,
                 gl.tanggal, 
                 gl.keterangan, 
                 gl.nomor_referensi,
@@ -439,7 +491,7 @@ try {
                 SELECT 
                     s2.id as sid,
                     (SELECT SUM(gl3.kredit) FROM general_ledger gl3 JOIN consignment_items ci3 ON gl3.consignment_item_id = ci3.id WHERE ci3.supplier_id = s2.id AND gl3.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl3.ref_type IN ('jurnal', 'penjualan')) as total_hutang_pemasok,
-                    (SELECT SUM(gl4.debit) FROM general_ledger gl4 WHERE gl4.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND gl4.debit > 0 AND SUBSTRING_INDEX(SUBSTRING_INDEX(gl4.keterangan, 'ke ', -1), ' -', 1) = s2.nama_pemasok) as total_bayar_pemasok
+                    (SELECT SUM(gl4.debit - gl4.kredit) FROM general_ledger gl4 WHERE gl4.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account') AND SUBSTRING_INDEX(SUBSTRING_INDEX(gl4.keterangan, 'ke ', -1), ' -', 1) = s2.nama_pemasok) as total_bayar_pemasok
                 FROM suppliers s2
             ) curr_stat ON s.id = curr_stat.sid
             $where
@@ -795,7 +847,7 @@ try {
                 -- Subquery: Total pembayaran (Debit) yang terurai per supplier via keterangan
                 SELECT 
                     s_inner.id as supplier_id,
-                    SUM(gl.debit) as total_bayar
+                    SUM(gl.debit - gl.kredit) as total_bayar
                 FROM general_ledger gl
                 JOIN suppliers s_inner ON (
                     SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s_inner.nama_pemasok
@@ -803,7 +855,6 @@ try {
                 )
                 WHERE gl.user_id = ?
                   AND gl.account_id = ? AND gl.tanggal <= ?
-                  AND gl.debit > 0
                 GROUP BY s_inner.id
             ) bayar ON s.id = bayar.supplier_id
             WHERE s.user_id = ?

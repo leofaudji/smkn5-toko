@@ -152,7 +152,7 @@ function initPelunasanKonsinyasiPage() {
         
         if (!Array.isArray(data) || data.length === 0) {
             let diag = debugInfo ? `<div class="text-[10px] mt-2 opacity-50">API status: ${debugInfo.status || 'OK'} | Count: ${debugInfo.count || 0}</div>` : '';
-            historyTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-20 text-gray-400">
+            historyTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-20 text-gray-400">
                 <i class="bi bi-clock-history text-4xl block mb-2 opacity-20"></i>
                 Belum ada riwayat pembayaran.
                 ${diag}
@@ -169,8 +169,19 @@ function initPelunasanKonsinyasiPage() {
             tr.innerHTML = `
                 <td class="px-6 py-4 text-sm text-gray-500">${dateStr}</td>
                 <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">${h.nama_pemasok || 'Pemasok Umum'}</td>
-                <td class="px-6 py-4 text-sm text-gray-500 italic">${h.keterangan || '-'}</td>
-                <td class="px-6 py-4 text-right font-black text-green-600">${currencyFormatter.format(amount)}</td>
+                <td class="px-6 py-4 text-sm ${amount === 0 ? 'text-red-400 line-through italic' : 'text-gray-500 italic'}">${h.keterangan || '-'}</td>
+                <td class="px-6 py-4 text-right font-black ${amount === 0 ? 'text-gray-400' : 'text-green-600'}">
+                    ${amount === 0 ? '<span class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-md mr-2">Dibatalkan</span>' : ''}
+                    ${currencyFormatter.format(amount)}
+                </td>
+                <td class="px-6 py-4 text-center">
+                    ${amount > 0 && (h.nomor_referensi || '').startsWith('CPY-') ? `
+                    <button class="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-all pk-cancel-btn" 
+                            data-ref="${h.nomor_referensi}" data-nama="${h.nama_pemasok}" data-jumlah="${amount}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    ` : (amount === 0 ? '<i class="bi bi-slash-circle text-gray-300"></i>' : '<span class="text-xs text-gray-400 italic">Non-editable</span>')}
+                </td>
             `;
             historyTableBody.appendChild(tr);
         });
@@ -309,6 +320,47 @@ function initPelunasanKonsinyasiPage() {
     }
 
     [filterDateMulai, filterDateAkhir].forEach(el => { if (el) el.addEventListener('change', loadData); });
+
+    historyTableBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.pk-cancel-btn');
+        if (btn) {
+            const { ref, nama, jumlah } = btn.dataset;
+            cancelPayment(ref, nama, jumlah);
+        }
+    });
+
+    async function cancelPayment(noRef, supplierName, amount) {
+        const result = await Swal.fire({
+            title: 'Batalkan Pembayaran?',
+            html: `Apakah Anda yakin ingin membatalkan pelunasan ke <b>${supplierName}</b> senilai <b>${currencyFormatter.format(amount)}</b>?<br><br>Tindakan ini akan mengembalikan saldo utang pemasok.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Ya, Batalkan!',
+            cancelButtonText: 'Batal'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const formData = new FormData();
+                formData.append('action', 'delete_payment');
+                formData.append('nomor_referensi', noRef);
+
+                const response = await fetch(`${basePath}/api/konsinyasi`, { method: 'POST', body: formData });
+                const res = await response.json();
+
+                if (res.status === 'success') {
+                    showToast(res.message, 'success');
+                    loadData();
+                } else {
+                    showToast(res.message, 'error');
+                }
+            } catch (error) {
+                console.error('Cancel payment error:', error);
+                showToast('Gagal membatalkan pembayaran.', 'error');
+            }
+        }
+    }
 
     // Initial Load
     loadData();
