@@ -230,7 +230,6 @@ function store_penjualan($db)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $updateStokStmt = $db->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
-        $updateConsStokStmt = $db->prepare("UPDATE consignment_items SET stok_awal = stok_awal - ? WHERE id = ?");
         $kartuStokStmt = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, 0, ?, ?, ?, 'penjualan', ?)");
 
         // Akun-akun konsinyasi (ambil sekali saja)
@@ -297,9 +296,19 @@ function store_penjualan($db)
                 $normal_inventory_totals[$inv_acc] += $hpp_val;
 
             } else {
-                // 2. Logika Barang Konsinyasi
-                $stmt_cons = $db->prepare("SELECT ci.*, s.nama_pemasok FROM consignment_items ci JOIN suppliers s ON ci.supplier_id = s.id WHERE ci.id = ?");
-                $stmt_cons->bind_param('i', $item['id']);
+                // 2. Logika Barang Konsinyasi (Hitung stok aktual: awal + restock - terjual di GL)
+                $stmt_cons = $db->prepare("
+                    SELECT ci.*, s.nama_pemasok,
+                        (
+                            ci.stok_awal 
+                            + COALESCE((SELECT SUM(qty) FROM consignment_restocks WHERE consignment_item_id = ci.id), 0)
+                            - COALESCE((SELECT SUM(IF(debit > 0, -qty, qty)) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type IN ('jurnal', 'penjualan') AND account_id = ?), 0)
+                        ) as stok_saat_ini
+                    FROM consignment_items ci 
+                    JOIN suppliers s ON ci.supplier_id = s.id 
+                    WHERE ci.id = ?
+                ");
+                $stmt_cons->bind_param('ii', $consignment_settings['payable_acc_id'], $item['id']);
                 $stmt_cons->execute();
                 $item_cons = stmt_fetch_assoc($stmt_cons);
                 $stmt_cons->close();
@@ -307,8 +316,8 @@ function store_penjualan($db)
                 if (!$item_cons)
                     throw new Exception("Barang konsinyasi '{$item['nama']}' tidak ditemukan.");
 
-                if ($item_cons['stok_awal'] < $item['qty'])
-                    throw new Exception("Stok konsinyasi untuk '{$item['nama']}' tidak mencukupi.");
+                if ($item_cons['stok_saat_ini'] < $item['qty'])
+                    throw new Exception("Stok konsinyasi untuk '{$item['nama']}' tidak mencukupi (Tersedia: {$item_cons['stok_saat_ini']}).");
 
                 foreach ($consignment_settings as $key => $val) {
                     if (empty($val))
@@ -335,19 +344,11 @@ function store_penjualan($db)
                 ];
             }
 
-            // Simpan Detail Transaksi
             $detailStmt->bind_param('iisidids', $penjualanId, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal'], $item_type);
             $detailStmt->execute();
-
-            // Update stok konsinyasi
-            if ($item_type === 'consignment') {
-                $updateConsStokStmt->bind_param('ii', $item['qty'], $item['id']);
-                $updateConsStokStmt->execute();
-            }
         }
         $detailStmt->close();
         $updateStokStmt->close();
-        $updateConsStokStmt->close();
         $kartuStokStmt->close();
 
         // Integrasi Keuangan
@@ -476,7 +477,6 @@ function void_penjualan($db)
         // 3. Kembalikan stok barang (Hanya untuk tipe NORMAL)
         $stmt_update_stok = $db->prepare("UPDATE items SET stok = stok + ? WHERE id = ? AND user_id = ?");
         $stmt_ks_void = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (NOW(), ?, ?, 0, ?, ?, 'void_penjualan', ?)");
-        $updateConsStokStmt = $db->prepare("UPDATE consignment_items SET stok_awal = stok_awal + ? WHERE id = ?");
 
         foreach ($details as $item) {
             $item_type = $item['item_type'] ?? 'normal';
@@ -488,14 +488,10 @@ function void_penjualan($db)
                 $ksKeterangan = "Batal Penjualan #{$penjualan['nomor_referensi']}";
                 $stmt_ks_void->bind_param('iisii', $item['item_id'], $item['quantity'], $ksKeterangan, $id, $user_id);
                 $stmt_ks_void->execute();
-            } elseif ($item_type === 'consignment') {
-                $updateConsStokStmt->bind_param('ii', $item['quantity'], $item['item_id']);
-                $updateConsStokStmt->execute();
             }
         }
         $stmt_update_stok->close();
         $stmt_ks_void->close();
-        $updateConsStokStmt->close();
 
         // 4. Buat Jurnal Pembalik (Reversal Entry) di General Ledger
         // Ambil data dari jurnal asli untuk dibalik
@@ -880,11 +876,26 @@ function update_penjualan($db)
                 $normal_inventory_totals[$inv_acc] += $hpp_val;
             } else {
                 // Konsinyasi logic
-                $stmt_cons = $db->prepare("SELECT harga_beli FROM consignment_items WHERE id = ?");
-                $stmt_cons->bind_param('i', $item['id']);
+                $stmt_cons = $db->prepare("
+                    SELECT ci.*, 
+                        (
+                            ci.stok_awal 
+                            + COALESCE((SELECT SUM(qty) FROM consignment_restocks WHERE consignment_item_id = ci.id), 0)
+                            - COALESCE((SELECT SUM(IF(debit > 0, -qty, qty)) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type IN ('jurnal', 'penjualan') AND account_id = ?), 0)
+                        ) as stok_saat_ini
+                    FROM consignment_items ci 
+                    WHERE ci.id = ?
+                ");
+                $stmt_cons->bind_param('ii', $consignment_settings['payable_acc_id'], $item['id']);
                 $stmt_cons->execute();
                 $item_cons = stmt_fetch_assoc($stmt_cons);
                 $stmt_cons->close();
+
+                if (!$item_cons)
+                    throw new Exception("Barang konsinyasi '{$item['nama']}' tidak ditemukan.");
+
+                if ($item_cons['stok_saat_ini'] < $item['qty'])
+                    throw new Exception("Stok konsinyasi untuk '{$item['nama']}' tidak mencukupi (Tersedia: {$item_cons['stok_saat_ini']}).");
 
                 $total_beli = $item['qty'] * (float) $item_cons['harga_beli'];
                 $komisi = ($item['harga'] * $item['qty']) - $total_beli; // Gross commission for balance
