@@ -93,6 +93,14 @@ try {
 
         log_activity($user['username'], 'Login', 'Login berhasil.');
 
+        // Update last_login timestamp, IP, and User Agent
+        $last_ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        $stmt_update_login = $conn->prepare("UPDATE users SET last_login = NOW(), last_ip = ?, last_user_agent = ? WHERE id = ?");
+        $stmt_update_login->bind_param("ssi", $last_ip, $user_agent, $user['id']);
+        $stmt_update_login->execute();
+        $stmt_update_login->close();
+
         // Redirect ke halaman dashboard yang sebenarnya
         header('Location: ' . base_url('/dashboard'));
         exit;

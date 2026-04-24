@@ -197,9 +197,33 @@ function initStokOpnamePage() {
         });
     });
 
+    // --- Heartbeat / Keep-Alive Mechanism ---
+    // Mencegah session timeout saat pengguna lama menghitung fisik barang
+    let heartbeatInterval;
+    function startHeartbeat() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        
+        heartbeatInterval = setInterval(async () => {
+            // Jika form sudah tidak ada di DOM (pindah halaman SPA), hentikan heartbeat
+            if (!document.getElementById('stockOpnameForm')) {
+                clearInterval(heartbeatInterval);
+                return;
+            }
+
+            try {
+                // Kirim request ringan ke server untuk memperbarui session lifetime
+                await fetch(`${basePath}/api/stok?action=list&limit=1`);
+                console.log('Stok Opname Heartbeat: Session kept alive');
+            } catch (e) {
+                console.warn('Stok Opname Heartbeat failed:', e);
+            }
+        }, 120000); // Setiap 2 menit
+    }
+
     // --- Initial Load ---
     loadAdjustmentAccounts();
     loadItems();
+    startHeartbeat();
 
     // Event listener untuk filter
     stockFilter.addEventListener('change', loadItems);

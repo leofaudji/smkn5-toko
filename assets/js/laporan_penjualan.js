@@ -181,7 +181,10 @@ function initLaporanPenjualanPage() {
                             ${item.global_discount > 0 ? `<div class="text-[10px] text-red-500 italic">Disc: -${formatRupiah(item.global_discount)}</div>` : ''}
                             <div class="text-sm font-bold text-primary">${formatRupiah(item.total)}</div>
                             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-                            <div class="text-[10px] font-bold ${profitClass}">Profit: ${formatRupiah(profit)}</div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] text-gray-400">Margin: ${parseFloat(item.margin_pct || 0).toFixed(1)}%</span>
+                                <span class="text-[10px] font-bold ${profitClass}">Profit: ${formatRupiah(profit)}</span>
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <div class="flex items-center justify-center space-x-3">
@@ -339,8 +342,11 @@ function initLaporanPenjualanPage() {
                             <p class="font-bold text-primary text-xs">${formatRupiah(summary.total_penjualan)}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-green-600">Profit</p>
-                            <p class="font-bold ${profitClass(summary.total_profit)} text-xs">${formatRupiah(summary.total_profit)}</p>
+                            <p class="text-xs text-green-600">Profit & Margin</p>
+                            <p class="font-bold ${profitClass(summary.total_profit)} text-xs">
+                                ${formatRupiah(summary.total_profit)} 
+                                <span class="text-[10px] font-normal">(${parseFloat(summary.total_margin_pct || 0).toFixed(1)}%)</span>
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -357,7 +363,10 @@ function initLaporanPenjualanPage() {
                         </div>
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-500">Profit:</span>
-                            <span class="font-bold ${profitClass(summary.shop.profit)}">${formatRupiah(summary.shop.profit)}</span>
+                            <span class="font-bold ${profitClass(summary.shop.profit)}">
+                                ${formatRupiah(summary.shop.profit)}
+                                <span class="text-xs font-normal ml-1">(${parseFloat(summary.shop.margin_pct || 0).toFixed(1)}%)</span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -374,7 +383,10 @@ function initLaporanPenjualanPage() {
                         </div>
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-500">Profit:</span>
-                            <span class="font-bold ${profitClass(summary.consignment.profit)}">${formatRupiah(summary.consignment.profit)}</span>
+                            <span class="font-bold ${profitClass(summary.consignment.profit)}">
+                                ${formatRupiah(summary.consignment.profit)}
+                                <span class="text-xs font-normal ml-1">(${parseFloat(summary.consignment.margin_pct || 0).toFixed(1)}%)</span>
+                            </span>
                         </div>
                     </div>
                 </div>

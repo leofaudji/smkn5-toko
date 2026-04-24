@@ -62,8 +62,13 @@ check_permission('pertumbuhan_laba_sales', 'menu');
 
 <!-- Chart Card -->
 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg mb-6 overflow-hidden border border-gray-100 dark:border-gray-700">
-    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex items-center">
+    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-between">
         <h5 class="text-lg font-semibold text-gray-900 dark:text-white"><i class="bi bi-graph-up mr-2 text-primary"></i>Tren Pertumbuhan Laba</h5>
+        <div id="break-even-info" class="hidden">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">
+                <i class="bi bi-bullseye mr-1"></i> Target Laba: <span id="target-value" class="ml-1 font-bold"></span>
+            </span>
+        </div>
     </div>
     <div class="p-6">
         <div class="relative w-full h-[350px]">
@@ -91,12 +96,13 @@ check_permission('pertumbuhan_laba_sales', 'menu');
                     <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Total Penjualan</th>
                     <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Total HPP</th>
                     <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Laba (Profit)</th>
+                    <th scope="col" class="px-6 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Margin (%)</th>
                     <th scope="col" class="px-6 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Pertumbuhan</th>
                 </tr>
             </thead>
             <tbody id="reportContent" class="divide-y divide-gray-50 dark:divide-gray-700/50 bg-white dark:bg-gray-800">
                 <tr>
-                    <td colspan="5" class="px-6 py-12 text-center">
+                    <td colspan="6" class="px-6 py-12 text-center">
                         <div class="flex flex-col items-center justify-center">
                             <div class="relative w-12 h-12">
                                 <div class="absolute top-0 left-0 w-full h-full border-4 border-primary/20 rounded-full"></div>
@@ -113,6 +119,7 @@ check_permission('pertumbuhan_laba_sales', 'menu');
                     <td class="px-6 py-5 text-right text-base text-gray-900 dark:text-white" id="footer-sales">-</td>
                     <td class="px-6 py-5 text-right text-sm text-gray-400 dark:text-gray-500 font-medium" id="footer-hpp">-</td>
                     <td class="px-6 py-5 text-right text-lg text-primary dark:text-primary-light font-black" id="footer-profit">-</td>
+                    <td class="px-6 py-5 text-center text-sm font-bold text-gray-900 dark:text-white" id="footer-margin">-</td>
                     <td class="px-6 py-5 text-center text-sm text-gray-900 dark:text-white">-</td>
                 </tr>
             </tfoot>

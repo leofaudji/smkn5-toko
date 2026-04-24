@@ -123,6 +123,7 @@ return [
         'children' => [
             ['key' => 'transaksi_berulang', 'label' => 'Transaksi Berulang', 'url' => '/transaksi-berulang'],
             ['key' => 'rekonsiliasi_bank', 'label' => 'Rekonsiliasi Bank', 'url' => '/rekonsiliasi-bank'],
+            ['key' => 'audit_transaksi', 'label' => 'Audit Transaksi', 'url' => '/audit-transaksi'],
         ]
     ],
 

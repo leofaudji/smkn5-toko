@@ -46,6 +46,17 @@ function initUsersPage() {
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${user.nama_lengkap || ''}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">${roleHtml}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${new Date(user.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                        ${user.last_login 
+                                            ? `<div>${new Date(user.last_login).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                                               <div class="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                                                   <i class="bi bi-geo-alt"></i> ${user.last_ip || 'N/A'}
+                                               </div>
+                                               <div class="text-xs text-gray-400 truncate max-w-[150px]" title="${user.last_user_agent || ''}">
+                                                   <i class="bi bi-cpu"></i> ${user.last_user_agent ? parseUA(user.last_user_agent) : 'N/A'}
+                                               </div>`
+                                            : '<span class="text-gray-400 italic">Belum pernah</span>'}
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3 edit-user-btn" data-id="${user.id}">Edit</button>
                                         ${user.id != 1 ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-user-btn" data-id="${user.id}">Hapus</button>` : ''}
@@ -55,17 +66,17 @@ function initUsersPage() {
                             usersTableBody.insertAdjacentHTML('beforeend', row);
                         });
                     } else {
-                        usersTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-5 text-gray-500">${data.message || 'Tidak ada data pengguna.'}</td></tr>`;
+                        usersTableBody.innerHTML = `<tr><td colspan="6" class="text-center p-5 text-gray-500">${data.message || 'Tidak ada data pengguna.'}</td></tr>`;
                     }
                 } catch (e) {
                     console.error("Gagal mem-parsing JSON:", e);
                     console.error("Respons mentah dari server:", text);
-                    usersTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-5 text-red-500">Error parsing data.</td></tr>`;
+                    usersTableBody.innerHTML = `<tr><td colspan="6" class="text-center p-5 text-red-500">Error parsing data.</td></tr>`;
                 }
             })
             .catch(error => {
                 console.error('Error fetching users:', error);
-                usersTableBody.innerHTML = '<tr><td colspan="5" class="text-center p-5 text-red-500">Gagal memuat data. Periksa konsol browser (F12) untuk detail.</td></tr>';
+                usersTableBody.innerHTML = '<tr><td colspan="6" class="text-center p-5 text-red-500">Gagal memuat data. Periksa konsol browser (F12) untuk detail.</td></tr>';
             });
     }
 
@@ -179,4 +190,30 @@ function initUsersPage() {
 
     // Load data awal
     loadUsers();
+}
+
+/**
+ * Helper sederhana untuk parse User Agent
+ */
+function parseUA(ua) {
+    if (!ua) return 'N/A';
+    
+    let browser = 'Unknown Browser';
+    let os = 'Unknown OS';
+
+    // Deteksi Browser
+    if (ua.includes('Firefox')) browser = 'Firefox';
+    else if (ua.includes('Edg/')) browser = 'Edge';
+    else if (ua.includes('Chrome')) browser = 'Chrome';
+    else if (ua.includes('Safari')) browser = 'Safari';
+    else if (ua.includes('MSIE') || ua.includes('Trident/')) browser = 'Internet Explorer';
+
+    // Deteksi OS
+    if (ua.includes('Windows')) os = 'Windows';
+    else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    else if (ua.includes('Macintosh')) os = 'macOS';
+    else if (ua.includes('Linux')) os = 'Linux';
+
+    return `${browser} on ${os}`;
 }

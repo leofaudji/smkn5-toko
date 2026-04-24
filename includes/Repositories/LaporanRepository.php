@@ -604,6 +604,7 @@ class LaporanRepository
             $row['total_hpp'] = $hpp;
             $row['profit'] = $profit;
             $row['pertumbuhan'] = $pertumbuhan;
+            $row['margin_pct'] = ($sales > 0) ? ($profit / $sales * 100) : 0;
 
             $report_data[] = $row;
             $profit_sebelumnya = $profit;

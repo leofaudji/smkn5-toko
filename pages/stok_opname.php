@@ -9,7 +9,12 @@ check_permission('stok_opname', 'menu');
 ?>
 
 <div class="flex flex-col sm:flex-row items-center justify-between mb-6">
-    <h1 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2 mb-4 sm:mb-0"><i class="bi bi-clipboard-check-fill"></i> Stok Opname</h1>
+    <h1 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2 mb-4 sm:mb-0">
+        <i class="bi bi-clipboard-check-fill text-primary-500"></i> Stok Opname
+        <span class="ml-2 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-200 dark:border-emerald-800/50 animate-pulse">
+            <i class="bi bi-activity mr-1"></i> Sesi Aktif
+        </span>
+    </h1>
 </div>
 
 <div class="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">

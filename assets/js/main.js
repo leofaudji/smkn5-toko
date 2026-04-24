@@ -429,6 +429,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/audit_saldo.js`)
             .then(() => initAuditSaldoPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/audit-transaksi') {
+        loadScript(`${basePath}/assets/js/audit_transaksi.js`)
+            .then(() => initAuditTransaksiPage())
+            .catch(err => console.error(err));
     } else if (cleanPath === '/leaderboard') {
         loadScript(`${basePath}/assets/js/leaderboard.js`)
             .then(() => typeof initLeaderboardPage === 'function' ? initLeaderboardPage() : loadLeaderboard())

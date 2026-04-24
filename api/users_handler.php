@@ -26,7 +26,7 @@ try {
             echo json_encode(['success' => true, 'data' => $user]);
         } else {
             // Get a list of all users, with optional role filtering (Refactored for robustness)
-            $sql = "SELECT u.id, u.username, u.nama_lengkap, u.created_at, u.role_id, r.name as role_name 
+            $sql = "SELECT u.id, u.username, u.nama_lengkap, u.created_at, u.last_login, u.last_ip, u.last_user_agent, u.role_id, r.name as role_name 
                     FROM users u 
                     LEFT JOIN roles r ON u.role_id = r.id";
             

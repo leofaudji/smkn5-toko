@@ -91,6 +91,18 @@ function initSettingsPage() {
                                 <textarea class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="receipt_footer" name="receipt_footer" rows="2" placeholder="Pesan di bagian bawah struk">${settings.receipt_footer || 'Terima Kasih\nBarang yang sudah dibeli tidak dapat ditukar/dikembalikan'}</textarea>
                             </div>
                             <hr class="border-gray-200 dark:border-gray-700">
+                            <h5 class="text-lg font-medium text-gray-900 dark:text-white">Pengaturan Analitik & Target</h5>
+                            <div>
+                                <label for="monthly_fixed_cost" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Biaya Operasional Bulanan (Estimasi)</label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-gray-500 sm:text-sm">Rp</span>
+                                    </div>
+                                    <input type="number" class="block w-full pl-10 pr-12 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" id="monthly_fixed_cost" name="monthly_fixed_cost" value="${settings.monthly_fixed_cost || 0}" placeholder="cth: 5000000">
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500 italic">Digunakan sebagai indikator titik impas (Break-Even) pada Laporan Pertumbuhan Laba.</p>
+                            </div>
+                            <hr class="border-gray-200 dark:border-gray-700">
                             <h5 class="text-lg font-medium text-gray-900 dark:text-white">Pengaturan Tanda Tangan Laporan</h5>
                              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>

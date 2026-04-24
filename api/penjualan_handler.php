@@ -377,7 +377,7 @@ function store_penjualan($db)
         }
 
         // B. Debit Kas / Piutang
-        $debit_acc_id = $is_hutang ? get_setting('default_sales_cash_account_id', null, $db) : ($payment_account_id ?: get_setting('default_sales_cash_account_id', null, $db));
+        $debit_acc_id = ($payment_method === 'cash' || $is_hutang) ? get_setting('default_sales_cash_account_id', null, $db) : ($payment_account_id ?: get_setting('default_sales_cash_account_id', null, $db));
         $cash_portion = $is_hutang ? $bayar : max(0, $total - $bayar_wb);
         $piutang_portion = $is_hutang ? max(0, $total - $bayar - $bayar_wb) : 0;
 
@@ -925,7 +925,7 @@ function update_penjualan($db)
         if ($is_hutang) {
             $debit_acc = get_setting('sales_receivable_account_id', null, $db);
         } else if ($payment_method === 'cash') {
-            $debit_acc = get_setting('default_cash_in', null, $db);
+            $debit_acc = get_setting('default_sales_cash_account_id', null, $db);
         } else {
             $debit_acc = $payment_account_id;
         }

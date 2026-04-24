@@ -28,21 +28,40 @@ async function loadData() {
     const start_date = startDateEl.value;
     const end_date = endDateEl.value;
 
-    contentBody.innerHTML = `<tr><td colspan="5" class="text-center py-5"><div class="spinner-border text-primary me-2"></div>Memuat data...</td></tr>`;
+    contentBody.innerHTML = `<tr><td colspan="6" class="text-center py-5"><div class="spinner-border text-primary me-2"></div>Memuat data...</td></tr>`;
 
     try {
-        const response = await fetch(`${basePath}/api/laporan-pertumbuhan-laba-sales?start_date=${start_date}&end_date=${end_date}`);
+        const params = new URLSearchParams({ start_date, end_date });
+        const [response, settingsRes] = await Promise.all([
+            fetch(`${basePath}/api/laporan-pertumbuhan-laba-sales?${params.toString()}`),
+            fetch(`${basePath}/api/settings`)
+        ]);
+        
         const result = await response.json();
+        const settingsResult = await settingsRes.json();
+        const monthlyFixedCost = settingsResult.status === 'success' ? parseFloat(settingsResult.data.monthly_fixed_cost || 0) : 0;
+
+        // Update Break-Even Info Badge
+        const breakEvenInfo = document.getElementById('break-even-info');
+        const targetValueEl = document.getElementById('target-value');
+        if (breakEvenInfo && targetValueEl) {
+            if (monthlyFixedCost > 0) {
+                breakEvenInfo.classList.remove('hidden');
+                targetValueEl.textContent = formatRupiah(monthlyFixedCost) + ' /bln';
+            } else {
+                breakEvenInfo.classList.add('hidden');
+            }
+        }
 
         if (result.status === 'success') {
             renderTable(result.data);
-            renderChart(result.data);
+            renderChart(result.data, monthlyFixedCost);
         } else {
-            contentBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${result.message}</td></tr>`;
+            contentBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">${result.message}</td></tr>`;
         }
     } catch (error) {
         console.error('Error:', error);
-        contentBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Gagal memuat data. Silakan coba lagi.</td></tr>`;
+        contentBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data. Silakan coba lagi.</td></tr>`;
     }
 }
 
@@ -51,7 +70,7 @@ function renderTable(data) {
     if (!contentBody) return;
     
     if (data.length === 0) {
-        contentBody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400 italic">Tidak ada data untuk periode ini.</td></tr>`;
+        contentBody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400 italic">Tidak ada data untuk periode ini.</td></tr>`;
         return;
     }
 
@@ -90,6 +109,9 @@ function renderTable(data) {
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-primary dark:text-primary-light">
                     ${formatRupiah(row.profit)}
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600 dark:text-gray-300">
+                    ${row.margin_pct.toFixed(1)}%
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                     ${growthBadge}
                 </td>
@@ -107,13 +129,18 @@ function renderTable(data) {
     const footerSales = document.getElementById('footer-sales');
     const footerHpp = document.getElementById('footer-hpp');
     const footerProfit = document.getElementById('footer-profit');
+    const footerMargin = document.getElementById('footer-margin');
     
     if (footerSales) footerSales.textContent = formatRupiah(totalSales);
     if (footerHpp) footerHpp.textContent = formatRupiah(totalHpp);
     if (footerProfit) footerProfit.textContent = formatRupiah(totalProfit);
+    if (footerMargin) {
+        const totalMargin = totalSales > 0 ? (totalProfit / totalSales * 100) : 0;
+        footerMargin.textContent = totalMargin.toFixed(1) + '%';
+    }
 }
 
-function renderChart(data) {
+function renderChart(data, monthlyFixedCost = 0) {
     const chartEl = document.getElementById('profitChart');
     if (!chartEl) return;
     
@@ -126,6 +153,10 @@ function renderChart(data) {
     const labels = data.map(row => new Date(row.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }));
     const profitData = data.map(row => row.profit);
     const salesData = data.map(row => row.total_penjualan);
+    
+    // Calculate daily break-even threshold (assuming 30 days)
+    const dailyBreakEven = monthlyFixedCost / 30;
+    const breakEvenData = data.map(() => dailyBreakEven);
 
     profitChart = new Chart(ctx, {
         type: 'line',
@@ -152,6 +183,16 @@ function renderChart(data) {
                     tension: 0.4,
                     borderWidth: 2,
                     pointRadius: 0
+                },
+                {
+                    label: 'Target Break-Even Harian',
+                    data: breakEvenData,
+                    borderColor: '#ffc107',
+                    borderDash: [2, 2],
+                    fill: false,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                    hidden: dailyBreakEven <= 0
                 }
             ]
         },

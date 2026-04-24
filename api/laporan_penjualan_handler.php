@@ -92,11 +92,28 @@ try {
         $summary_data['total_profit'] += $profit;
 
         if ($row['item_type'] === 'normal') {
-            $summary_data['shop'] = ['bruto' => $bruto, 'sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
+            $summary_data['shop'] = [
+                'bruto' => $bruto, 
+                'sales' => $sales, 
+                'hpp' => $hpp, 
+                'profit' => $profit,
+                'margin_pct' => ($sales > 0 ? ($profit / $sales * 100) : 0)
+            ];
         } elseif ($row['item_type'] === 'consignment') {
-            $summary_data['consignment'] = ['bruto' => $bruto, 'sales' => $sales, 'hpp' => $hpp, 'profit' => $profit];
+            $summary_data['consignment'] = [
+                'bruto' => $bruto, 
+                'sales' => $sales, 
+                'hpp' => $hpp, 
+                'profit' => $profit,
+                'margin_pct' => ($sales > 0 ? ($profit / $sales * 100) : 0)
+            ];
         }
     }
+    
+    // Calculate total margin percentage
+    $summary_data['total_margin_pct'] = ($summary_data['total_penjualan'] > 0) 
+        ? ($summary_data['total_profit'] / $summary_data['total_penjualan'] * 100) 
+        : 0;
 
     if ($view_type === 'detail') {
         // COUNT for detail mode (number of items sold)
@@ -165,7 +182,8 @@ try {
                 p.status, 
                 u.username,
                 COALESCE(cogs.total_hpp, 0) as total_hpp,
-                (p.total - COALESCE(cogs.total_hpp, 0)) as profit
+                (p.total - COALESCE(cogs.total_hpp, 0)) as profit,
+                ((p.total - COALESCE(cogs.total_hpp, 0)) / NULLIF(p.total, 0) * 100) as margin_pct
             FROM penjualan p
             LEFT JOIN users u ON p.created_by = u.id
             LEFT JOIN (
