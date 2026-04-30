@@ -111,7 +111,7 @@ class MutasiKonsinyasiReportBuilder implements ReportBuilderInterface
                 UNION ALL
 
                 SELECT 
-                    gl.tanggal,
+                    DATE(gl.tanggal) as tanggal,
                     ci.nama_barang,
                     s.nama_pemasok,
                     'Terjual' as tipe,
@@ -120,14 +120,29 @@ class MutasiKonsinyasiReportBuilder implements ReportBuilderInterface
                 FROM general_ledger gl
                 JOIN consignment_items ci ON gl.consignment_item_id = ci.id
                 JOIN suppliers s ON ci.supplier_id = s.id
-                $where_gl
-                GROUP BY gl.tanggal, ci.id
+                $where_gl AND gl.kredit > 0
+                GROUP BY DATE(gl.tanggal), ci.id
+
+                UNION ALL
+
+                SELECT 
+                    DATE(gl.tanggal) as tanggal,
+                    ci.nama_barang,
+                    s.nama_pemasok,
+                    'Batal Jual' as tipe,
+                    SUM(gl.qty) as qty,
+                    'Pembatalan penjualan konsinyasi' as keterangan
+                FROM general_ledger gl
+                JOIN consignment_items ci ON gl.consignment_item_id = ci.id
+                JOIN suppliers s ON ci.supplier_id = s.id
+                $where_gl AND gl.debit > 0
+                GROUP BY DATE(gl.tanggal), ci.id
             ) as combined_mutations
             ORDER BY tanggal DESC, nama_barang ASC
         ";
 
-        $final_params = array_merge($params_ci, $params_cr, $params_gl);
-        $final_types = $types_ci . $types_cr . $types_gl;
+        $final_params = array_merge($params_ci, $params_cr, $params_gl, $params_gl);
+        $final_types = $types_ci . $types_cr . $types_gl . $types_gl;
 
         $stmt = $this->conn->prepare($query);
         if (!empty($final_params)) {

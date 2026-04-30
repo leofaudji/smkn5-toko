@@ -97,13 +97,13 @@ try {
                 WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id
             ) - (
                 -- Total Pelunasan (Debit) linked ke supplier via keterangan
-                SELECT COALESCE(SUM(gl.debit), 0)
+                SELECT COALESCE(SUM(gl.debit - gl.kredit), 0)
                 FROM general_ledger gl 
                 JOIN suppliers s ON (
                     SUBSTRING_INDEX(SUBSTRING_INDEX(gl.keterangan, 'ke ', -1), ' -', 1) = s.nama_pemasok
                     OR gl.keterangan LIKE CONCAT('%Pelunasan Konsinyasi ke ', s.nama_pemasok, '%')
                 )
-                WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id AND gl.debit > 0
+                WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id
             ) as sisa_utang
         ")->fetch_assoc()['sisa_utang'] ?? 0;
 
