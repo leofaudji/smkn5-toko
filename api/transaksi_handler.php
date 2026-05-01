@@ -9,6 +9,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
+$redis = RedisManager::getInstance();
 $user_id = 1; // Semua user mengakses data yang sama
 $logged_in_user_id = $_SESSION['user_id']; // Untuk logging
 
@@ -292,6 +293,7 @@ try {
                 $stmt_gl->close();
 
                 $conn->commit();
+                $redis->flushReports();
                 log_activity($_SESSION['username'], 'Tambah Transaksi', "Transaksi '{$keterangan}' sejumlah {$jumlah} ditambahkan.");
                 echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil ditambahkan.']);
                 break;
@@ -406,6 +408,7 @@ try {
                 $stmt_gl->close();
 
                 $conn->commit();
+                $redis->flushReports();
                 log_activity($_SESSION['username'], 'Update Transaksi', "Transaksi ID {$id} diperbarui.");
                 echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil diperbarui.']);
                 break;
@@ -441,6 +444,7 @@ try {
                 $stmt_gl->close();
 
                 $conn->commit();
+                $redis->flushReports();
                 log_activity($_SESSION['username'], 'Hapus Transaksi', "Transaksi ID {$id} dihapus.");
                 echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil dihapus.']);
                 break;

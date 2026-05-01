@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../includes/bootstrap.php';
 
 $db = Database::getInstance()->getConnection();
+$redis = RedisManager::getInstance();
 
 $action = $_GET['action'] ?? '';
 
@@ -428,6 +429,8 @@ function store_penjualan($db)
 
         $stmt_gl->close();
         $db->commit();
+        $redis->flushReports();
+        $redis->flushSearchCache();
         echo json_encode(['success' => true, 'message' => 'Transaksi penjualan berhasil disimpan.', 'id' => $penjualanId]);
     } catch (Exception $e) {
         $db->rollback();
@@ -561,6 +564,8 @@ function void_penjualan($db)
         log_activity($_SESSION['username'], 'Batal Penjualan', "Membatalkan transaksi penjualan #{$penjualan['nomor_referensi']}");
 
         $db->commit();
+        $redis->flushReports();
+        $redis->flushSearchCache();
         echo json_encode(['success' => true, 'message' => 'Transaksi berhasil dibatalkan.']);
 
     } catch (Exception $e) {
@@ -615,9 +620,26 @@ function get_penjualan_detail($db)
 
 function search_produk($db)
 {
+    global $redis; // Redis instance dari awal file
     try {
         $user_id = 1; // ID Pemilik Data (Toko)
-        $term = $_GET['term'] ?? '';
+        $term = trim($_GET['term'] ?? '');
+        if (strlen($term) < 1) {
+            echo json_encode([]);
+            return;
+        }
+
+        $cache_key = "search:items:" . md5($term);
+
+        // Coba ambil dari Redis
+        if ($redis->isAvailable()) {
+            $cached = $redis->get($cache_key);
+            if ($cached !== null) {
+                echo json_encode($cached);
+                return;
+            }
+        }
+
         $search = "%{$term}%";
 
         // Ambil akun konsinyasi (Hutang Titipan) untuk tracking stok terjual
@@ -673,9 +695,6 @@ function search_produk($db)
 
         $stmt = $db->prepare($query);
 
-        // Params mapping: 
-        // 1-4 for normal (i, s, s, s)
-        // 5-9 for consignment (i, i, s, s, s) -> account_id, user_id, name, sku, barcode
         $stmt->bind_param(
             'isssiisss',
             $user_id,
@@ -692,6 +711,11 @@ function search_produk($db)
         $stmt->execute();
         $result = stmt_fetch_all($stmt);
         $stmt->close();
+
+        // Simpan ke Redis (TTL 60 detik)
+        if ($redis->isAvailable()) {
+            $redis->set($cache_key, $result, 60);
+        }
 
         echo json_encode($result);
     } catch (Exception $e) {
@@ -972,6 +996,8 @@ function update_penjualan($db)
         $gl_stmt->close();
         log_activity($_SESSION['username'], 'Update Penjualan', "Memperbarui transaksi penjualan #{$old_penjualan['nomor_referensi']}");
         $db->commit();
+        $redis->flushReports();
+        $redis->flushSearchCache();
         echo json_encode(['success' => true, 'message' => 'Transaksi berhasil diperbarui.']);
 
     } catch (Exception $e) {

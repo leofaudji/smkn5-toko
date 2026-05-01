@@ -12,6 +12,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
+$redis = RedisManager::getInstance();
 $user_id = 1; // ID Pemilik Data (Toko)
 $logged_in_user_id = $_SESSION['user_id'];
 
@@ -386,6 +387,7 @@ try {
                 $stmt_ks->close();
 
                 $conn->commit();
+                $redis->flushSearchCache();
                 echo json_encode(['status' => 'success', 'message' => 'Penyesuaian stok berhasil disimpan.']);
             } catch (Exception $e) {
                 $conn->rollback();
@@ -500,6 +502,7 @@ try {
                 }
 
                 $conn->commit();
+                $redis->flushSearchCache();
                 echo json_encode(['status' => 'success', 'message' => 'Stok opname batch berhasil disimpan.']);
             } catch (Exception $e) {
                 $conn->rollback();
@@ -715,6 +718,7 @@ try {
                     //update_general_ledger($conn, $user_id, $accountId, $tanggal_import, $debit, $credit, $keterangan_impor, $nomorReferensi, $journalId);
                 }
             }
+            $redis->flushSearchCache();
             echo json_encode(['status' => 'success', 'message' => $final_message]);
         }
     } else {

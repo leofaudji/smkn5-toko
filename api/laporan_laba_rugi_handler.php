@@ -10,6 +10,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
+$redis = RedisManager::getInstance();
 $user_id = 1; // ID Pemilik Data (Toko)
 
 $start_date = $_GET['start'] ?? date('Y-m-01');
@@ -17,6 +18,19 @@ $end_date = $_GET['end'] ?? date('Y-m-t');
 $is_comparison = isset($_GET['compare']) && $_GET['compare'] === 'true';
 $is_common_size = isset($_GET['common_size']) && $_GET['common_size'] === 'true';
 $include_closing = isset($_GET['include_closing']) && $_GET['include_closing'] === 'true';
+$start_date2 = $_GET['start2'] ?? '';
+$end_date2 = $_GET['end2'] ?? '';
+
+// ── Logika Caching Redis ───────────────────────────────────────
+$cache_key = "report:labarugi:{$user_id}:{$start_date}:{$end_date}:" . ($is_comparison ? "1:{$start_date2}:{$end_date2}" : "0") . ":" . ($is_common_size ? '1' : '0') . ":" . ($include_closing ? '1' : '0');
+
+if ($redis->isAvailable()) {
+    $cached_data = $redis->get($cache_key);
+    if ($cached_data) {
+        echo json_encode(['status' => 'success', 'data' => $cached_data, 'cached' => true]);
+        exit;
+    }
+}
 
 try {
     $repo = new LaporanRepository($conn);
@@ -42,8 +56,6 @@ try {
     $response_data = ['current' => $current_data];
 
     if ($is_comparison) {
-        $start_date2 = $_GET['start2'] ?? '';
-        $end_date2 = $_GET['end2'] ?? '';
         $previous_data = $repo->getLabaRugiData($user_id, $start_date2, $end_date2, $include_closing);
         $response_data['previous'] = $previous_data;
     }
@@ -53,9 +65,14 @@ try {
         if ($is_comparison && isset($response_data['previous'])) $calculate_percentages($response_data['previous']);
     }
 
-    echo json_encode(['status' => 'success', 'data' => $response_data]);
+    // Simpan ke cache selama 5 menit
+    if ($redis->isAvailable()) {
+        $redis->set($cache_key, $response_data, 300);
+    }
+
+    echo json_encode(['status' => 'success', 'data' => $response_data, 'cached' => false]);
 
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-}
+}

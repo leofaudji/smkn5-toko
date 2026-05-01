@@ -9,6 +9,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
+$redis = RedisManager::getInstance();
 $user_id = 1; // ID Pemilik Data (Toko)
 $logged_in_user_id = $_SESSION['user_id'];
 
@@ -370,6 +371,8 @@ try {
 
                 // 7. Commit Transaksi
                 $conn->commit();
+                $redis->flushReports();
+                $redis->flushSearchCache();
 
                 $log_message = ($action === 'add') ? "Pembelian #{$pembelian_id} sejumlah {$total_pembelian} ditambahkan." : "Pembelian #{$pembelian_id} diperbarui.";
                 $success_message = ($action === 'add') ? 'Pembelian berhasil disimpan.' : 'Pembelian berhasil diperbarui.';
@@ -435,6 +438,8 @@ try {
                 $stmt->close();
 
                 $conn->commit();
+                $redis->flushReports();
+                $redis->flushSearchCache();
                 log_activity($_SESSION['username'], 'Hapus Pembelian', "Pembelian ID {$id} dihapus.");
                 echo json_encode(['status' => 'success', 'message' => 'Pembelian berhasil dihapus.']);
                 break;

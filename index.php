@@ -158,6 +158,10 @@ $router->post('/api/penjualan', 'api/penjualan_handler.php', ['auth']);
 $router->get('/api/stok', 'api/stok_handler.php', ['auth']);
 $router->post('/api/stok', 'api/stok_handler.php', ['auth']);
 
+// API untuk Stok Opname Multi-User
+$router->get('/api/stok-opname', 'api/stok_opname_handler.php', ['auth']);
+$router->post('/api/stok-opname', 'api/stok_opname_handler.php', ['auth']);
+
 // API untuk fitur lainnya (Rekening, Kategori, Anggaran)
 $router->get('/api/coa', 'api/coa_handler.php', ['auth']);
 $router->post('/api/coa', 'api/coa_handler.php', ['auth']);

@@ -24,6 +24,7 @@ Config::load(PROJECT_ROOT . '/.env');
 
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/RateLimiter.php';
+require_once __DIR__ . '/RedisManager.php';
 
 /**
  * Mencoba untuk login pengguna menggunakan data dari cookie.

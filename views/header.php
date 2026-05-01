@@ -62,6 +62,7 @@ if (file_exists($changelog_file)) {
 
         const userRole = '<?= $_SESSION['role'] ?? 'warga' ?>';
         const username = '<?= $_SESSION['username'] ?? '' ?>';
+        const currentUserId = <?= (int)($_SESSION['user_id'] ?? 0) ?>;
         const basePath = '<?= BASE_PATH ?>';
         const notificationInterval = <?= $notification_interval ?>;
         const logCleanupDays = <?= $log_cleanup_days ?>;

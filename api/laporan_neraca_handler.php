@@ -10,19 +10,36 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-// Ambil user_id dari session yang sudah login.
-// Pastikan Anda menyimpan 'user_id' di dalam $_SESSION saat proses login.
-$user_id = 1; // ID Pemilik Data (Toko)
+$redis = RedisManager::getInstance();
 
+$user_id = 1; // ID Pemilik Data (Toko)
 $per_tanggal = $_GET['tanggal'] ?? date('Y-m-d');
 $include_closing = isset($_GET['include_closing']) && $_GET['include_closing'] === 'true';
+
+// ── Logika Caching Redis ───────────────────────────────────────
+$cache_key = "report:neraca:{$user_id}:{$per_tanggal}:" . ($include_closing ? '1' : '0');
+
+if ($redis->isAvailable()) {
+    $cached_data = $redis->get($cache_key);
+    if ($cached_data) {
+        // Tambahkan flag agar UI tahu ini data dari cache (opsional)
+        echo json_encode(['status' => 'success', 'data' => $cached_data, 'cached' => true]);
+        exit;
+    }
+}
 
 try {
     // Gunakan Repository untuk konsistensi data dengan PDF
     $repo = new LaporanRepository($conn);
     $neraca_accounts = $repo->getNeracaDataWithProfitLoss($user_id, $per_tanggal, $include_closing);
+    $final_data = array_values($neraca_accounts);
 
-    echo json_encode(['status' => 'success', 'data' => array_values($neraca_accounts)]);
+    // Simpan ke cache selama 5 menit (300 detik)
+    if ($redis->isAvailable()) {
+        $redis->set($cache_key, $final_data, 300);
+    }
+
+    echo json_encode(['status' => 'success', 'data' => $final_data, 'cached' => false]);
 
 } catch (Exception $e) {
     http_response_code(500);
