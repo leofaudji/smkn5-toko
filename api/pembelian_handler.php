@@ -98,7 +98,10 @@ try {
                 'to' => $to,
                 'total' => $total_records
             ];
-            echo json_encode(['status' => 'success', 'data' => $pembelian_list, 'pagination' => $pagination]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $pembelian_list, 'pagination' => $pagination], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         } elseif ($action === 'get_single') {
             $id = (int) ($_GET['id'] ?? 0);
@@ -131,7 +134,10 @@ try {
             $details = stmt_fetch_all($stmt_details);
             $stmt_details->close();
 
-            echo json_encode(['status' => 'success', 'data' => ['header' => $header, 'details' => $details]]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => ['header' => $header, 'details' => $details]], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         } else {
             throw new Exception("Aksi GET tidak valid.");
         }
@@ -377,7 +383,10 @@ try {
                 $log_message = ($action === 'add') ? "Pembelian #{$pembelian_id} sejumlah {$total_pembelian} ditambahkan." : "Pembelian #{$pembelian_id} diperbarui.";
                 $success_message = ($action === 'add') ? 'Pembelian berhasil disimpan.' : 'Pembelian berhasil diperbarui.';
                 log_activity($_SESSION['username'], 'Simpan Pembelian', $log_message);
-                echo json_encode(['status' => 'success', 'message' => $success_message, 'pembelian_id' => $pembelian_id]);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'message' => $success_message, 'pembelian_id' => $pembelian_id], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
                 break;
 
             case 'delete':
@@ -441,7 +450,10 @@ try {
                 $redis->flushReports();
                 $redis->flushSearchCache();
                 log_activity($_SESSION['username'], 'Hapus Pembelian', "Pembelian ID {$id} dihapus.");
-                echo json_encode(['status' => 'success', 'message' => 'Pembelian berhasil dihapus.']);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'message' => 'Pembelian berhasil dihapus.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
                 break;
 
             default:
@@ -449,12 +461,11 @@ try {
         }
     }
 } catch (Exception $e) {
-    // Jika terjadi error dan sedang dalam transaksi, batalkan
-    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) {
-        $conn->rollback();
-    }
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
 }
 
 ?>

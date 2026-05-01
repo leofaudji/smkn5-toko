@@ -115,6 +115,8 @@ function get_all_penjualan($db)
         $total = $countResult['total'];
         $countStmt->close();
 
+        header('Content-Type: application/json; charset=UTF-8');
+        if (ob_get_length()) ob_clean();
         echo json_encode([
             'success' => true,
             'data' => $data,
@@ -124,7 +126,8 @@ function get_all_penjualan($db)
                 'total_records' => $total,
                 'limit' => $limit
             ]
-        ]);
+        ], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        die();
 
     } catch (Exception $e) {
         http_response_code(500);
@@ -431,7 +434,10 @@ function store_penjualan($db)
         $db->commit();
         $redis->flushReports();
         $redis->flushSearchCache();
-        echo json_encode(['success' => true, 'message' => 'Transaksi penjualan berhasil disimpan.', 'id' => $penjualanId]);
+        header('Content-Type: application/json; charset=UTF-8');
+        if (ob_get_length()) ob_clean();
+        echo json_encode(['success' => true, 'message' => 'Transaksi penjualan berhasil disimpan.', 'id' => $penjualanId], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        die();
     } catch (Exception $e) {
         $db->rollback();
         http_response_code(500);
@@ -566,7 +572,10 @@ function void_penjualan($db)
         $db->commit();
         $redis->flushReports();
         $redis->flushSearchCache();
-        echo json_encode(['success' => true, 'message' => 'Transaksi berhasil dibatalkan.']);
+        header('Content-Type: application/json; charset=UTF-8');
+        if (ob_get_length()) ob_clean();
+        echo json_encode(['success' => true, 'message' => 'Transaksi berhasil dibatalkan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        die();
 
     } catch (Exception $e) {
         $db->rollback();
@@ -607,7 +616,10 @@ function get_penjualan_detail($db)
             $stmt->execute();
             $penjualan['items'] = stmt_fetch_all($stmt);
             $stmt->close();
-            echo json_encode(['success' => true, 'data' => $penjualan]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['success' => true, 'data' => $penjualan], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         } else {
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Data tidak ditemukan.']);
@@ -632,11 +644,13 @@ function search_produk($db)
         $cache_key = "search:items:" . md5($term);
 
         // Coba ambil dari Redis
-        if ($redis->isAvailable()) {
+        if ($redis && $redis->isAvailable()) {
             $cached = $redis->get($cache_key);
             if ($cached !== null) {
-                echo json_encode($cached);
-                return;
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
             }
         }
 
@@ -713,15 +727,25 @@ function search_produk($db)
         $stmt->close();
 
         // Simpan ke Redis (TTL 60 detik)
-        if ($redis->isAvailable()) {
+        if ($redis && $redis->isAvailable()) {
             $redis->set($cache_key, $result, 60);
         }
 
-        echo json_encode($result);
+        header('Content-Type: application/json; charset=UTF-8');
+        $json_output = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        
+        if ($json_output === false || $json_output === 'null') {
+            $json_output = json_encode([]); 
+        }
+
+        if (ob_get_length()) ob_clean();
+        echo $json_output;
+        die();
     } catch (Exception $e) {
-        // Jika terjadi error, kirim pesan error dengan status 500
+        if (ob_get_length()) ob_clean();
         http_response_code(500);
         echo json_encode(['success' => false, 'message' => 'Gagal mencari barang: ' . $e->getMessage()]);
+        die();
     }
 }
 
@@ -735,7 +759,10 @@ function search_member($db)
     $stmt->execute();
     $result = stmt_fetch_all($stmt);
     $stmt->close();
-    echo json_encode(['success' => true, 'data' => $result]);
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
+    echo json_encode(['success' => true, 'data' => $result], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
 }
 
 function update_penjualan($db)
@@ -998,7 +1025,10 @@ function update_penjualan($db)
         $db->commit();
         $redis->flushReports();
         $redis->flushSearchCache();
-        echo json_encode(['success' => true, 'message' => 'Transaksi berhasil diperbarui.']);
+        header('Content-Type: application/json; charset=UTF-8');
+        if (ob_get_length()) ob_clean();
+        echo json_encode(['success' => true, 'message' => 'Transaksi berhasil diperbarui.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        die();
 
     } catch (Exception $e) {
         $db->rollback();

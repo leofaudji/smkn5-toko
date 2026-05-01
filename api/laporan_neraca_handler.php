@@ -22,9 +22,10 @@ $cache_key = "report:neraca:{$user_id}:{$per_tanggal}:" . ($include_closing ? '1
 if ($redis->isAvailable()) {
     $cached_data = $redis->get($cache_key);
     if ($cached_data) {
-        // Tambahkan flag agar UI tahu ini data dari cache (opsional)
-        echo json_encode(['status' => 'success', 'data' => $cached_data, 'cached' => true]);
-        exit;
+        header('Content-Type: application/json; charset=UTF-8');
+        if (ob_get_length()) ob_clean();
+        echo json_encode(['status' => 'success', 'data' => $cached_data, 'cached' => true], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        die();
     }
 }
 
@@ -39,9 +40,15 @@ try {
         $redis->set($cache_key, $final_data, 300);
     }
 
-    echo json_encode(['status' => 'success', 'data' => $final_data, 'cached' => false]);
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'success', 'data' => $final_data, 'cached' => false], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
 
 } catch (Exception $e) {
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
 }

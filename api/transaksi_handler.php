@@ -30,8 +30,10 @@ try {
                 'beban' => array_values(array_filter($all_accounts, fn($acc) => $acc['tipe_akun'] == 'Beban')),
             ];
 
-            echo json_encode(['status' => 'success', 'data' => $accounts]);
-            exit;
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $accounts], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         }
         if ($action === 'get_journal_entry') {
             $id = (int) ($_GET['id'] ?? 0);
@@ -71,9 +73,10 @@ try {
                 $jurnal[] = ['akun' => $tx['nama_akun_kas'], 'debit' => 0, 'kredit' => $tx['jumlah']];
             }
 
-            $response = ['status' => 'success', 'data' => ['transaksi' => $tx, 'jurnal' => $jurnal]];
-            echo json_encode($response);
-            exit;
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         }
 
         // Default action: list transactions
@@ -170,7 +173,10 @@ try {
             'limit' => $limit
         ];
 
-        echo json_encode(['status' => 'success', 'data' => $transactions, 'pagination' => $pagination]);
+        header('Content-Type: application/json; charset=UTF-8');
+        if (ob_get_length()) ob_clean();
+        echo json_encode(['status' => 'success', 'data' => $transactions, 'pagination' => $pagination], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        die();
 
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
@@ -295,7 +301,10 @@ try {
                 $conn->commit();
                 $redis->flushReports();
                 log_activity($_SESSION['username'], 'Tambah Transaksi', "Transaksi '{$keterangan}' sejumlah {$jumlah} ditambahkan.");
-                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil ditambahkan.']);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil ditambahkan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
                 break;
 
             case 'get_single':
@@ -312,7 +321,10 @@ try {
                 if (!$transaction)
                     throw new Exception("Transaksi tidak ditemukan.");
 
-                echo json_encode(['status' => 'success', 'data' => $transaction]);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'data' => $transaction], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
                 break;
 
             case 'update':
@@ -410,7 +422,10 @@ try {
                 $conn->commit();
                 $redis->flushReports();
                 log_activity($_SESSION['username'], 'Update Transaksi', "Transaksi ID {$id} diperbarui.");
-                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil diperbarui.']);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil diperbarui.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
                 break;
 
             case 'delete':
@@ -446,7 +461,10 @@ try {
                 $conn->commit();
                 $redis->flushReports();
                 log_activity($_SESSION['username'], 'Hapus Transaksi', "Transaksi ID {$id} dihapus.");
-                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil dihapus.']);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil dihapus.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
                 break;
 
             default:
@@ -454,11 +472,13 @@ try {
         }
     }
 } catch (Exception $e) {
-    // Check if in transaction before rolling back, compatible with older PHP versions
     if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) {
         $conn->rollback();
     }
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
 }
 ?>

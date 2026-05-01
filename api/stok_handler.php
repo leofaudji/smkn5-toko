@@ -88,7 +88,10 @@ try {
                 'to' => min($offset + $limit, $total_records),
                 'total' => $total_records
             ];
-            echo json_encode(['status' => 'success', 'data' => $items, 'pagination' => $pagination]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $items, 'pagination' => $pagination], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         } elseif ($action === 'get_accounts') {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
@@ -97,12 +100,10 @@ try {
             $all_accounts = stmt_fetch_all($stmt);
             $stmt->close();
 
-            $accounts = [
-                'aset' => array_values(array_filter($all_accounts, fn($acc) => $acc['tipe_akun'] == 'Aset')),
-                'beban' => array_values(array_filter($all_accounts, fn($acc) => $acc['tipe_akun'] == 'Beban')),
-                'pendapatan' => array_values(array_filter($all_accounts, fn($acc) => $acc['tipe_akun'] == 'Pendapatan')),
-            ];
-            echo json_encode(['status' => 'success', 'data' => $accounts]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $accounts], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         } elseif ($action === 'get_categories') {
             $stmt = $conn->prepare("SELECT id, nama_kategori FROM item_categories WHERE user_id = ? ORDER BY nama_kategori ASC");
@@ -110,7 +111,10 @@ try {
             $stmt->execute();
             $categories = stmt_fetch_all($stmt);
             $stmt->close();
-            echo json_encode(['status' => 'success', 'data' => $categories]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $categories], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         } elseif ($action === 'get_adjustment_accounts') {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun FROM accounts WHERE user_id = ? AND tipe_akun IN ('Beban', 'Ekuitas', 'Pendapatan') ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
@@ -131,7 +135,10 @@ try {
             $history = stmt_fetch_all($stmt);
             $stmt->close();
 
-            echo json_encode(['status' => 'success', 'data' => $history]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $history], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         } elseif ($action === 'get_kartu_stok') {
             $item_id = (int) ($_GET['item_id'] ?? 0);
@@ -214,7 +221,10 @@ try {
                 'transactions' => $transactions
             ];
 
-            echo json_encode(['status' => 'success', 'data' => $response_data]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $response_data], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         }
 
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -267,7 +277,10 @@ try {
             }
 
             $stmt->close();
-            echo json_encode(['status' => 'success', 'message' => $message]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'message' => $message], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         } elseif ($action === 'get_single') {
             $id = (int) ($_POST['id'] ?? 0); // This is correct for get_single
@@ -278,7 +291,10 @@ try {
             $stmt->close();
             if (!$item)
                 throw new Exception("Barang tidak ditemukan.");
-            echo json_encode(['status' => 'success', 'data' => $item]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $item], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         } elseif ($action === 'delete') {
             $id = (int) ($_POST['id'] ?? 0); // This is correct for delete
@@ -287,7 +303,10 @@ try {
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
             $stmt->close();
-            echo json_encode(['status' => 'success', 'message' => 'Barang berhasil dihapus.']);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'message' => 'Barang berhasil dihapus.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         } elseif ($action === 'adjust_stock') {
             // This part uses JSON, so we need to read from the raw input
@@ -388,7 +407,10 @@ try {
 
                 $conn->commit();
                 $redis->flushSearchCache();
-                echo json_encode(['status' => 'success', 'message' => 'Penyesuaian stok berhasil disimpan.']);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'message' => 'Penyesuaian stok berhasil disimpan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
             } catch (Exception $e) {
                 $conn->rollback();
                 throw $e; // Re-throw untuk ditangkap oleh handler utama
@@ -503,7 +525,10 @@ try {
 
                 $conn->commit();
                 $redis->flushSearchCache();
-                echo json_encode(['status' => 'success', 'message' => 'Stok opname batch berhasil disimpan.']);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'message' => 'Stok opname batch berhasil disimpan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
             } catch (Exception $e) {
                 $conn->rollback();
                 throw $e; // Re-throw untuk ditangkap oleh handler utama
@@ -719,15 +744,24 @@ try {
                 }
             }
             $redis->flushSearchCache();
-            echo json_encode(['status' => 'success', 'message' => $final_message]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'message' => $final_message], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         }
     } else {
         // Jika method tidak dikenali
         throw new Exception("Metode request tidak valid.");
     }
 } catch (Exception $e) {
+    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) {
+        $conn->rollback();
+    }
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
 }
 
 ?>

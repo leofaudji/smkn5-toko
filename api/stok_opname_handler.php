@@ -38,7 +38,10 @@ try {
             $stmt->execute();
             $session = stmt_fetch_assoc($stmt);
             $stmt->close();
-            echo json_encode(['status' => 'success', 'data' => $session]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $session], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         // ── Daftar barang dalam sesi ────────────────────────────────
         } elseif ($action === 'get_session_items') {
@@ -99,7 +102,10 @@ try {
             $summary = stmt_fetch_assoc($s2);
             $s2->close();
 
-            echo json_encode(['status' => 'success', 'data' => $items, 'summary' => $summary]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $items, 'summary' => $summary], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         // ── Polling progress ────────────────────────────────────────
         } elseif ($action === 'get_session_progress') {
@@ -185,7 +191,10 @@ try {
                 }
             }
 
-            echo json_encode(['status' => 'success', 'petugas' => $petugas, 'summary' => $summary]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'petugas' => $petugas, 'summary' => $summary], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         // ── Riwayat sesi ────────────────────────────────────────────
         } elseif ($action === 'get_session_history') {
@@ -202,7 +211,10 @@ try {
             $stmt->execute();
             $history = stmt_fetch_all($stmt);
             $stmt->close();
-            echo json_encode(['status' => 'success', 'data' => $history]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $history], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         }
 
     /* ================================================================
@@ -246,7 +258,10 @@ try {
             $pop->close();
 
             $conn->commit();
-            echo json_encode(['status' => 'success', 'message' => "Sesi dibuka dengan {$item_count} barang.", 'session_id' => $session_id]);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'message' => "Sesi dibuka dengan {$item_count} barang.", 'session_id' => $session_id], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         // ── Auto-save satu item ─────────────────────────────────────
         } elseif ($action === 'save_draft_item') {
@@ -310,7 +325,10 @@ try {
                 }
             }
 
-            echo json_encode(['status' => 'success']);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
 
         // ── Finalisasi sesi ─────────────────────────────────────────
         } elseif ($action === 'finalize_session') {
@@ -422,7 +440,10 @@ try {
                 $msg = $jumlah > 0
                     ? "{$jumlah} barang berhasil disesuaikan. Jurnal #{$journal_id} telah dibuat."
                     : "Sesi diselesaikan. Tidak ada selisih stok.";
-                echo json_encode(['status' => 'success', 'message' => $msg]);
+                header('Content-Type: application/json; charset=UTF-8');
+                if (ob_get_length()) ob_clean();
+                echo json_encode(['status' => 'success', 'message' => $msg], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                die();
             } catch (Exception $e) {
                 $conn->rollback();
                 throw $e;
@@ -461,11 +482,20 @@ try {
 
             $conn->commit();
 
-            echo json_encode(['status' => 'success', 'message' => 'Sesi berhasil dibatalkan.']);
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'message' => 'Sesi berhasil dibatalkan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
         }
     }
 } catch (Exception $e) {
+    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) {
+        $conn->rollback();
+    }
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
 }
 ?>
