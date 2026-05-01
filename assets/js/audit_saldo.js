@@ -29,15 +29,30 @@ window.initAuditSaldoPage = function () {
 
     function renderAuditTable(data) {
         tableBody.innerHTML = '';
+        
+        // Mapping modul ke URL navigasi
+        const moduleRoutes = {
+            'Persediaan Barang': '/laporan-persediaan',
+            'Piutang Anggota': '/laporan-piutang',
+            'Wajib Belanja (Anggota)': '/laporan-wb-tahunan',
+            'Utang Titipan (Konsinyasi)': '/pelunasan-konsinyasi'
+        };
+
         data.forEach(item => {
             const isMatch = Math.abs(item.diff) < 1;
             const statusClass = isMatch ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
             const statusText = isMatch ? 'Cocok' : 'Selisih';
+            
+            // Tentukan link navigasi
+            const route = moduleRoutes[item.module] || '#';
+            const moduleLink = route !== '#' 
+                ? `<a href="${basePath}${route}" class="text-primary hover:underline font-bold transition-colors" onclick="event.preventDefault(); navigate('${basePath}${route}')"><i class="bi bi-box-arrow-in-right mr-1"></i> ${item.module}</a>`
+                : item.module;
 
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors';
             row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${item.module}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${moduleLink}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${item.account}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">${currencyFormatter.format(item.sub_ledger)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">${currencyFormatter.format(item.gl_balance)}</td>

@@ -1,3 +1,9 @@
+<?php
+$is_spa_request = isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_REQUEST'] === 'true';
+if (!$is_spa_request) {
+    require_once PROJECT_ROOT . '/views/header.php';
+}
+?>
 <div class="p-6">
     <div class="mb-6 flex justify-between items-center">
         <div>
@@ -239,3 +245,10 @@
             </div>
         </div>
     <?php endif; ?>
+</div>
+
+<?php
+if (!$is_spa_request) {
+    require_once PROJECT_ROOT . '/views/footer.php';
+}
+?>

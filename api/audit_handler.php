@@ -45,7 +45,23 @@ function get_gl_balance($conn, $account_id, $user_id)
 }
 
 try {
+    $redis = RedisManager::getInstance();
+    $cacheKey = "audit:results:user_$user_id";
+
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        // --- 1. Cek Cache Redis ---
+        if ($redis->isAvailable()) {
+            $cachedData = $redis->get($cacheKey);
+            if ($cachedData) {
+                echo json_encode([
+                    'status' => 'success', 
+                    'data' => $cachedData, 
+                    'source' => 'cache' // Memberi tahu frontend data dari Redis
+                ]);
+                exit;
+            }
+        }
+
         $results = [];
 
         // 1. AUDIT PERSEDIAAN (NORMAL)
@@ -87,16 +103,14 @@ try {
         // 4. AUDIT UTANG TITIPAN (KONSINYASI)
         $cons_acc_id = get_setting('consignment_payable_account', null, $conn);
 
-        // Sub-ledger Utang Konsinyasi = (Total Utang dari Item) - (Total Pelunasan ke Supplier)
+        // Sub-ledger Utang Konsinyasi
         $sub_cons_debt = $conn->query("
             SELECT (
-                -- Total Utang (Kredit) linked ke item
                 SELECT COALESCE(SUM(gl.kredit - gl.debit), 0)
                 FROM general_ledger gl 
                 JOIN consignment_items ci ON gl.consignment_item_id = ci.id 
                 WHERE gl.user_id = $user_id AND gl.account_id = $cons_acc_id
             ) - (
-                -- Total Pelunasan (Debit) linked ke supplier via keterangan
                 SELECT COALESCE(SUM(gl.debit - gl.kredit), 0)
                 FROM general_ledger gl 
                 JOIN suppliers s ON (
@@ -107,11 +121,8 @@ try {
             ) as sisa_utang
         ")->fetch_assoc()['sisa_utang'] ?? 0;
 
-        // GL Balance sudah mencakup saldo_awal lewat fungsi get_gl_balance
         $gl_cons = get_gl_balance($conn, $cons_acc_id, $user_id);
 
-        // Supaya match, sub-ledger harus ditambah dengan komponen "Lain-lain" (Manual Adjustment)
-        // Tapi di Audit Saldo, kita justru ingin menonjolkan jika ada diff tersebut.
         $results[] = [
             'module' => 'Utang Titipan (Konsinyasi)',
             'sub_ledger' => (float) $sub_cons_debt,
@@ -120,8 +131,18 @@ try {
             'account' => 'Utang Konsinyasi'
         ];
 
-        echo json_encode(['status' => 'success', 'data' => $results]);
+        // --- 2. Simpan ke Cache Redis (TTL 1 Jam) ---
+        if ($redis->isAvailable()) {
+            $redis->set($cacheKey, $results, 3600);
+        }
+
+        echo json_encode(['status' => 'success', 'data' => $results, 'source' => 'database']);
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // --- 3. Invalidate Cache saat ada perbaikan data ---
+        if ($redis->isAvailable()) {
+            $redis->del($cacheKey);
+        }
+
         $input = json_decode(file_get_contents('php://input'), true);
         $action = $input['action'] ?? '';
         if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {

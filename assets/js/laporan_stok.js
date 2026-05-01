@@ -107,4 +107,27 @@ function initLaporanStokPage() {
             </div>
         `;
     }
+
+    // Event listener untuk tombol export CSV
+    document.getElementById('export-stok-csv').addEventListener('click', function() {
+        const startDate = startDateInput.value.split('-').reverse().join('-');
+        const endDate = endDateInput.value.split('-').reverse().join('-');
+        const params = new URLSearchParams({
+            report: 'laporan-stok',
+            start_date: startDate,
+            end_date: endDate
+        });
+        window.location.href = `${basePath}/api/csv?${params.toString()}`;
+    });
+
+    // Event listener untuk tombol export PDF
+    document.getElementById('export-stok-pdf').addEventListener('click', function() {
+        const startDate = startDateInput.value.split('-').reverse().join('-');
+        const endDate = endDateInput.value.split('-').reverse().join('-');
+        printPdf({
+            report: 'laporan-stok',
+            start_date: startDate,
+            end_date: endDate
+        });
+    });
 }

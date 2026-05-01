@@ -12,7 +12,10 @@ check_permission('nilai_persediaan', 'menu');
     <h1 class="text-2xl font-semibold text-gray-800 dark:text-white flex items-center gap-2"><i class="bi bi-archive-fill"></i> Laporan Nilai Persediaan</h1>
     <div class="flex mb-2 md:mb-0 gap-2">
         <button id="printButton" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
-            <i class="bi bi-printer-fill text-gray-600 dark:text-gray-400 mr-2"></i> Cetak
+            <i class="bi bi-printer-fill text-gray-600 dark:text-gray-400 mr-2"></i> Cetak Browser
+        </button>
+        <button id="exportPdfButton" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+            <i class="bi bi-file-earmark-pdf-fill mr-2"></i> Export PDF
         </button>
         <button id="exportButton" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
             <i class="bi bi-file-earmark-spreadsheet-fill mr-2"></i> Export Excel

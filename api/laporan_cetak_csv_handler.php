@@ -469,6 +469,80 @@ try {
             break;
         }
 
+        case 'laporan-stok': {
+            $start_date = $_GET['start_date'] ?? '';
+            $end_date = $_GET['end_date'] ?? '';
+            $query = "
+                SELECT 
+                    i.nama_barang, i.sku, i.harga_beli,
+                    COALESCE(sa.stok_awal, 0) as stok_awal,
+                    COALESCE(p.masuk, 0) as masuk,
+                    COALESCE(p.keluar, 0) as keluar
+                FROM items i
+                LEFT JOIN (
+                    SELECT item_id, SUM(debit - kredit) as stok_awal
+                    FROM kartu_stok
+                    WHERE tanggal < ? AND user_id = ?
+                    GROUP BY item_id
+                ) sa ON i.id = sa.item_id
+                LEFT JOIN (
+                    SELECT item_id, SUM(debit) as masuk, SUM(kredit) as keluar
+                    FROM kartu_stok
+                    WHERE tanggal BETWEEN ? AND CONCAT(?, ' 23:59:59') AND user_id = ?
+                    GROUP BY item_id
+                ) p ON i.id = p.item_id
+                WHERE i.user_id = ?
+                ORDER BY i.nama_barang ASC
+            ";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param('sissii', $start_date, $user_id, $start_date, $end_date, $user_id, $user_id);
+            $stmt->execute();
+            $result = stmt_fetch_all($stmt);
+            $stmt->close();
+
+            fputcsv($output, ['Laporan Pergerakan Stok']);
+            fputcsv($output, ['Periode:', $start_date . ' s/d ' . $end_date]);
+            fputcsv($output, []);
+            fputcsv($output, ['Nama Barang', 'SKU', 'Stok Awal', 'Masuk', 'Keluar', 'Stok Akhir', 'Harga Beli', 'Nilai Persediaan']);
+            foreach ($result as $row) {
+                $stok_akhir = $row['stok_awal'] + $row['masuk'] - $row['keluar'];
+                fputcsv($output, [
+                    $row['nama_barang'], $row['sku'], $row['stok_awal'], $row['masuk'], $row['keluar'], $stok_akhir, $row['harga_beli'], $stok_akhir * $row['harga_beli']
+                ]);
+            }
+            break;
+        }
+
+        case 'laporan-persediaan': {
+            $search = $_GET['search'] ?? '';
+            $where = "WHERE user_id = ?";
+            $params = [$user_id];
+            $types = "i";
+            if (!empty($search)) {
+                $where .= " AND (nama_barang LIKE ? OR sku LIKE ?)";
+                $searchTerm = '%' . $search . '%';
+                array_push($params, $searchTerm, $searchTerm);
+                $types .= "ss";
+            }
+            $query = "SELECT nama_barang, sku, stok, harga_beli FROM items $where ORDER BY nama_barang ASC";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $result = stmt_fetch_all($stmt);
+            $stmt->close();
+
+            fputcsv($output, ['Laporan Nilai Persediaan']);
+            fputcsv($output, ['Dicetak pada:', date('d-m-Y H:i')]);
+            fputcsv($output, []);
+            fputcsv($output, ['Nama Barang', 'SKU', 'Stok', 'Harga Beli', 'Total Nilai']);
+            foreach ($result as $row) {
+                fputcsv($output, [
+                    $row['nama_barang'], $row['sku'], $row['stok'], $row['harga_beli'], $row['stok'] * $row['harga_beli']
+                ]);
+            }
+            break;
+        }
+
         case 'mutasi-konsinyasi': {
             $supplier_id = !empty($_GET['supplier_id']) ? (int)$_GET['supplier_id'] : null;
             $start_date = $_GET['start_date'] ?? '';

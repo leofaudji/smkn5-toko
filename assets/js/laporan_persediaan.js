@@ -5,6 +5,7 @@ function initLaporanPersediaanPage() {
     const totalInventoryValueHeader = document.getElementById('totalInventoryValueHeader');
     const loadingIndicator = document.getElementById('loadingIndicator');
     const printButton = document.getElementById('printButton');
+    const exportPdfButton = document.getElementById('exportPdfButton');
     const exportButton = document.getElementById('exportButton');
 
     let searchDebounceTimer;
@@ -97,6 +98,14 @@ function initLaporanPersediaanPage() {
     printButton.addEventListener('click', () => {
         // Implementasi sederhana, bisa dikembangkan dengan library seperti Print.js
         window.print();
+    });
+
+    // Event listener untuk tombol export PDF
+    exportPdfButton.addEventListener('click', () => {
+        printPdf({
+            report: 'laporan-persediaan',
+            search: searchInput.value
+        });
     });
 
     // Event listener untuk tombol export (implementasi sederhana ke CSV)

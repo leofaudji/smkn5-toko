@@ -37,6 +37,8 @@ require_once PROJECT_ROOT . '/includes/ReportBuilders/KartuAnggotaReportBuilder.
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanWbTahunanReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPiutangReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPembelianReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPersediaanReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanStokReportBuilder.php';
 
 $conn = Database::getInstance()->getConnection();
 
@@ -109,6 +111,8 @@ $builder_map = [
     'laporan-wb-tahunan' => LaporanWbTahunanReportBuilder::class,
     'laporan-piutang' => LaporanPiutangReportBuilder::class,
     'laporan-pembelian' => LaporanPembelianReportBuilder::class,
+    'laporan-persediaan' => LaporanPersediaanReportBuilder::class,
+    'laporan-stok' => LaporanStokReportBuilder::class,
     'simpanan_member' => LaporanSimpananMemberReportBuilder::class,
 ];
 
