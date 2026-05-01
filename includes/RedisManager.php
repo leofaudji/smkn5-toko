@@ -15,11 +15,15 @@ class RedisManager
             try {
                 $this->redis = new Redis();
                 $host = Config::get('REDIS_HOST') ?: '127.0.0.1';
-                $port = Config::get('REDIS_PORT') ?: 6379;
+                $port = (int)(Config::get('REDIS_PORT') ?: 6379);
                 $pass = Config::get('REDIS_PASSWORD');
 
-                // Timeout 1 detik agar tidak membeku jika Redis down
-                if ($this->redis->connect($host, (int)$port, 1.0)) {
+                // Jika port 0, asumsikan host adalah path ke unix socket
+                $connect_result = ($port === 0) 
+                    ? $this->redis->connect($host) 
+                    : $this->redis->connect($host, $port, 1.0);
+
+                if ($connect_result) {
                     if ($pass && $pass !== 'null') {
                         $this->redis->auth($pass);
                     }
