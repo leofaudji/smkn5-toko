@@ -47,26 +47,10 @@ function initSimpananPage() {
                     reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed && res.transaksi_id) {
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = `${basePath}/api/pdf`;
-                        form.target = '_blank';
-                        
-                        const inputReport = document.createElement('input');
-                        inputReport.type = 'hidden';
-                        inputReport.name = 'report';
-                        inputReport.value = 'struk_simpanan';
-                        form.appendChild(inputReport);
-
-                        const inputId = document.createElement('input');
-                        inputId.type = 'hidden';
-                        inputId.name = 'id';
-                        inputId.value = res.transaksi_id;
-                        form.appendChild(inputId);
-
-                        document.body.appendChild(form);
-                        form.submit();
-                        document.body.removeChild(form);
+                        printPdf({
+                            report: 'struk_simpanan',
+                            id: res.transaksi_id
+                        });
                     }
                 });
             } else {

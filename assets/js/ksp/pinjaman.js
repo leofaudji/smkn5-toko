@@ -57,27 +57,10 @@ function initPinjamanPage() {
 
     btnPrintPinjaman.addEventListener('click', () => {
         if (currentPinjamanId) {
-            // Gunakan POST request via form hidden untuk URL yang lebih bersih
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `${basePath}/api/pdf`;
-            form.target = '_blank';
-
-            const inputReport = document.createElement('input');
-            inputReport.type = 'hidden';
-            inputReport.name = 'report';
-            inputReport.value = 'detail_pinjaman';
-            form.appendChild(inputReport);
-
-            const inputId = document.createElement('input');
-            inputId.type = 'hidden';
-            inputId.name = 'id';
-            inputId.value = currentPinjamanId;
-            form.appendChild(inputId);
-
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
+            printPdf({
+                report: 'detail_pinjaman',
+                id: currentPinjamanId
+            });
         } else {
             showNotification('Tidak ada data pinjaman untuk dicetak.', 'error');
         }
@@ -159,26 +142,10 @@ function initPinjamanPage() {
                     reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed && res.payment_ref) {
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = `${basePath}/api/pdf`;
-                        form.target = '_blank';
-                        
-                        const inputReport = document.createElement('input');
-                        inputReport.type = 'hidden';
-                        inputReport.name = 'report';
-                        inputReport.value = 'struk_angsuran';
-                        form.appendChild(inputReport);
-
-                        const inputRef = document.createElement('input');
-                        inputRef.type = 'hidden';
-                        inputRef.name = 'payment_ref';
-                        inputRef.value = res.payment_ref;
-                        form.appendChild(inputRef);
-
-                        document.body.appendChild(form);
-                        form.submit();
-                        document.body.removeChild(form);
+                        printPdf({
+                            report: 'struk_angsuran',
+                            payment_ref: res.payment_ref
+                        });
                     }
                 });
             } else {

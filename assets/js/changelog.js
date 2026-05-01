@@ -1,5 +1,5 @@
 /**
- * Catatan Perubahan - Logika Halaman (Ultra-Minimalist Documentation Feed)
+ * Changelog Page — Collapsible Version Feed
  */
 
 function initChangelogPage() {
@@ -13,92 +13,188 @@ async function fetchChangelog() {
     try {
         const response = await fetch(`${basePath}/api/changelog_handler.php`);
         if (!response.ok) throw new Error('Gagal mengambil data catatan perubahan');
-        
+
         const data = await response.json();
-        renderChangelog(data);
+        renderChangelog(data, container);
     } catch (error) {
         console.error('Error fetching changelog:', error);
-        container.innerHTML = `<div class="p-6 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl border border-red-100 dark:border-red-900/20 text-sm font-medium">Gagal memuat data: ${error.message}</div>`;
+        container.innerHTML = `
+            <div style="
+                padding: 1.25rem 1.5rem;
+                border-radius: 14px;
+                background: #fff1f2;
+                border: 1px solid #fecdd3;
+                color: #e11d48;
+                font-size: 13px;
+                font-weight: 600;
+            ">
+                <i class="bi bi-exclamation-triangle-fill" style="margin-right:6px"></i>
+                Gagal memuat data: ${error.message}
+            </div>`;
     }
 }
 
-function renderChangelog(data) {
-    const container = document.getElementById('changelog-container');
-    if (!container) return;
-
+function renderChangelog(data, container) {
     if (!data || data.length === 0) {
-        container.innerHTML = '<p class="text-left py-12 italic text-sm">No archives found.</p>';
+        container.innerHTML = `
+            <div style="text-align:center;padding:4rem 0;color:#94a3b8;font-size:15px;font-weight:500">
+                <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.75rem;opacity:.4"></i>
+                Belum ada catatan perubahan.
+            </div>`;
         return;
     }
 
-    let html = '';
+    // Keep the timeline line, rebuild the rest
+    const timelineLine = container.querySelector('.cl-timeline-line');
+    container.innerHTML = '';
+    if (timelineLine) container.appendChild(timelineLine);
+
     data.forEach((item, index) => {
         const isLatest = index === 0;
-        html += `
-        <article class="changelog-entry group ${isLatest ? 'is-open' : ''}">
-            <h2 class="changelog-entry-title cursor-pointer flex items-center justify-between hover:text-primary transition-colors duration-200" onclick="this.parentElement.classList.toggle('is-open')">
-                <span>
-                    What's new in <span class="text-primary">v${item.version}</span> (${item.date}):
-                </span>
-                <i class="bi bi-chevron-down transform transition-transform duration-300 group-[.is-open]:rotate-180"></i>
-            </h2>
-            <div class="changelog-content overflow-hidden transition-all duration-300 group-[.is-open]:max-h-[2000px] max-h-0 pl-2 border-l border-gray-100 dark:border-gray-800 ml-1">
-                ${renderSimplifiedCategories(item.categories)}
-            </div>
-        </article>
-        `;
-    });
+        const el = buildVersionEl(item, index, isLatest);
+        container.appendChild(el);
 
-    container.innerHTML = html;
+        // Open latest by default after a short delay for animation
+        if (isLatest) {
+            requestAnimationFrame(() => {
+                setTimeout(() => el.classList.add('is-open'), 60);
+            });
+        }
+    });
 }
 
-function renderSimplifiedCategories(categories) {
-    let html = '';
-    
-    // Order of importance
-    const order = ['FITUR BARU', 'TAMBAH', 'PENINGKATAN', 'PERBAIKAN', 'ADD', 'IMPROVE', 'FIX'];
-    const sortedCategories = Object.keys(categories).sort((a, b) => {
-        let indexA = order.indexOf(a);
-        let indexB = order.indexOf(b);
-        if (indexA === -1) indexA = 99;
-        if (indexB === -1) indexB = 99;
-        return indexA - indexB;
-    });
+function buildVersionEl(item, index, isLatest) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cl-version';
+    wrapper.dataset.version = item.version;
+    wrapper.style.animationDelay = `${index * 80}ms`;
 
-    sortedCategories.forEach(cat => {
-        const items = categories[cat];
-        const catLower = cat.toLowerCase();
-        
-        let colorClass = 'text-gray-400 dark:text-gray-500';
-        if (catLower.includes('fix') || catLower.includes('perbaikan')) colorClass = 'text-rose-500';
-        if (catLower.includes('add') || catLower.includes('fitur baru') || catLower.includes('tambah')) colorClass = 'text-emerald-500';
-        if (catLower.includes('improve') || catLower.includes('peningkatan')) colorClass = 'text-amber-500';
+    // Sanitize version string for use as id
+    const vId = `cl-v-${item.version.replace(/\./g, '-')}`;
 
-        html += `
-        <div class="changelog-group mb-6 last:mb-2">
-            <div class="${colorClass} text-[10px] font-bold uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                <span>${catLower}</span>
-                <div class="h-[1px] flex-1 bg-gray-100 dark:bg-gray-800/50"></div>
-            </div>
-            <div class="space-y-2">
-                ${items.map(text => `
-                    <div class="changelog-item">
-                        <span class="changelog-item-bullet">*)</span>
-                        <span class="text-gray-600 dark:text-gray-400">${parseMarkdown(text)}</span>
+    wrapper.innerHTML = `
+        <div class="cl-version-dot"></div>
+        <div class="cl-card">
+
+            <!-- Clickable Header -->
+            <div class="cl-version-header" role="button" aria-expanded="${isLatest}" aria-controls="${vId}" tabindex="0">
+                <div class="cl-version-header-left">
+                    <div class="cl-version-tag">
+                        <span class="cl-version-number">v${escHtml(item.version)}</span>
+                        ${isLatest ? `
+                            <span class="cl-latest-pill">
+                                <span class="cl-latest-pulse"></span>
+                                Latest
+                            </span>` : ''}
                     </div>
-                `).join('')}
+                    <div class="cl-version-date">
+                        <i class="bi bi-calendar3"></i>
+                        ${escHtml(item.date)}
+                    </div>
+                </div>
+                <div class="cl-toggle-btn" aria-hidden="true">
+                    <i class="bi bi-chevron-down"></i>
+                </div>
             </div>
+
+            <!-- Collapsible Body -->
+            <div class="cl-version-body" id="${vId}" role="region">
+                <div class="cl-version-body-inner">
+                    <div class="cl-version-body-content">
+                        ${buildCategories(item.categories)}
+                    </div>
+                </div>
+            </div>
+
         </div>
-        `;
+    `;
+
+    // Click handler
+    const header = wrapper.querySelector('.cl-version-header');
+    header.addEventListener('click', () => toggleVersion(wrapper));
+    header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleVersion(wrapper);
+        }
     });
 
-    return html;
+    return wrapper;
+}
+
+function toggleVersion(wrapper) {
+    const isOpen = wrapper.classList.contains('is-open');
+    wrapper.classList.toggle('is-open', !isOpen);
+    const header = wrapper.querySelector('.cl-version-header');
+    if (header) header.setAttribute('aria-expanded', String(!isOpen));
+}
+
+function buildCategories(categories) {
+    if (!categories || typeof categories !== 'object') return '';
+
+    const ORDER = ['KEAMANAN', 'FITUR BARU', 'TAMBAH', 'ADD', 'INFRASTRUKTUR', 'PENINGKATAN', 'IMPROVE', 'PERBAIKAN', 'FIX'];
+    const ICONS = {
+        'KEAMANAN':     'bi-shield-lock-fill',
+        'FITUR BARU':   'bi-stars',
+        'TAMBAH':       'bi-plus-circle-fill',
+        'ADD':          'bi-plus-circle-fill',
+        'INFRASTRUKTUR':'bi-cpu-fill',
+        'PENINGKATAN':  'bi-graph-up-arrow',
+        'IMPROVE':      'bi-graph-up-arrow',
+        'PERBAIKAN':    'bi-tools',
+        'FIX':          'bi-tools',
+    };
+
+    const sorted = Object.keys(categories).sort((a, b) => {
+        const ia = ORDER.indexOf(a) === -1 ? 99 : ORDER.indexOf(a);
+        const ib = ORDER.indexOf(b) === -1 ? 99 : ORDER.indexOf(b);
+        return ia - ib;
+    });
+
+    return sorted.map(cat => {
+        const items = categories[cat];
+        const icon  = ICONS[cat] || 'bi-info-circle-fill';
+        const cls   = catBadgeClass(cat);
+
+        const logHtml = items.map(text => `
+            <div class="cl-log-item">
+                <div class="cl-log-bullet"></div>
+                <p class="cl-log-text">${parseMarkdown(text)}</p>
+            </div>`).join('');
+
+        return `
+            <div class="cl-category">
+                <span class="cl-cat-badge ${cls}">
+                    <i class="bi ${icon}"></i>
+                    ${escHtml(cat)}
+                </span>
+                <div class="cl-log-list">${logHtml}</div>
+            </div>`;
+    }).join('');
+}
+
+function catBadgeClass(cat) {
+    const c = cat.toLowerCase();
+    if (c.includes('aman') || c.includes('security'))          return 'cl-cat-keamanan';
+    if (c.includes('fitur') || c.includes('tambah') || c === 'add') return 'cl-cat-fitur';
+    if (c.includes('infra'))                                    return 'cl-cat-infrastruktur';
+    if (c.includes('peningkatan') || c === 'improve')          return 'cl-cat-peningkatan';
+    if (c.includes('perbaikan') || c === 'fix')                return 'cl-cat-perbaikan';
+    return 'cl-cat-default';
 }
 
 function parseMarkdown(text) {
     if (!text) return '';
-    return text
-        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-900 dark:text-white">$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-        .replace(/__(.*?)__/g, '<u class="underline">$1</u>');
+    return escHtml(text)
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight:700;color:var(--cl-text-primary)">$1</strong>')
+        .replace(/\*(.*?)\*/g,     '<em>$1</em>')
+        .replace(/`(.*?)`/g,       '<code style="font-family:monospace;font-size:12px;padding:1px 5px;border-radius:4px;background:var(--cl-divider)">$1</code>');
+}
+
+function escHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }

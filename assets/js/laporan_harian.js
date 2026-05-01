@@ -138,21 +138,7 @@ function initLaporanHarianPage() {
 
     exportPdfBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
-        const params = { report: 'laporan-harian', tanggal: tanggalInput.value.split('-').reverse().join('-') };
-        for (const key in params) {
-            const hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = key;
-            hiddenField.value = params[key];
-            form.appendChild(hiddenField);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        printPdf({ report: 'laporan-harian', tanggal: tanggalInput.value.split('-').reverse().join('-') });
     });
 
     exportCsvBtn?.addEventListener('click', (e) => {

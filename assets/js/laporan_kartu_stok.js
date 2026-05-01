@@ -139,5 +139,15 @@ function initLaporanKartuStokPage() {
         pdfButton.style.display = 'inline-flex';
     }
 
+    pdfButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        printPdf({
+            report: 'kartu-stok',
+            item_id: itemSelect.value,
+            start_date: startDateInput.value.split('-').reverse().join('-'),
+            end_date: endDateInput.value.split('-').reverse().join('-')
+        });
+    });
+
     loadItems();
 }

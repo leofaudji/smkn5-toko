@@ -20,26 +20,10 @@ function initLaporanNominatifPage() {
         const tanggal = perTanggalInput.value;
         const reportType = jenis === 'simpanan' ? 'nominatif_simpanan' : 'nominatif_pinjaman';
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
-
-        const inputReport = document.createElement('input');
-        inputReport.type = 'hidden';
-        inputReport.name = 'report';
-        inputReport.value = reportType;
-        form.appendChild(inputReport);
-
-        const inputTanggal = document.createElement('input');
-        inputTanggal.type = 'hidden';
-        inputTanggal.name = 'per_tanggal';
-        inputTanggal.value = tanggal;
-        form.appendChild(inputTanggal);
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        printPdf({
+            report: reportType,
+            per_tanggal: tanggal
+        });
     });
 
     function loadReport() {

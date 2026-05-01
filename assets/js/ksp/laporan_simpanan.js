@@ -35,9 +35,12 @@ function initLaporanSimpananPage() {
             return;
         }
 
-        // Redirect ke endpoint PDF
-        const url = `${basePath}/api/pdf?report_type=simpanan_member&anggota_id=${anggotaId}&start_date=${startDate}&end_date=${endDate}`;
-        window.open(url, '_blank');
+        printPdf({
+            report: 'simpanan_member',
+            anggota_id: anggotaId,
+            start_date: startDate,
+            end_date: endDate
+        });
     });
 
     function loadReport() {

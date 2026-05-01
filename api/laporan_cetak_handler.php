@@ -109,6 +109,7 @@ $builder_map = [
     'laporan-wb-tahunan' => LaporanWbTahunanReportBuilder::class,
     'laporan-piutang' => LaporanPiutangReportBuilder::class,
     'laporan-pembelian' => LaporanPembelianReportBuilder::class,
+    'simpanan_member' => LaporanSimpananMemberReportBuilder::class,
 ];
 
 try {

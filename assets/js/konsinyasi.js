@@ -429,22 +429,12 @@ function initKonsinyasiPage() {
     const exportPdfBtn = document.getElementById('export-mutasi-pdf-btn');
     if (exportPdfBtn) {
         exportPdfBtn.addEventListener('click', () => {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `${basePath}/api/pdf`;
-            form.target = '_blank';
-            const params = { 
+            printPdf({ 
                 report: 'mutasi-konsinyasi', 
                 start_date: document.getElementById('mutasi-start-date').value.split('-').reverse().join('-'), 
                 end_date: document.getElementById('mutasi-end-date').value.split('-').reverse().join('-'),
                 supplier_id: document.getElementById('mutasi-supplier-id').value
-            };
-            for (const key in params) {
-                const hiddenField = document.createElement('input'); hiddenField.type = 'hidden'; hiddenField.name = key; hiddenField.value = params[key]; form.appendChild(hiddenField);
-            }
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
+            });
         });
     }
 
@@ -534,23 +524,13 @@ function initKonsinyasiPage() {
 
     printReportBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
-        const params = { 
+        printPdf({ 
             report: 'konsinyasi', 
             start_date: reportStartDateEl.value.split('-').reverse().join('-'), 
             end_date: reportEndDateEl.value.split('-').reverse().join('-'),
             supplier_id: reportSupplierIdEl.value,
             status: reportStatusEl.value
-        };
-        for (const key in params) {
-            const hiddenField = document.createElement('input'); hiddenField.type = 'hidden'; hiddenField.name = key; hiddenField.value = params[key]; form.appendChild(hiddenField);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        });
     });
 
     async function loadDebtSummaryReport() {
@@ -598,21 +578,11 @@ function initKonsinyasiPage() {
 
     printDebtSummaryBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
-        const params = { 
+        printPdf({ 
             report: 'konsinyasi-sisa-utang',
             start_date: document.getElementById('sisa-utang-start-date').value.split('-').reverse().join('-'),
             end_date: document.getElementById('sisa-utang-end-date').value.split('-').reverse().join('-')
-        };
-        for (const key in params) {
-            const hiddenField = document.createElement('input'); hiddenField.type = 'hidden'; hiddenField.name = key; hiddenField.value = params[key]; form.appendChild(hiddenField);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        });
     });
 
     addSupplierBtn.addEventListener('click', () => {

@@ -218,27 +218,12 @@ function initLaporanWbTahunanPage() {
             const onlyArrears = filterTunggakan.checked ? 1 : 0;
             const search = document.getElementById('filter-nama').value;
             
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `${basePath}/api/pdf`;
-            form.target = '_blank';
-            
-            const params = { 
+            printPdf({ 
                 report: 'laporan-wb-tahunan', 
                 tahun: tahun, 
                 only_arrears: onlyArrears,
                 search: search
-            };
-            for (const key in params) {
-                const hiddenField = document.createElement('input');
-                hiddenField.type = 'hidden';
-                hiddenField.name = key;
-                hiddenField.value = params[key];
-                form.appendChild(hiddenField);
-            }
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
+            });
         });
     }
 

@@ -38,7 +38,7 @@ try {
             -- Stok Awal: Sum of all movements before start_date
             SELECT item_id, SUM(debit - kredit) as stok_awal
             FROM kartu_stok
-            WHERE tanggal < ?
+            WHERE tanggal < ? AND user_id = ?
             GROUP BY item_id
         ) sa ON i.id = sa.item_id
         LEFT JOIN (
@@ -48,7 +48,7 @@ try {
                 SUM(debit) as masuk, 
                 SUM(kredit) as keluar
             FROM kartu_stok
-            WHERE tanggal BETWEEN ? AND ?
+            WHERE tanggal BETWEEN ? AND CONCAT(?, ' 23:59:59') AND user_id = ?
             GROUP BY item_id
         ) p ON i.id = p.item_id
         WHERE i.user_id = ?
@@ -56,7 +56,7 @@ try {
     ";
 
     $stmt = $conn->prepare($main_query);
-    $stmt->bind_param('sssi', $start_date, $start_date, $end_date, $user_id);
+    $stmt->bind_param('sissii', $start_date, $user_id, $start_date, $end_date, $user_id, $user_id);
     $stmt->execute();
     $results = stmt_fetch_all($stmt);
     $stmt->close();

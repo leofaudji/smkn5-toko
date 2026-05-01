@@ -84,8 +84,8 @@ try {
             $stmt->close();
 
             $pagination = [
-                'current_page' => $page, 
-                'total_pages' => ceil($total_records / $limit), 
+                'current_page' => $page,
+                'total_pages' => ceil($total_records / $limit),
                 'total_records' => $total_records,
                 'from' => $total_records > 0 ? $offset + 1 : 0,
                 'to' => min($offset + $limit, $total_records),
@@ -106,7 +106,8 @@ try {
             $stmt->close();
 
             header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
+            if (ob_get_length())
+                ob_clean();
             echo json_encode(['status' => 'success', 'data' => $accounts], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
             die();
 
@@ -161,9 +162,9 @@ try {
             $stmt = $conn->prepare("
                 SELECT COALESCE(SUM(debit - kredit), 0) as saldo
                 FROM kartu_stok 
-                WHERE item_id = ? AND tanggal < ?
+                WHERE item_id = ? AND tanggal < ? AND user_id = ?
             ");
-            $stmt->bind_param("is", $item_id, $start_date);
+            $stmt->bind_param("isi", $item_id, $start_date, $user_id);
             $stmt->execute();
             $result = stmt_fetch_assoc($stmt);
             $saldo_awal = (int) $result['saldo'];
@@ -176,10 +177,10 @@ try {
                     debit, 
                     kredit 
                 FROM kartu_stok 
-                WHERE item_id = ? AND tanggal BETWEEN ? AND ?
+                WHERE item_id = ? AND tanggal BETWEEN ? AND CONCAT(?, ' 23:59:59') AND user_id = ?
                 ORDER BY tanggal ASC, id ASC
             ");
-            $stmt->bind_param("iss", $item_id, $start_date, $end_date);
+            $stmt->bind_param("issi", $item_id, $start_date, $end_date, $user_id);
             $stmt->execute();
             $transactions_raw = stmt_fetch_all($stmt);
             $stmt->close();
@@ -262,7 +263,7 @@ try {
             $stmt->execute();
             $new_item_id = $conn->insert_id;
             $message = ($action === 'update') ? 'Data barang berhasil diperbarui.' : 'Data barang berhasil ditambahkan.';
-            
+
             // Log Saldo Awal to kartu_stok if adding a new item with stock > 0
             if ($action === 'save' && $stok > 0) {
                 $keterangan_awal = "Saldo Awal Barang";
@@ -370,15 +371,7 @@ try {
                 $stmt->execute();
                 $stmt->close();
 
-                // 5. Catat pergerakan stok ke kartu_stok
-                $debit = $selisihKuantitas > 0 ? $selisihKuantitas : 0;
-                $kredit = $selisihKuantitas < 0 ? abs($selisihKuantitas) : 0;
-                $keteranganKS = "Penyesuaian Stok (Opname): " . $keterangan;
-                
-                $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, journal_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt_ks->bind_param('siiisii', $tanggal, $itemId, $debit, $kredit, $keteranganKS, $journalId, $logged_in_user_id);
-                $stmt_ks->execute();
-                $stmt_ks->close();
+
 
                 // 5. Catat ke tabel history penyesuaian
                 $stmt = $conn->prepare("INSERT INTO stock_adjustments (item_id, user_id, journal_id, tanggal, stok_sebelum, stok_setelah, selisih_kuantitas, selisih_nilai, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -575,7 +568,7 @@ try {
 
             // Siapkan statement untuk kartu stok
             $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'import', ?)");
- 
+
             // Statement untuk cek keunikan SKU
             $stmt_check_sku = $conn->prepare("SELECT id FROM items WHERE sku = ? AND user_id = ?");
 

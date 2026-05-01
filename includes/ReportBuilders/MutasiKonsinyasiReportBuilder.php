@@ -70,12 +70,13 @@ class MutasiKonsinyasiReportBuilder implements ReportBuilderInterface
         }
 
         if ($end_date) {
+            $end_date_with_time = (strlen($end_date) === 10) ? $end_date . ' 23:59:59' : $end_date;
             $where_ci .= " AND ci.tanggal_terima <= ?";
             $where_cr .= " AND cr.tanggal <= ?";
             $where_gl .= " AND gl.tanggal <= ?";
-            $params_ci[] = $end_date;
-            $params_cr[] = $end_date;
-            $params_gl[] = $end_date;
+            $params_ci[] = $end_date_with_time;
+            $params_cr[] = $end_date_with_time;
+            $params_gl[] = $end_date_with_time;
             $types_ci .= "s";
             $types_cr .= "s";
             $types_gl .= "s";

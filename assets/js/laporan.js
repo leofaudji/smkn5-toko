@@ -550,32 +550,15 @@ function initLaporanPage() {
     // Event listener untuk tombol PDF (sekarang menggunakan FPDF handler)
     exportNeracaPdfBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
         const params = { report: 'neraca', tanggal: neracaTanggalInput.value.split('-').reverse().join('-') };
         if (neracaIncludeClosing.checked) {
             params.include_closing = 'true';
         }
-        for (const key in params) {
-            const hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = key;
-            hiddenField.value = params[key];
-            form.appendChild(hiddenField);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        printPdf(params);
     });
 
     exportLrPdfBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
         const params = { 
             report: 'laba-rugi', 
             start: labaRugiTglMulai.value.split('-').reverse().join('-'), 
@@ -592,29 +575,12 @@ function initLaporanPage() {
                 params.start2 = labaRugiTglMulai2.value.split('-').reverse().join('-'),
                 params.end2 = labaRugiTglAkhir2.value.split('-').reverse().join('-')
             }
-            // Note: For other comparison modes, the backend will calculate the dates.
-            // We just need to pass the main dates correctly.
-            // To be safe, we can pass the calculated dates if we want frontend to be the source of truth,
-            // but for now, let's assume backend handles 'previous_period' etc. based on main dates.
         }
-        for (const key in params) {
-            const hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = key;
-            hiddenField.value = params[key];
-            form.appendChild(hiddenField);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        printPdf(params);
     });
 
     exportAkPdfBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
         const params = { 
             report: 'arus-kas', 
             start: arusKasTglMulai.value.split('-').reverse().join('-'), 
@@ -623,16 +589,7 @@ function initLaporanPage() {
         if (akIncludeClosing.checked) {
             params.include_closing = 'true';
         }
-        for (const key in params) {
-            const hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = key;
-            hiddenField.value = params[key];
-            form.appendChild(hiddenField);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        printPdf(params);
     });
 
     // Event listener untuk tombol CSV (tetap sama)

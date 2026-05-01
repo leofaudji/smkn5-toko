@@ -102,7 +102,7 @@ class StrukPenjualanReportBuilder implements ReportBuilderInterface
         $this->pdf->Cell(0, 5, number_format($header['total']), 0, 1, 'R');
         $this->pdf->SetFont('Arial', '', 9);
         $this->pdf->Cell(35, 5, 'Bayar', 0, 0, 'R');
-        $this->pdf->Cell(0, 5, number_format($header['bayar']), 0, 1, 'R');
+        $this->pdf->Cell(0, 5, number_format($header['bayar'] + ($header['bayar_wb'] ?? 0)), 0, 1, 'R');
         $this->pdf->Cell(35, 5, 'Kembali', 0, 0, 'R');
         $this->pdf->Cell(0, 5, number_format($header['kembali']), 0, 1, 'R');
         $this->pdf->Ln(5);

@@ -457,16 +457,13 @@ function initLaporanPenjualanPage() {
             return;
         }
 
-        const params = new URLSearchParams({
+        printPdf({
             report: 'laporan-penjualan',
             start_date: startDate,
             end_date: endDate,
             search: search,
             view_type: viewType
         });
-
-        const url = `${basePath}/api/pdf?${params.toString()}`;
-        window.open(url, '_blank');
     });
 
 

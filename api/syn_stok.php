@@ -30,8 +30,8 @@ try {
         $stok_real = (int) $item['stok'];
 
         // 2. Hitung saldo saat ini di kartu_stok
-        $stmt_ledger = $conn->prepare("SELECT COALESCE(SUM(debit - kredit), 0) as saldo_ledger FROM kartu_stok WHERE item_id = ?");
-        $stmt_ledger->bind_param('i', $item_id);
+        $stmt_ledger = $conn->prepare("SELECT COALESCE(SUM(debit - kredit), 0) as saldo_ledger FROM kartu_stok WHERE item_id = ? AND user_id = ?");
+        $stmt_ledger->bind_param('ii', $item_id, $user_id);
         $stmt_ledger->execute();
         $saldo_ledger = (int) stmt_fetch_assoc($stmt_ledger)['saldo_ledger'];
         $stmt_ledger->close();
@@ -43,9 +43,9 @@ try {
             $debit = $selisih > 0 ? $selisih : 0;
             $kredit = $selisih < 0 ? abs($selisih) : 0;
             $keterangan = "Sinkronisasi Saldo Stok Otomatis";
-
-            $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, user_id) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt_ks->bind_param('siiisi', $tanggal_sync, $item_id, $debit, $kredit, $keterangan, $logged_in_user_id);
+            $source = 'sync';
+            $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, user_id, source) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt_ks->bind_param('siiisis', $tanggal_sync, $item_id, $debit, $kredit, $keterangan, $user_id, $source);
             $stmt_ks->execute();
             $stmt_ks->close();
 

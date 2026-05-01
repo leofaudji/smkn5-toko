@@ -266,32 +266,15 @@ function initAnggaranPage() {
         const trendChartImage = window.anggaranTrendChart ? window.anggaranTrendChart.toBase64Image() : '';
         const budgetChartImage = window.anggaranBudgetChart ? window.anggaranBudgetChart.toBase64Image() : '';
 
-        // 2. Buat form sementara untuk mengirim data via POST
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank'; // Buka di tab baru
-
-        const params = {
+        // 2. Gunakan fungsi printPdf helper
+        printPdf({
             report: 'anggaran',
             tahun: yearFilter.value,
             bulan: monthFilter.value,
             compare: compareSwitch.checked,
             trend_chart_image: trendChartImage,
             budget_chart_image: budgetChartImage
-        };
-
-        for (const key in params) {
-            const hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = key;
-            hiddenField.value = params[key];
-            form.appendChild(hiddenField);
-        }
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        });
     });
 
     exportCsvBtn.addEventListener('click', (e) => {

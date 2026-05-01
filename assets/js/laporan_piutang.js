@@ -221,10 +221,7 @@ const csvBtn = document.getElementById('piutang-csv-btn');
 
 if (pdfBtn) {
     pdfBtn.addEventListener('click', () => {
-        const params = new URLSearchParams({
-            report: 'laporan-piutang'
-        });
-        window.open(`${basePath}/api/pdf?${params.toString()}`, '_blank');
+        printPdf({ report: 'laporan-piutang' });
     });
 }
 

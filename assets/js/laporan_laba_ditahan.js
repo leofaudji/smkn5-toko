@@ -87,25 +87,11 @@ function initLaporanLabaDitahanPage() {
 
     exportPdfBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
-        const params = { 
+        printPdf({ 
             report: 'laporan-laba-ditahan', 
             start_date: tglMulai.value.split('-').reverse().join('-'), 
             end_date: tglAkhir.value.split('-').reverse().join('-') 
-        };
-        for (const key in params) {
-            const hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = key;
-            hiddenField.value = params[key];
-            form.appendChild(hiddenField);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        });
     });
 
     exportCsvBtn?.addEventListener('click', (e) => {

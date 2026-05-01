@@ -220,31 +220,14 @@ function initLaporanPertumbuhanLabaPage() {
         // 1. Ambil gambar chart sebagai base64
         const chartImage = window.lplProfitChart ? window.lplProfitChart.toBase64Image() : '';
 
-        // 2. Buat form sementara untuk mengirim data via POST
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank'; // Buka di tab baru
-
-        const params = {
+        // 2. Gunakan helper printPdf
+        printPdf({
             report: 'laporan-pertumbuhan-laba',
             tahun: yearFilter.value,
             view_mode: document.querySelector('input[name="view_mode"]:checked').value,
             compare: compareSwitch.checked,
             chart_image: chartImage // Kirim data gambar
-        };
-
-        for (const key in params) {
-            const hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = key;
-            hiddenField.value = params[key];
-            form.appendChild(hiddenField);
-        }
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        });
     });
 
     exportCsvBtn.addEventListener('click', (e) => {

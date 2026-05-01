@@ -72,7 +72,7 @@ try {
                 $jurnal[] = ['akun' => $tx['nama_akun_kas'], 'debit' => 0, 'kredit' => $tx['jumlah']];
             }
 
-            send_json_response(['tx' => $tx, 'jurnal' => $jurnal]);
+            send_json_response(['transaksi' => $tx, 'jurnal' => $jurnal]);
         }
 
         // Default action: list transactions

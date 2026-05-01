@@ -432,7 +432,7 @@ function store_penjualan($db)
         
         send_json_response(['message' => 'Transaksi penjualan berhasil disimpan.', 'id' => $penjualanId]);
     } catch (Exception $e) {
-        if (isset($db) && $db->in_transaction()) $db->rollback();
+        if (isset($db) && method_exists($db, 'in_transaction') && $db->in_transaction()) $db->rollback();
         send_error_response($e->getMessage(), 500);
     }
 }
@@ -566,7 +566,7 @@ function void_penjualan($db)
         send_json_response(['message' => 'Transaksi berhasil dibatalkan.']);
 
     } catch (Exception $e) {
-        if (isset($db) && $db->in_transaction()) $db->rollback();
+        if (isset($db) && method_exists($db, 'in_transaction') && $db->in_transaction()) $db->rollback();
         send_error_response($e->getMessage(), 500);
     }
 }
@@ -758,6 +758,20 @@ function update_penjualan($db)
         $stmt_del_ks->execute();
         $stmt_del_ks->close();
 
+        // 4.5. RESTORE WAJIB BELANJA BALANCE (If applicable)
+        if ($old_penjualan['bayar_wb'] > 0 && !empty($old_penjualan['customer_id'])) {
+            $stmt_restore_wb = $db->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja + ? WHERE id = ?");
+            $stmt_restore_wb->bind_param('di', $old_penjualan['bayar_wb'], $old_penjualan['customer_id']);
+            $stmt_restore_wb->execute();
+            $stmt_restore_wb->close();
+
+            // Hapus log transaksi WB lama
+            $stmt_del_wb_log = $db->prepare("DELETE FROM transaksi_wajib_belanja WHERE nomor_referensi = ? AND jenis = 'belanja'");
+            $stmt_del_wb_log->bind_param('s', $old_penjualan['nomor_referensi']);
+            $stmt_del_wb_log->execute();
+            $stmt_del_wb_log->close();
+        }
+
         // 5. UPDATE HEADER PENJUALAN
         $tanggal = $data['tanggal'];
         // Pastikan format tanggal ke DB (tambah jam jika hanya tgl)
@@ -769,6 +783,7 @@ function update_penjualan($db)
         $discount = $data['discount'];
         $total = $data['total'];
         $bayar = (float) ($data['bayar'] ?? 0);
+        $bayar_wb = (float) ($data['bayar_wb'] ?? 0);
         $kembali = $data['kembali'];
         $keterangan = isset($data['catatan']) ? trim($data['catatan']) : '';
         if (empty($keterangan))
@@ -781,13 +796,30 @@ function update_penjualan($db)
         $stmt_upd = $db->prepare(
             "UPDATE penjualan SET 
                 tanggal_penjualan = ?, customer_id = ?, customer_name = ?, 
-                subtotal = ?, discount = ?, total = ?, bayar = ?, kembali = ?, 
+                subtotal = ?, discount = ?, total = ?, bayar = ?, bayar_wb = ?, kembali = ?, 
                 keterangan = ?, payment_method = ?
              WHERE id = ? AND user_id = ?"
         );
-        $stmt_upd->bind_param('sisdddddssii', $tanggal, $anggota_id, $customer_name, $subtotal, $discount, $total, $bayar, $kembali, $keterangan, $payment_method, $id, $user_id);
+        $stmt_upd->bind_param('sisddddddssii', $tanggal, $anggota_id, $customer_name, $subtotal, $discount, $total, $bayar, $bayar_wb, $kembali, $keterangan, $payment_method, $id, $user_id);
         $stmt_upd->execute();
         $stmt_upd->close();
+
+        // 5.5. DEDUCT NEW WAJIB BELANJA BALANCE
+        if ($bayar_wb > 0) {
+            if (!$anggota_id)
+                throw new Exception("Anggota harus dipilih untuk menggunakan Saldo WB.");
+            
+            $stmt_upd_wb = $db->prepare("UPDATE anggota SET saldo_wajib_belanja = saldo_wajib_belanja - ? WHERE id = ?");
+            $stmt_upd_wb->bind_param('di', $bayar_wb, $anggota_id);
+            $stmt_upd_wb->execute();
+            $stmt_upd_wb->close();
+
+            $ket_wb = "Pembayaran Belanja #{$old_penjualan['nomor_referensi']} (Update)";
+            $stmt_log_wb = $db->prepare("INSERT INTO transaksi_wajib_belanja (user_id, anggota_id, tanggal, jenis, jumlah, metode_pembayaran, keterangan, nomor_referensi, created_by) VALUES (?, ?, ?, 'belanja', ?, 'potong_saldo', ?, ?, ?)");
+            $stmt_log_wb->bind_param('iisdssi', $user_id, $anggota_id, $tanggal, $bayar_wb, $ket_wb, $old_penjualan['nomor_referensi'], $logged_in_user_id);
+            $stmt_log_wb->execute();
+            $stmt_log_wb->close();
+        }
 
         // 6. HAPUS DETAIL LAMA DAN INSERT DETAIL BARU
         $stmt_del_details = $db->prepare("DELETE FROM penjualan_details WHERE penjualan_id = ?");
@@ -899,24 +931,41 @@ function update_penjualan($db)
         $updateStokStmt->close();
         $kartuStokStmt->close();
 
-        // 7. JURNAL BALANCING (Kas/Piutang)
+        // 7. JURNAL BALANCING (Debit Side)
         $gl_stmt = $db->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'penjualan', ?)");
+        $zero = 0.00;
+        $null_val = null;
 
-        // DEBIT KAS/PIUTANG
-        $is_hutang = ($payment_method === 'hutang');
-        if ($is_hutang) {
-            $debit_acc = get_setting('sales_receivable_account_id', null, $db);
-        } else if ($payment_method === 'cash') {
-            $debit_acc = get_setting('default_sales_cash_account_id', null, $db);
-        } else {
-            $debit_acc = $payment_account_id;
+        // 7.1. Handle WB Liability Debit (Jika ada bayar_wb)
+        if ($bayar_wb > 0) {
+            $akun_utang_wb = get_setting('wajib_belanja_liability_account_id', null, $db);
+            if ($akun_utang_wb) {
+                $ket_wb_gl = "Pembayaran Belanja via WB #{$old_penjualan['nomor_referensi']}";
+                $gl_stmt->bind_param('isssiddii', $user_id, $tanggal, $ket_wb_gl, $old_penjualan['nomor_referensi'], $akun_utang_wb, $bayar_wb, $zero, $id, $logged_in_user_id);
+                $gl_stmt->execute();
+            }
         }
 
-        if (empty($debit_acc))
-            throw new Exception("Akun Debit (Kas/Piutang) tidak ditemukan.");
+        // 7.2. Debit Kas / Piutang
+        $is_hutang = ($payment_method === 'hutang');
+        $debit_acc_id = ($payment_method === 'cash' || $is_hutang) ? get_setting('default_sales_cash_account_id', null, $db) : ($payment_account_id ?: get_setting('default_sales_cash_account_id', null, $db));
+        
+        $cash_portion = $is_hutang ? $bayar : max(0, $total - $bayar_wb);
+        $piutang_portion = $is_hutang ? max(0, $total - $bayar - $bayar_wb) : 0;
 
-        $gl_stmt->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $old_penjualan['nomor_referensi'], $debit_acc, $total, $zero, $id, $logged_in_user_id);
-        $gl_stmt->execute();
+        if ($cash_portion > 0) {
+            if (!$debit_acc_id) throw new Exception("Akun Kas belum diatur.");
+            $gl_stmt->bind_param('isssiddii', $user_id, $tanggal, $keterangan, $old_penjualan['nomor_referensi'], $debit_acc_id, $cash_portion, $zero, $id, $logged_in_user_id);
+            $gl_stmt->execute();
+        }
+
+        if ($piutang_portion > 0) {
+            $piutang_acc_id = get_setting('sales_receivable_account_id', null, $db);
+            if (!$piutang_acc_id) throw new Exception("Akun Piutang belum diatur.");
+            $ket_piutang = "Piutang Anggota: " . $customer_name;
+            $gl_stmt->bind_param('isssiddii', $user_id, $tanggal, $ket_piutang, $old_penjualan['nomor_referensi'], $piutang_acc_id, $piutang_portion, $zero, $id, $logged_in_user_id);
+            $gl_stmt->execute();
+        }
 
         // 7b. DEBIT DISKON (Potongan Penjualan)
         if ($discount > 0) {
@@ -960,7 +1009,7 @@ function update_penjualan($db)
         send_json_response(['message' => 'Transaksi berhasil diperbarui.']);
 
     } catch (Exception $e) {
-        if (isset($db) && $db->in_transaction()) $db->rollback();
+        if (isset($db) && method_exists($db, 'in_transaction') && $db->in_transaction()) $db->rollback();
         send_error_response($e->getMessage(), 500);
     }
 }

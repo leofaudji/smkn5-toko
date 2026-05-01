@@ -184,32 +184,13 @@ function initLaporanPembelianPage() {
         const supplierId = supplierFilter.value;
         const search = searchInput.value;
 
-        const tempForm = document.createElement('form');
-        tempForm.method = 'POST';
-        tempForm.action = `${basePath}/api/pdf`;
-        tempForm.target = '_blank';
-
-        const params = {
+        printPdf({
             report: 'laporan-pembelian',
             start_date: startDate,
             end_date: endDate,
             supplier_id: supplierId,
             search: search
-        };
-
-        for (const key in params) {
-            if (params.hasOwnProperty(key)) {
-                const hiddenField = document.createElement('input');
-                hiddenField.type = 'hidden';
-                hiddenField.name = key;
-                hiddenField.value = params[key];
-                tempForm.appendChild(hiddenField);
-            }
-        }
-
-        document.body.appendChild(tempForm);
-        tempForm.submit();
-        document.body.removeChild(tempForm);
+        });
     });
 
     exportCsvBtn.addEventListener('click', () => {

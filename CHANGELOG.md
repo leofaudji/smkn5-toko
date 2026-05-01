@@ -1,6 +1,36 @@
 # Catatan Perubahan Aplikasi
 
 Seluruh pembaruan dan perbaikan pada aplikasi akan dicatat di sini untuk memudahkan Anda mengetahui fitur terbaru.
+ 
+## [2.0.0] - 2026-05-01
+### INTEGRITAS DATA & STOK
+- **Sinkronisasi Laporan Stok**: Memperbaiki algoritma perhitungan saldo pada Laporan Stok dan Kartu Stok agar tetap akurat meskipun transaksi memiliki komponen waktu (jam/menit/detik).
+- **Perbaikan Bug Double Entry**: Menghapus redundansi input pada fitur Penyesuaian Stok yang sebelumnya menyebabkan mutasi tercatat ganda di Kartu Stok.
+- **Sinkronisasi Akuntansi Impor**: Memastikan setiap impor barang melalui CSV kini otomatis mencatat nilai aset ke Buku Besar (General Ledger), sehingga laporan keuangan dan laporan stok selalu sinkron.
+- **Optimasi Script Sinkronisasi**: Memperbarui `syn_stok.php` agar bekerja secara spesifik pada data pemilik (user_id 1) untuk memastikan akurasi saldo akhir di seluruh menu persediaan.
+
+### PERBAIKAN BUG & STABILITAS
+- **Fix API Jurnal**: Memperbaiki error `Cannot read properties of undefined (reading 'tanggal')` pada tampilan View Jurnal di menu Transaksi Kas melalui standardisasi kunci respons API.
+- **Kompatibilitas PHP/Mysqli**: Menambahkan pengecekan `method_exists` pada fungsi transaksi database untuk mencegah Fatal Error pada server dengan versi PHP atau driver mysqli yang lebih lama.
+
+## [1.9.0] - 2026-05-01
+### FITUR BARU & UI/UX
+- **Redesain Halaman Changelog**: Transformasi total antarmuka menjadi lebih modern dan premium dengan efek *glassmorphism* dan dekorasi latar belakang yang dinamis.
+- **Fitur Collapsible Versi**: Kini catatan perubahan dikelompokkan per versi dan dapat dibuka-tutup untuk navigasi yang lebih bersih. Versi terbaru otomatis terbuka saat halaman dimuat.
+- **Optimasi Tata Letak**: Memperluas area konten (max-width 1100px) agar lebih nyaman dibaca dan mengurangi ruang kosong yang berlebihan di sisi kanan-kiri.
+- **Interaksi Lebih Halus**: Menambahkan animasi transisi, indikator "Latest" yang berdenyut, dan dukungan navigasi keyboard untuk pengalaman pengguna yang lebih responsif.
+
+## [1.8.0] - 2026-05-01
+### KEAMANAN
+- **Sentralisasi Proteksi CSRF**: Memindahkan validasi keamanan CSRF ke pintu utama aplikasi (`bootstrap.php`). Kini semua transaksi mutasi data terlindungi secara otomatis tanpa celah.
+
+### INFRASTRUKTUR & PERFORMA
+- **Integrasi Redis Session**: Beralih dari penyimpanan sesi berbasis file ke Redis. Hasilnya, akses aplikasi lebih responsif, stabil, dan siap untuk skalabilitas tinggi.
+- **Pembersihan Kode**: Menghapus lebih dari 20 blok kode verifikasi manual yang sudah tidak diperlukan, membuat sistem lebih ringan dan mudah dikelola.
+
+### PERBAIKAN & STABILITAS
+- **Stabilitas Menu Penjualan**: Memperbaiki error "null classList" yang sempat muncul pada menu penjualan melalui penerapan *defensive coding*.
+- **Keamanan Dropdown**: Menambahkan pengamanan ekstra pada logika penutup *dropdown* otomatis di seluruh aplikasi.
 
 ## [1.7.0] - 2026-04-10
 ### FITUR BARU

@@ -131,6 +131,43 @@ function formatRupiah(value) {
 }
 
 /**
+ * Prints a PDF report using a POST request with CSRF token.
+ * Automatically handles the creation of a temporary form and submission to a new tab.
+ * @param {Object} params The parameters to send to the PDF generator.
+ */
+function printPdf(params) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `${basePath}/api/pdf`;
+    form.target = '_blank';
+
+    // Add CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (csrfToken) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrf_token';
+        input.value = csrfToken;
+        form.appendChild(input);
+    }
+
+    // Add other parameters
+    for (const key in params) {
+        if (params.hasOwnProperty(key)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = params[key];
+            form.appendChild(input);
+        }
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+/**
  * Formats a number into accounting-style currency string.
  * Negative numbers are shown in red and parentheses.
  * @param {number} value The number to format.

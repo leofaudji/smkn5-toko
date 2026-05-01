@@ -97,7 +97,6 @@ function initNeracaSaldoPage() {
 
     printPdfBtn.addEventListener('click', function() {
         const tanggal = document.getElementById('tanggal').value.split('-').reverse().join('-');
-        const reportUrl = `${basePath}/api/pdf?report=trial-balance&tanggal=${tanggal}`;
-        window.open(reportUrl, '_blank');
+        printPdf({ report: 'trial-balance', tanggal: tanggal });
     });
 }

@@ -432,46 +432,14 @@ function initAnggotaPage() {
     }
 
     function printBatchCards(ids) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
-
-        const inputReport = document.createElement('input');
-        inputReport.type = 'hidden';
-        inputReport.name = 'report';
-        inputReport.value = 'kartu_anggota';
-        form.appendChild(inputReport);
-
-        const inputIds = document.createElement('input');
-        inputIds.type = 'hidden';
-        inputIds.name = 'ids';
-        inputIds.value = ids.join(',');
-        form.appendChild(inputIds);
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        printPdf({
+            report: 'kartu_anggota',
+            ids: ids.join(',')
+        });
     }
 
     window.printCard = function (id) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
-
-        const params = { report: 'kartu_anggota', id: id };
-        for (const key in params) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = params[key];
-            form.appendChild(input);
-        }
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        printPdf({ report: 'kartu_anggota', id: id });
     };
 
     window.deleteAnggota = function (id) {

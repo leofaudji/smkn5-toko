@@ -126,17 +126,10 @@ function initAsetTetapPage() {
 
     printReportBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${basePath}/api/pdf`;
-        form.target = '_blank';
-        const params = { report: 'aset-tetap', per_tanggal: new Date().toISOString().split('T')[0] };
-        for (const key in params) {
-            const hiddenField = document.createElement('input'); hiddenField.type = 'hidden'; hiddenField.name = key; hiddenField.value = params[key]; form.appendChild(hiddenField);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        printPdf({
+            report: 'aset-tetap',
+            per_tanggal: new Date().toISOString().split('T')[0]
+        });
     });
 
     document.getElementById('save-disposal-btn').addEventListener('click', async () => {

@@ -23,8 +23,8 @@ class LaporanPiutangReportBuilder implements ReportBuilderInterface {
                 p.customer_name,
                 a.nomor_anggota,
                 SUM(p.total) as total_kredit,
-                SUM(p.bayar) as total_bayar,
-                SUM(p.total - p.bayar) as sisa_hutang
+                SUM(p.bayar + p.bayar_wb) as total_bayar,
+                SUM(p.total - p.bayar - p.bayar_wb) as sisa_hutang
             FROM penjualan p
             LEFT JOIN anggota a ON p.customer_id = a.id
             WHERE p.payment_method = 'hutang' 

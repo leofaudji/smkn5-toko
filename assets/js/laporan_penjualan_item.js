@@ -165,14 +165,12 @@ function initLaporanPenjualanItemPage() {
 
     exportPdfBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        const params = new URLSearchParams({
+        printPdf({
             report: 'laporan-penjualan-item',
             start_date: startDateInput.value.split('-').reverse().join('-'),
             end_date: endDateInput.value.split('-').reverse().join('-'),
             sort_by: sortSelect.value
         });
-        const url = `${basePath}/api/pdf?${params.toString()}`;
-        window.open(url, '_blank');
     });
 
     loadReport();
