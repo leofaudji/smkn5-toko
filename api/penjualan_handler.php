@@ -5,7 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../includes/bootstrap.php';
 
 $db = Database::getInstance()->getConnection();
-$redis = RedisManager::getInstance();
+$user_id = 1; // Default global owner
 
 $action = $_GET['action'] ?? '';
 
@@ -32,8 +32,7 @@ switch ($action) {
         update_penjualan($db);
         break;
     default:
-        http_response_code(405);
-        echo json_encode(['success' => false, 'message' => 'Aksi tidak valid.']);
+        send_error_response('Aksi tidak valid.', 405);
         break;
 }
 
@@ -93,15 +92,17 @@ function get_all_penjualan($db)
 
         $sql .= " ORDER BY p.tanggal_penjualan DESC, p.id DESC LIMIT ? OFFSET ?";
 
+        // ── Logika Caching Redis ───────────────────────────────────────
+        $cache_key = "sales:list:{$user_id}:" . md5($sql . implode('', $params));
+        check_redis_cache($cache_key);
+
         $stmt = $db->prepare($sql);
         $countStmt = $db->prepare($countSql);
 
-        // Bind parameters for count query
         if (!empty($params)) {
             $countStmt->bind_param($types, ...$params);
         }
 
-        // Add limit and offset for main query
         $mainParams = array_merge($params, [$limit, $offset]);
         $mainTypes = $types . "ii";
         $stmt->bind_param($mainTypes, ...$mainParams);
@@ -115,10 +116,7 @@ function get_all_penjualan($db)
         $total = $countResult['total'];
         $countStmt->close();
 
-        header('Content-Type: application/json; charset=UTF-8');
-        if (ob_get_length()) ob_clean();
-        echo json_encode([
-            'success' => true,
+        send_json_response([
             'data' => $data,
             'pagination' => [
                 'current_page' => $page,
@@ -126,12 +124,10 @@ function get_all_penjualan($db)
                 'total_records' => $total,
                 'limit' => $limit
             ]
-        ], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-        die();
+        ], $cache_key, 300);
 
     } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Gagal mengambil data: ' . $e->getMessage()]);
+        send_error_response('Gagal mengambil data: ' . $e->getMessage(), 500);
     }
 }
 
@@ -140,9 +136,7 @@ function store_penjualan($db)
     $data = json_decode(file_get_contents('php://input'), true);
 
     if (empty($data['tanggal']) || empty($data['items']) || !is_array($data['items'])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Data tidak lengkap.']);
-        return;
+        send_error_response('Data tidak lengkap.', 400);
     }
 
     // Extract variables early (Pindahkan definisi variabel ke atas agar bisa divalidasi)
@@ -432,16 +426,14 @@ function store_penjualan($db)
 
         $stmt_gl->close();
         $db->commit();
-        $redis->flushReports();
-        $redis->flushSearchCache();
-        header('Content-Type: application/json; charset=UTF-8');
-        if (ob_get_length()) ob_clean();
-        echo json_encode(['success' => true, 'message' => 'Transaksi penjualan berhasil disimpan.', 'id' => $penjualanId], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-        die();
+        
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
+        
+        send_json_response(['message' => 'Transaksi penjualan berhasil disimpan.', 'id' => $penjualanId]);
     } catch (Exception $e) {
-        $db->rollback();
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        if (isset($db) && $db->in_transaction()) $db->rollback();
+        send_error_response($e->getMessage(), 500);
     }
 }
 
@@ -453,9 +445,7 @@ function void_penjualan($db)
     $logged_in_user_id = (int) $_SESSION['user_id'];
 
     if (!$id) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'ID transaksi tidak valid.']);
-        return;
+        send_error_response('ID transaksi tidak valid.', 400);
     }
 
     $db->begin_transaction();
@@ -566,21 +556,18 @@ function void_penjualan($db)
         $stmt_void->execute();
         $stmt_void->close();
 
-        // 6. Log aktivitas
         log_activity($_SESSION['username'], 'Batal Penjualan', "Membatalkan transaksi penjualan #{$penjualan['nomor_referensi']}");
 
         $db->commit();
-        $redis->flushReports();
-        $redis->flushSearchCache();
-        header('Content-Type: application/json; charset=UTF-8');
-        if (ob_get_length()) ob_clean();
-        echo json_encode(['success' => true, 'message' => 'Transaksi berhasil dibatalkan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-        die();
+        
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
+        
+        send_json_response(['message' => 'Transaksi berhasil dibatalkan.']);
 
     } catch (Exception $e) {
-        $db->rollback();
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        if (isset($db) && $db->in_transaction()) $db->rollback();
+        send_error_response($e->getMessage(), 500);
     }
 }
 
@@ -589,9 +576,7 @@ function get_penjualan_detail($db)
     try {
         $id = $_GET['id'] ?? 0;
         if (!$id) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'ID tidak valid.']);
-            return;
+            send_error_response('ID tidak valid.', 400);
         }
 
         $stmt = $db->prepare("SELECT p.*, u.username as created_by_username FROM penjualan p JOIN users u ON p.created_by = u.id WHERE p.id = ?");
@@ -616,50 +601,32 @@ function get_penjualan_detail($db)
             $stmt->execute();
             $penjualan['items'] = stmt_fetch_all($stmt);
             $stmt->close();
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['success' => true, 'data' => $penjualan], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            send_json_response($penjualan);
         } else {
-            http_response_code(404);
-            echo json_encode(['success' => false, 'message' => 'Data tidak ditemukan.']);
+            send_error_response('Data tidak ditemukan.', 404);
         }
     } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        send_error_response($e->getMessage(), 500);
     }
 }
 
 function search_produk($db)
 {
-    global $redis; // Redis instance dari awal file
     try {
         $user_id = 1; // ID Pemilik Data (Toko)
         $term = trim($_GET['term'] ?? '');
         if (strlen($term) < 1) {
-            echo json_encode([]);
-            return;
+            send_json_response([], null, 0, false, true);
         }
 
         $cache_key = "search:items:" . md5($term);
-
-        // Coba ambil dari Redis
-        if ($redis && $redis->isAvailable()) {
-            $cached = $redis->get($cache_key);
-            if ($cached !== null) {
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
-            }
-        }
+        check_redis_cache($cache_key, true);
 
         $search = "%{$term}%";
-
         // Ambil akun konsinyasi (Hutang Titipan) untuk tracking stok terjual
         $consignment_acc_id = get_setting('consignment_payable_account', null, $db);
 
-        // Query untuk barang reguler
+        // ... query tetap sama ...
         $sql_normal = "
             SELECT 
                 id, 
@@ -670,7 +637,6 @@ function search_produk($db)
             FROM items 
             WHERE user_id = ? AND (nama_barang LIKE ? OR sku LIKE ? OR barcode LIKE ?) AND stok > 0";
 
-        // Query untuk barang konsinyasi
         $sql_consignment = "
             SELECT 
                 ci.id, 
@@ -700,7 +666,6 @@ function search_produk($db)
             WHERE ci.user_id = ? AND (ci.nama_barang LIKE ? OR ci.sku LIKE ? OR ci.barcode LIKE ?)
             HAVING stok > 0";
 
-        // Gunakan wrapper SELECT * untuk kompatibilitas UNION yang lebih baik pada beberapa driver
         $query = "SELECT * FROM (
             ($sql_normal) 
             UNION 
@@ -708,44 +673,15 @@ function search_produk($db)
         ) AS combined_results LIMIT 15";
 
         $stmt = $db->prepare($query);
-
-        $stmt->bind_param(
-            'isssiisss',
-            $user_id,
-            $search,
-            $search,
-            $search, // Normal parameters
-            $consignment_acc_id,
-            $user_id,
-            $search,
-            $search,
-            $search // Consignment parameters
-        );
-
+        $stmt->bind_param('isssiisss', $user_id, $search, $search, $search, $consignment_acc_id, $user_id, $search, $search, $search);
         $stmt->execute();
         $result = stmt_fetch_all($stmt);
         $stmt->close();
 
-        // Simpan ke Redis (TTL 60 detik)
-        if ($redis && $redis->isAvailable()) {
-            $redis->set($cache_key, $result, 60);
-        }
+        send_json_response($result, $cache_key, 60, false, true);
 
-        header('Content-Type: application/json; charset=UTF-8');
-        $json_output = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-        
-        if ($json_output === false || $json_output === 'null') {
-            $json_output = json_encode([]); 
-        }
-
-        if (ob_get_length()) ob_clean();
-        echo $json_output;
-        die();
     } catch (Exception $e) {
-        if (ob_get_length()) ob_clean();
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Gagal mencari barang: ' . $e->getMessage()]);
-        die();
+        send_error_response($e->getMessage(), 500);
     }
 }
 
@@ -759,10 +695,7 @@ function search_member($db)
     $stmt->execute();
     $result = stmt_fetch_all($stmt);
     $stmt->close();
-    header('Content-Type: application/json; charset=UTF-8');
-    if (ob_get_length()) ob_clean();
-    echo json_encode(['success' => true, 'data' => $result], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-    die();
+    send_json_response($result);
 }
 
 function update_penjualan($db)
@@ -771,9 +704,7 @@ function update_penjualan($db)
     $id = (int) ($data['id'] ?? 0);
 
     if (!$id) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'ID transaksi tidak valid.']);
-        return;
+        send_error_response('ID transaksi tidak valid.', 400);
     }
 
     $user_id = 1; // ID Pemilik Data (Toko)
@@ -1023,16 +954,13 @@ function update_penjualan($db)
         $gl_stmt->close();
         log_activity($_SESSION['username'], 'Update Penjualan', "Memperbarui transaksi penjualan #{$old_penjualan['nomor_referensi']}");
         $db->commit();
-        $redis->flushReports();
-        $redis->flushSearchCache();
-        header('Content-Type: application/json; charset=UTF-8');
-        if (ob_get_length()) ob_clean();
-        echo json_encode(['success' => true, 'message' => 'Transaksi berhasil diperbarui.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-        die();
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
+
+        send_json_response(['message' => 'Transaksi berhasil diperbarui.']);
 
     } catch (Exception $e) {
-        $db->rollback();
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        if (isset($db) && $db->in_transaction()) $db->rollback();
+        send_error_response($e->getMessage(), 500);
     }
 }

@@ -118,9 +118,13 @@ class RedisManager
     public function flushReports(): void
     {
         if ($this->available) {
-            $keys = $this->redis->keys('report:*');
-            if (!empty($keys)) {
-                $this->redis->del($keys);
+            // Bersihkan semua cache laporan, dashboard, dan audit
+            $prefixes = ['report:*', 'dashboard:*', 'audit:*'];
+            foreach ($prefixes as $prefix) {
+                $keys = $this->redis->keys($prefix);
+                if (!empty($keys)) {
+                    $this->redis->del($keys);
+                }
             }
         }
     }

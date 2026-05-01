@@ -40,17 +40,19 @@ try {
         array_push($params, $searchTerm, $searchTerm);
     }
 
+    // ── Logika Caching Redis ───────────────────────────────────────
+    $cache_key = "report:sales:{$user_id}:" . md5($start_date . $end_date . $search . "_{$view_type}_{$limit}_{$offset}");
+    check_redis_cache($cache_key);
+
     $where_sql = 'WHERE ' . implode(' AND ', $where_clauses);
-    $view_type = $_GET['view_type'] ?? 'summary';
     
-    // Get summary data (total sales and profit) - Always keep this summary based on transactions
+    // ... (Logika query tetap sama)
+    // Get summary data
     $summary_where_sql = 'WHERE ' . implode(' AND ', $where_clauses) . " AND p.status = 'completed'";
     $summary_stmt = $conn->prepare("
         SELECT
             pd.item_type,
             SUM(pd.subtotal) as total_bruto,
-            -- Kita perlu menghitung total neto dengan memperhitungkan proporsi diskon global 
-            -- atau sederhananya kita hitung total p.total tertimbang per item_type
             SUM(pd.subtotal - (pd.subtotal / NULLIF(p.subtotal, 0) * p.discount)) as total_neto,
             SUM(CASE 
                 WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
@@ -92,31 +94,15 @@ try {
         $summary_data['total_profit'] += $profit;
 
         if ($row['item_type'] === 'normal') {
-            $summary_data['shop'] = [
-                'bruto' => $bruto, 
-                'sales' => $sales, 
-                'hpp' => $hpp, 
-                'profit' => $profit,
-                'margin_pct' => ($sales > 0 ? ($profit / $sales * 100) : 0)
-            ];
+            $summary_data['shop'] = ['bruto' => $bruto, 'sales' => $sales, 'hpp' => $hpp, 'profit' => $profit, 'margin_pct' => ($sales > 0 ? ($profit / $sales * 100) : 0)];
         } elseif ($row['item_type'] === 'consignment') {
-            $summary_data['consignment'] = [
-                'bruto' => $bruto, 
-                'sales' => $sales, 
-                'hpp' => $hpp, 
-                'profit' => $profit,
-                'margin_pct' => ($sales > 0 ? ($profit / $sales * 100) : 0)
-            ];
+            $summary_data['consignment'] = ['bruto' => $bruto, 'sales' => $sales, 'hpp' => $hpp, 'profit' => $profit, 'margin_pct' => ($sales > 0 ? ($profit / $sales * 100) : 0)];
         }
     }
     
-    // Calculate total margin percentage
-    $summary_data['total_margin_pct'] = ($summary_data['total_penjualan'] > 0) 
-        ? ($summary_data['total_profit'] / $summary_data['total_penjualan'] * 100) 
-        : 0;
+    $summary_data['total_margin_pct'] = ($summary_data['total_penjualan'] > 0) ? ($summary_data['total_profit'] / $summary_data['total_penjualan'] * 100) : 0;
 
     if ($view_type === 'detail') {
-        // COUNT for detail mode (number of items sold)
         $count_stmt_sql = "SELECT COUNT(pd.id) as total FROM penjualan_details pd JOIN penjualan p ON pd.penjualan_id = p.id LEFT JOIN users u ON p.created_by = u.id $where_sql";
         $count_stmt = $conn->prepare($count_stmt_sql);
         $bind_params_count = [&$params[0]];
@@ -126,40 +112,8 @@ try {
         $total_records = stmt_fetch_assoc($count_stmt)['total'];
         $count_stmt->close();
 
-        // QUERY for detail mode
-        $query = "
-            SELECT 
-                p.id as penjualan_id,
-                p.nomor_referensi,
-                p.tanggal_penjualan,
-                p.customer_name,
-                p.payment_method,
-                p.status,
-                u.username,
-                pd.id as detail_id,
-                pd.item_id,
-                pd.deskripsi_item,
-                pd.quantity,
-                pd.price,
-                pd.discount as item_discount,
-                pd.subtotal as item_total,
-                pd.item_type,
-                CASE 
-                    WHEN pd.item_type = 'normal' THEN i.harga_beli
-                    WHEN pd.item_type = 'consignment' THEN ci.harga_beli
-                    ELSE 0
-                END as item_hpp
-            FROM penjualan_details pd
-            JOIN penjualan p ON pd.penjualan_id = p.id
-            LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
-            LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
-            LEFT JOIN users u ON p.created_by = u.id
-            $where_sql
-            ORDER BY p.tanggal_penjualan DESC, p.id DESC, pd.id ASC
-            LIMIT ? OFFSET ?
-        ";
+        $query = "SELECT p.id as penjualan_id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.payment_method, p.status, u.username, pd.id as detail_id, pd.item_id, pd.deskripsi_item, pd.quantity, pd.price, pd.discount as item_discount, pd.subtotal as item_total, pd.item_type, CASE WHEN pd.item_type = 'normal' THEN i.harga_beli WHEN pd.item_type = 'consignment' THEN ci.harga_beli ELSE 0 END as item_hpp FROM penjualan_details pd JOIN penjualan p ON pd.penjualan_id = p.id LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal' LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment' LEFT JOIN users u ON p.created_by = u.id $where_sql ORDER BY p.tanggal_penjualan DESC, p.id DESC, pd.id ASC LIMIT ? OFFSET ?";
     } else {
-        // COUNT for summary mode (number of invoices)
         $total_stmt = $conn->prepare("SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id $where_sql");
         $bind_params_total = [&$params[0]];
         for ($i = 1; $i < count($params); $i++) { $bind_params_total[] = &$params[$i]; }
@@ -168,41 +122,7 @@ try {
         $total_records = stmt_fetch_assoc($total_stmt)['total'];
         $total_stmt->close();
 
-        // QUERY for summary mode
-        $query = "
-            SELECT 
-                p.id, 
-                p.nomor_referensi, 
-                p.tanggal_penjualan, 
-                p.customer_name, 
-                p.subtotal as gross_total,
-                p.discount as global_discount,
-                p.total, 
-                p.payment_method,
-                p.status, 
-                u.username,
-                COALESCE(cogs.total_hpp, 0) as total_hpp,
-                (p.total - COALESCE(cogs.total_hpp, 0)) as profit,
-                ((p.total - COALESCE(cogs.total_hpp, 0)) / NULLIF(p.total, 0) * 100) as margin_pct
-            FROM penjualan p
-            LEFT JOIN users u ON p.created_by = u.id
-            LEFT JOIN (
-                SELECT 
-                    pd.penjualan_id, 
-                    SUM(CASE 
-                        WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
-                        WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
-                        ELSE 0 
-                    END) as total_hpp
-                FROM penjualan_details pd
-                LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
-                LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
-                GROUP BY pd.penjualan_id
-            ) as cogs ON p.id = cogs.penjualan_id
-            $where_sql 
-            ORDER BY p.tanggal_penjualan DESC, p.id DESC 
-            LIMIT ? OFFSET ?
-        ";
+        $query = "SELECT p.id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.subtotal as gross_total, p.discount as global_discount, p.total, p.payment_method, p.status, u.username, COALESCE(cogs.total_hpp, 0) as total_hpp, (p.total - COALESCE(cogs.total_hpp, 0)) as profit, ((p.total - COALESCE(cogs.total_hpp, 0)) / NULLIF(p.total, 0) * 100) as margin_pct FROM penjualan p LEFT JOIN users u ON p.created_by = u.id LEFT JOIN (SELECT pd.penjualan_id, SUM(CASE WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli ELSE 0 END) as total_hpp FROM penjualan_details pd LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal' LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment' GROUP BY pd.penjualan_id) as cogs ON p.id = cogs.penjualan_id $where_sql ORDER BY p.tanggal_penjualan DESC, p.id DESC LIMIT ? OFFSET ?";
     }
 
     $params[0] .= 'ii';
@@ -221,13 +141,17 @@ try {
         'page' => $page, 
         'total_pages' => ceil($total_records / $limit), 
         'total_records' => $total_records, 
-        'limit' => $limit, // Tambahkan limit ke objek pagination
+        'limit' => $limit,
         'summary' => $summary_data
     ];
-    echo json_encode(['status' => 'success', 'data' => $data, 'pagination' => $pagination]);
+    
+    send_json_response([
+        'status' => 'success',
+        'data' => $data,
+        'pagination' => $pagination
+    ], $cache_key, 300);
 
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 500);
 }
 ?>

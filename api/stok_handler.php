@@ -12,7 +12,6 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$redis = RedisManager::getInstance();
 $user_id = 1; // ID Pemilik Data (Toko)
 $logged_in_user_id = $_SESSION['user_id'];
 
@@ -28,7 +27,7 @@ try {
             $stok_filter = $_GET['stok_filter'] ?? '';
             $category_filter = $_GET['category_filter'] ?? '';
 
-            $where_clauses = ['i.user_id = ?']; // Perbaikan di sini: tambahkan alias tabel 'i'
+            $where_clauses = ['i.user_id = ?'];
             $params = ['i', $user_id];
 
             if (!empty($search)) {
@@ -49,6 +48,10 @@ try {
             }
 
             $where_sql = 'WHERE ' . implode(' AND ', $where_clauses);
+
+            // ── Logika Caching Redis ───────────────────────────────────────
+            $cache_key = "stock:list:{$user_id}:" . md5($where_sql . "_{$limit}_{$offset}");
+            check_redis_cache($cache_key);
 
             $total_stmt = $conn->prepare("SELECT COUNT(*) as total FROM items i $where_sql");
             $bind_params_total = [&$params[0]];
@@ -88,10 +91,12 @@ try {
                 'to' => min($offset + $limit, $total_records),
                 'total' => $total_records
             ];
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'data' => $items, 'pagination' => $pagination], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+
+            send_json_response([
+                'status' => 'success',
+                'data' => $items,
+                'pagination' => $pagination
+            ], $cache_key, 300);
 
         } elseif ($action === 'get_accounts') {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun, tipe_akun FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
@@ -111,10 +116,7 @@ try {
             $stmt->execute();
             $categories = stmt_fetch_all($stmt);
             $stmt->close();
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'data' => $categories], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            send_json_response($categories);
         } elseif ($action === 'get_adjustment_accounts') {
             $stmt = $conn->prepare("SELECT id, kode_akun, nama_akun FROM accounts WHERE user_id = ? AND tipe_akun IN ('Beban', 'Ekuitas', 'Pendapatan') ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
@@ -135,10 +137,7 @@ try {
             $history = stmt_fetch_all($stmt);
             $stmt->close();
 
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'data' => $history], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            send_json_response($history);
 
         } elseif ($action === 'get_kartu_stok') {
             $item_id = (int) ($_GET['item_id'] ?? 0);
@@ -221,10 +220,7 @@ try {
                 'transactions' => $transactions
             ];
 
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'data' => $response_data], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            send_json_response($response_data);
         }
 
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -276,11 +272,8 @@ try {
                 $stmt_ks->close();
             }
 
-            $stmt->close();
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'message' => $message], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            RedisManager::getInstance()->flushSearchCache();
+            send_json_response(['status' => 'success', 'message' => $message]);
 
         } elseif ($action === 'get_single') {
             $id = (int) ($_POST['id'] ?? 0); // This is correct for get_single
@@ -291,10 +284,7 @@ try {
             $stmt->close();
             if (!$item)
                 throw new Exception("Barang tidak ditemukan.");
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'data' => $item], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            send_json_response($item);
 
         } elseif ($action === 'delete') {
             $id = (int) ($_POST['id'] ?? 0); // This is correct for delete
@@ -303,10 +293,8 @@ try {
             $stmt->bind_param('ii', $id, $user_id);
             $stmt->execute();
             $stmt->close();
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'message' => 'Barang berhasil dihapus.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            RedisManager::getInstance()->flushSearchCache();
+            send_json_response(['status' => 'success', 'message' => 'Barang berhasil dihapus.']);
 
         } elseif ($action === 'adjust_stock') {
             // This part uses JSON, so we need to read from the raw input
@@ -406,11 +394,8 @@ try {
                 $stmt_ks->close();
 
                 $conn->commit();
-                $redis->flushSearchCache();
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode(['status' => 'success', 'message' => 'Penyesuaian stok berhasil disimpan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
+                RedisManager::getInstance()->flushSearchCache();
+                send_json_response(['status' => 'success', 'message' => 'Penyesuaian stok berhasil disimpan.']);
             } catch (Exception $e) {
                 $conn->rollback();
                 throw $e; // Re-throw untuk ditangkap oleh handler utama
@@ -524,11 +509,8 @@ try {
                 }
 
                 $conn->commit();
-                $redis->flushSearchCache();
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode(['status' => 'success', 'message' => 'Stok opname batch berhasil disimpan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
+                RedisManager::getInstance()->flushSearchCache();
+                send_json_response(['status' => 'success', 'message' => 'Stok opname batch berhasil disimpan.']);
             } catch (Exception $e) {
                 $conn->rollback();
                 throw $e; // Re-throw untuk ditangkap oleh handler utama
@@ -743,11 +725,8 @@ try {
                     //update_general_ledger($conn, $user_id, $accountId, $tanggal_import, $debit, $credit, $keterangan_impor, $nomorReferensi, $journalId);
                 }
             }
-            $redis->flushSearchCache();
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'message' => $final_message], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            RedisManager::getInstance()->flushSearchCache();
+            send_json_response(['status' => 'success', 'message' => $final_message]);
         }
     } else {
         // Jika method tidak dikenali
@@ -757,11 +736,7 @@ try {
     if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) {
         $conn->rollback();
     }
-    header('Content-Type: application/json; charset=UTF-8');
-    if (ob_get_length()) ob_clean();
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-    die();
+    send_error_response($e->getMessage(), 400);
 }
 
 ?>

@@ -249,6 +249,7 @@ try {
                 fclose($handle);
                 $stmt_lookup->close();
                 $conn->commit();
+                RedisManager::getInstance()->flushReports();
 
                 echo json_encode(['success' => true, 'message' => "Impor selesai. $success berhasil, $skipped dilewati.", 'errors' => $errors]);
             } else {
@@ -331,6 +332,7 @@ try {
             }
 
             $conn->commit();
+            RedisManager::getInstance()->flushReports();
 
             log_activity($_SESSION['username'], 'Tambah Setoran WB', "Menambah setoran Wajib Belanja untuk $total_processed anggota.");
 
@@ -401,6 +403,8 @@ try {
             $stmt_gl->close();
 
             $conn->commit();
+            RedisManager::getInstance()->flushReports();
+
             log_activity($_SESSION['username'], 'Update Transaksi WB', "Update transaksi WB ID: $id");
             echo json_encode(['success' => true, 'message' => 'Transaksi berhasil diperbarui.']);
 
@@ -441,6 +445,8 @@ try {
             $stmt_del->close();
 
             $conn->commit();
+            RedisManager::getInstance()->flushReports();
+
             log_activity($_SESSION['username'], 'Hapus Transaksi WB', "Menghapus transaksi WB ID: $id");
             echo json_encode(['success' => true, 'message' => 'Transaksi berhasil dihapus.']);
         }

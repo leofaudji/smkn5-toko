@@ -16,19 +16,20 @@ $start_date = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
 $end_date = $_GET['end_date'] ?? date('Y-m-d');
 
 try {
+    $cache_key = "report:growth:sales:{$user_id}:{$start_date}:{$end_date}";
+    check_redis_cache($cache_key);
+
     $repo = new LaporanRepository($conn);
     $report_data = $repo->getDailySalesProfitGrowth($user_id, $start_date, $end_date);
 
-    echo json_encode([
-        'status' => 'success',
+    send_json_response([
         'data' => $report_data,
         'period' => [
             'start' => $start_date,
             'end' => $end_date
         ]
-    ]);
+    ], $cache_key, 300);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 500);
 }
 ?>

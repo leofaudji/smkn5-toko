@@ -9,7 +9,6 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$redis = RedisManager::getInstance();
 $user_id = 1; // ID Pemilik Data (Toko)
 $logged_in_user_id = $_SESSION['user_id'];
 
@@ -98,10 +97,12 @@ try {
                 'to' => $to,
                 'total' => $total_records
             ];
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'data' => $pembelian_list, 'pagination' => $pagination], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            // Bungkus data dengan pagination
+            send_json_response([
+                'status' => 'success',
+                'data' => $pembelian_list,
+                'pagination' => $pagination
+            ]);
 
         } elseif ($action === 'get_single') {
             $id = (int) ($_GET['id'] ?? 0);
@@ -134,10 +135,7 @@ try {
             $details = stmt_fetch_all($stmt_details);
             $stmt_details->close();
 
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'data' => ['header' => $header, 'details' => $details]], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            send_json_response(['header' => $header, 'details' => $details]);
         } else {
             throw new Exception("Aksi GET tidak valid.");
         }
@@ -377,16 +375,14 @@ try {
 
                 // 7. Commit Transaksi
                 $conn->commit();
-                $redis->flushReports();
-                $redis->flushSearchCache();
+                RedisManager::getInstance()->flushReports();
+                RedisManager::getInstance()->flushSearchCache();
 
                 $log_message = ($action === 'add') ? "Pembelian #{$pembelian_id} sejumlah {$total_pembelian} ditambahkan." : "Pembelian #{$pembelian_id} diperbarui.";
                 $success_message = ($action === 'add') ? 'Pembelian berhasil disimpan.' : 'Pembelian berhasil diperbarui.';
                 log_activity($_SESSION['username'], 'Simpan Pembelian', $log_message);
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode(['status' => 'success', 'message' => $success_message, 'pembelian_id' => $pembelian_id], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
+                
+                send_json_response(['status' => 'success', 'message' => $success_message, 'pembelian_id' => $pembelian_id]);
                 break;
 
             case 'delete':
@@ -447,13 +443,10 @@ try {
                 $stmt->close();
 
                 $conn->commit();
-                $redis->flushReports();
-                $redis->flushSearchCache();
+                RedisManager::getInstance()->flushReports();
+                RedisManager::getInstance()->flushSearchCache();
                 log_activity($_SESSION['username'], 'Hapus Pembelian', "Pembelian ID {$id} dihapus.");
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode(['status' => 'success', 'message' => 'Pembelian berhasil dihapus.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
+                send_json_response(['status' => 'success', 'message' => 'Pembelian berhasil dihapus.']);
                 break;
 
             default:
@@ -461,11 +454,10 @@ try {
         }
     }
 } catch (Exception $e) {
-    header('Content-Type: application/json; charset=UTF-8');
-    if (ob_get_length()) ob_clean();
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-    die();
+    if (isset($conn) && $conn->in_transaction()) {
+        $conn->rollback();
+    }
+    send_error_response($e->getMessage(), 400);
 }
 
 ?>

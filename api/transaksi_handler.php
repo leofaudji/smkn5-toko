@@ -9,7 +9,6 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $conn = Database::getInstance()->getConnection();
-$redis = RedisManager::getInstance();
 $user_id = 1; // Semua user mengakses data yang sama
 $logged_in_user_id = $_SESSION['user_id']; // Untuk logging
 
@@ -18,6 +17,9 @@ try {
         $action = $_GET['action'] ?? 'list';
 
         if ($action === 'get_accounts_for_form') {
+            $cache_key = "transaction:form_accounts:{$user_id}";
+            check_redis_cache($cache_key);
+
             $stmt = $conn->prepare("SELECT id, nama_akun, tipe_akun, is_kas FROM accounts WHERE user_id = ? ORDER BY kode_akun ASC");
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
@@ -30,10 +32,7 @@ try {
                 'beban' => array_values(array_filter($all_accounts, fn($acc) => $acc['tipe_akun'] == 'Beban')),
             ];
 
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode(['status' => 'success', 'data' => $accounts], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            send_json_response($accounts, $cache_key, 3600); // Cache 1 jam
         }
         if ($action === 'get_journal_entry') {
             $id = (int) ($_GET['id'] ?? 0);
@@ -73,10 +72,7 @@ try {
                 $jurnal[] = ['akun' => $tx['nama_akun_kas'], 'debit' => 0, 'kredit' => $tx['jumlah']];
             }
 
-            header('Content-Type: application/json; charset=UTF-8');
-            if (ob_get_length()) ob_clean();
-            echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-            die();
+            send_json_response(['tx' => $tx, 'jurnal' => $jurnal]);
         }
 
         // Default action: list transactions
@@ -118,9 +114,13 @@ try {
 
         $where_sql = 'WHERE ' . implode(' AND ', $where_clauses);
 
+        // ── Logika Caching Redis ───────────────────────────────────────
+        $cache_key = "transaction:list:{$user_id}:" . md5($where_sql . "_{$limit}_{$offset}");
+        check_redis_cache($cache_key);
+
         // Get total count for pagination
         $total_stmt = $conn->prepare("SELECT COUNT(*) as total FROM transaksi t $where_sql");
-        // Use call_user_func_array for dynamic binding
+        // ... (sisanya tetap sama)
         $bind_params = [&$params[0]];
         for ($i = 1; $i < count($params); $i++) {
             $bind_params[] = &$params[$i];
@@ -156,7 +156,6 @@ try {
         $params[] = $offset;
 
         $stmt = $conn->prepare($query);
-        // Re-create bind params for the new query
         $bind_params_main = [&$params[0]];
         for ($i = 1; $i < count($params); $i++) {
             $bind_params_main[] = &$params[$i];
@@ -173,10 +172,11 @@ try {
             'limit' => $limit
         ];
 
-        header('Content-Type: application/json; charset=UTF-8');
-        if (ob_get_length()) ob_clean();
-        echo json_encode(['status' => 'success', 'data' => $transactions, 'pagination' => $pagination], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-        die();
+        send_json_response([
+            'status' => 'success',
+            'data' => $transactions,
+            'pagination' => $pagination
+        ], $cache_key, 300);
 
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
@@ -299,12 +299,9 @@ try {
                 $stmt_gl->close();
 
                 $conn->commit();
-                $redis->flushReports();
+                RedisManager::getInstance()->flushReports();
                 log_activity($_SESSION['username'], 'Tambah Transaksi', "Transaksi '{$keterangan}' sejumlah {$jumlah} ditambahkan.");
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil ditambahkan.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
+                send_json_response(['status' => 'success', 'message' => 'Transaksi berhasil ditambahkan.']);
                 break;
 
             case 'get_single':
@@ -321,10 +318,7 @@ try {
                 if (!$transaction)
                     throw new Exception("Transaksi tidak ditemukan.");
 
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode(['status' => 'success', 'data' => $transaction], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
+                send_json_response($transaction);
                 break;
 
             case 'update':
@@ -420,12 +414,9 @@ try {
                 $stmt_gl->close();
 
                 $conn->commit();
-                $redis->flushReports();
+                RedisManager::getInstance()->flushReports();
                 log_activity($_SESSION['username'], 'Update Transaksi', "Transaksi ID {$id} diperbarui.");
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil diperbarui.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
+                send_json_response(['status' => 'success', 'message' => 'Transaksi berhasil diperbarui.']);
                 break;
 
             case 'delete':
@@ -459,12 +450,9 @@ try {
                 $stmt_gl->close();
 
                 $conn->commit();
-                $redis->flushReports();
+                RedisManager::getInstance()->flushReports();
                 log_activity($_SESSION['username'], 'Hapus Transaksi', "Transaksi ID {$id} dihapus.");
-                header('Content-Type: application/json; charset=UTF-8');
-                if (ob_get_length()) ob_clean();
-                echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil dihapus.'], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-                die();
+                send_json_response(['status' => 'success', 'message' => 'Transaksi berhasil dihapus.']);
                 break;
 
             default:
@@ -475,10 +463,6 @@ try {
     if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) {
         $conn->rollback();
     }
-    header('Content-Type: application/json; charset=UTF-8');
-    if (ob_get_length()) ob_clean();
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-    die();
+    send_error_response($e->getMessage(), 400);
 }
 ?>

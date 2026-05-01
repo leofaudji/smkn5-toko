@@ -17,19 +17,17 @@ if (strlen($term) < 3) {
     exit;
 }
 
+// ── Logika Caching Redis ───────────────────────────────────────
+$cache_key = "global_search:{$user_id}:" . md5($term);
+check_redis_cache($cache_key);
+
 $results = [];
 $search_term = '%' . $term . '%';
 
 try {
-    // 1. Cari di General Ledger (mencakup Transaksi dan Jurnal Manual)
-    $stmt_gl = $conn->prepare("
-        SELECT ref_id, ref_type, tanggal, keterangan
-        FROM general_ledger
-        WHERE user_id = ? AND (keterangan LIKE ? OR nomor_referensi LIKE ?)
-        GROUP BY ref_id, ref_type, tanggal, keterangan
-        ORDER BY tanggal DESC
-        LIMIT 5
-    ");
+    // ... (Logika pencarian tetap sama, hanya merapikan output)
+    // 1. Cari di General Ledger
+    $stmt_gl = $conn->prepare("SELECT ref_id, ref_type, tanggal, keterangan FROM general_ledger WHERE user_id = ? AND (keterangan LIKE ? OR nomor_referensi LIKE ?) GROUP BY ref_id, ref_type, tanggal, keterangan ORDER BY tanggal DESC LIMIT 5");
     $stmt_gl->bind_param('iss', $user_id, $search_term, $search_term);
     $stmt_gl->execute();
     $gl_results = stmt_fetch_all($stmt_gl);
@@ -37,134 +35,62 @@ try {
 
     foreach ($gl_results as $item) {
         if ($item['ref_type'] === 'transaksi') {
-            $results[] = [
-                'link' => '/transaksi#tx-' . $item['ref_id'],
-                'icon' => 'bi-arrow-down-up',
-                'title' => $item['keterangan'],
-                'subtitle' => 'Transaksi pada ' . date('d M Y', strtotime($item['tanggal'])),
-                'type' => 'Transaksi'
-            ];
-        } else { // jurnal
-            $results[] = [
-                'link' => '/daftar-jurnal#JRN-' . $item['ref_id'],
-                'icon' => 'bi-journal-text',
-                'title' => $item['keterangan'],
-                'subtitle' => 'Jurnal pada ' . date('d M Y', strtotime($item['tanggal'])),
-                'type' => 'Jurnal'
-            ];
+            $results[] = ['link' => '/transaksi#tx-' . $item['ref_id'], 'icon' => 'bi-arrow-down-up', 'title' => $item['keterangan'], 'subtitle' => 'Transaksi pada ' . date('d M Y', strtotime($item['tanggal'])), 'type' => 'Transaksi'];
+        } else {
+            $results[] = ['link' => '/daftar-jurnal#JRN-' . $item['ref_id'], 'icon' => 'bi-journal-text', 'title' => $item['keterangan'], 'subtitle' => 'Jurnal pada ' . date('d M Y', strtotime($item['tanggal'])), 'type' => 'Jurnal'];
         }
     }
 
-    // 2. Cari di Bagan Akun (COA)
-    $stmt_coa = $conn->prepare("
-        SELECT id, kode_akun, nama_akun
-        FROM accounts
-        WHERE user_id = ? AND (nama_akun LIKE ? OR kode_akun LIKE ?)
-        LIMIT 5
-    ");
+    // 2. Cari di Bagan Akun
+    $stmt_coa = $conn->prepare("SELECT id, kode_akun, nama_akun FROM accounts WHERE user_id = ? AND (nama_akun LIKE ? OR kode_akun LIKE ?) LIMIT 5");
     $stmt_coa->bind_param('iss', $user_id, $search_term, $search_term);
     $stmt_coa->execute();
     $coa_results = stmt_fetch_all($stmt_coa);
     $stmt_coa->close();
-
     foreach ($coa_results as $item) {
-        $results[] = [
-            'link' => '/coa',
-            'icon' => 'bi-journal-bookmark-fill',
-            'title' => $item['nama_akun'],
-            'subtitle' => 'Akun: ' . $item['kode_akun'],
-            'type' => 'Bagan Akun'
-        ];
+        $results[] = ['link' => '/coa', 'icon' => 'bi-journal-bookmark-fill', 'title' => $item['nama_akun'], 'subtitle' => 'Akun: ' . $item['kode_akun'], 'type' => 'Bagan Akun'];
     }
 
-    // 3. Cari di Pemasok (Suppliers)
-    $stmt_sup = $conn->prepare("
-        SELECT id, nama_pemasok
-        FROM suppliers
-        WHERE user_id = ? AND nama_pemasok LIKE ?
-        LIMIT 3
-    ");
+    // 3. Cari di Pemasok
+    $stmt_sup = $conn->prepare("SELECT id, nama_pemasok FROM suppliers WHERE user_id = ? AND nama_pemasok LIKE ? LIMIT 3");
     $stmt_sup->bind_param('is', $user_id, $search_term);
     $stmt_sup->execute();
     $sup_results = stmt_fetch_all($stmt_sup);
     $stmt_sup->close();
-
     foreach ($sup_results as $item) {
-        $results[] = [
-            'link' => '/konsinyasi', // Arahkan ke halaman konsinyasi
-            'icon' => 'bi-truck',
-            'title' => $item['nama_pemasok'],
-            'subtitle' => 'Pemasok Konsinyasi',
-            'type' => 'Pemasok'
-        ];
+        $results[] = ['link' => '/konsinyasi', 'icon' => 'bi-truck', 'title' => $item['nama_pemasok'], 'subtitle' => 'Pemasok Konsinyasi', 'type' => 'Pemasok'];
     }
 
-    // 4. Cari di Pengguna (Users) - Hanya untuk Admin
+    // 4. Cari di Pengguna
     if ($_SESSION['role'] === 'admin') {
-        $stmt_users = $conn->prepare("
-            SELECT id, username, nama_lengkap
-            FROM users
-            WHERE username LIKE ? OR nama_lengkap LIKE ?
-            LIMIT 3
-        ");
+        $stmt_users = $conn->prepare("SELECT id, username, nama_lengkap FROM users WHERE username LIKE ? OR nama_lengkap LIKE ? LIMIT 3");
         $stmt_users->bind_param('ss', $search_term, $search_term);
         $stmt_users->execute();
         $user_results = stmt_fetch_all($stmt_users);
         $stmt_users->close();
-
         foreach ($user_results as $item) {
-            $results[] = [
-                'link' => '/users', // Arahkan ke halaman manajemen pengguna
-                'icon' => 'bi-person-fill-gear',
-                'title' => $item['nama_lengkap'] . ' (@' . $item['username'] . ')',
-                'subtitle' => 'Pengguna Sistem',
-                'type' => 'Pengguna'
-            ];
+            $results[] = ['link' => '/users', 'icon' => 'bi-person-fill-gear', 'title' => $item['nama_lengkap'] . ' (@' . $item['username'] . ')', 'subtitle' => 'Pengguna Sistem', 'type' => 'Pengguna'];
         }
     }
 
     // 5. Cari di Template Transaksi Berulang
-    $stmt_recurring = $conn->prepare("
-        SELECT id, name, next_run_date
-        FROM recurring_templates
-        WHERE user_id = ? AND name LIKE ?
-        LIMIT 3
-    ");
+    $stmt_recurring = $conn->prepare("SELECT id, name, next_run_date FROM recurring_templates WHERE user_id = ? AND name LIKE ? LIMIT 3");
     $stmt_recurring->bind_param('is', $user_id, $search_term);
     $stmt_recurring->execute();
     $recurring_results = stmt_fetch_all($stmt_recurring);
     $stmt_recurring->close();
-
     foreach ($recurring_results as $item) {
-        $results[] = [
-            'link' => '/transaksi-berulang',
-            'icon' => 'bi-arrow-repeat',
-            'title' => $item['name'],
-            'subtitle' => 'Jadwal berikutnya: ' . date('d M Y', strtotime($item['next_run_date'])),
-            'type' => 'Template Berulang'
-        ];
+        $results[] = ['link' => '/transaksi-berulang', 'icon' => 'bi-arrow-repeat', 'title' => $item['name'], 'subtitle' => 'Jadwal berikutnya: ' . date('d M Y', strtotime($item['next_run_date'])), 'type' => 'Template Berulang'];
     }
 
     // 6. Cari di Barang Konsinyasi
-    $stmt_citems = $conn->prepare("
-        SELECT id, nama_barang, harga_jual
-        FROM consignment_items
-        WHERE user_id = ? AND nama_barang LIKE ?
-        LIMIT 3
-    ");
+    $stmt_citems = $conn->prepare("SELECT id, nama_barang, harga_jual FROM consignment_items WHERE user_id = ? AND nama_barang LIKE ? LIMIT 3");
     $stmt_citems->bind_param('is', $user_id, $search_term);
     $stmt_citems->execute();
     $citems_results = stmt_fetch_all($stmt_citems);
     $stmt_citems->close();
-
     foreach ($citems_results as $item) {
-        $results[] = [
-            'link' => '/konsinyasi', // Arahkan ke halaman konsinyasi
-            'icon' => 'bi-box-seam',
-            'title' => $item['nama_barang'],
-            'subtitle' => 'Harga Jual: ' . number_format($item['harga_jual'], 0, ',', '.'),
-            'type' => 'Barang Konsinyasi'
-        ];
+        $results[] = ['link' => '/konsinyasi', 'icon' => 'bi-box-seam', 'title' => $item['nama_barang'], 'subtitle' => 'Harga Jual: ' . number_format($item['harga_jual'], 0, ',', '.'), 'type' => 'Barang Konsinyasi'];
     }
 
     // 7. Cari di Menu Aplikasi
@@ -194,22 +120,15 @@ try {
     });
 
     foreach ($menu_results as $item) {
-        // Cek agar tidak ada duplikat jika sudah ditemukan di pencarian lain
         $is_duplicate = false;
         foreach ($results as $existing_result) {
-            if ($existing_result['link'] === $item['link']) {
-                $is_duplicate = true;
-                break;
-            }
+            if ($existing_result['link'] === $item['link']) { $is_duplicate = true; break; }
         }
-        if (!$is_duplicate) {
-            $results[] = $item;
-        }
+        if (!$is_duplicate) { $results[] = $item; }
     }
 
-    echo json_encode(['status' => 'success', 'data' => $results]);
+    send_json_response($results, $cache_key, 60);
 
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-}
+    send_error_response($e->getMessage(), 500);
+}

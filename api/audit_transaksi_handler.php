@@ -11,12 +11,17 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 $conn = Database::getInstance()->getConnection();
 $user_id = 1; // Semua data diakses oleh user_id 1
 $logged_in_user_id = $_SESSION['user_id'];
+$redis = RedisManager::getInstance();
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $start_date = $_GET['start_date'] ?? date('Y-m-01');
         $end_date = $_GET['end_date'] ?? date('Y-m-t');
         $module = $_GET['module'] ?? 'all';
+
+        // ── Logika Caching Redis ───────────────────────────────────────
+        $cache_key = "audit:list:{$module}:{$start_date}:{$end_date}";
+        check_redis_cache($cache_key);
 
         $results = [];
 
@@ -83,7 +88,7 @@ try {
             return strcmp($b['tanggal'], $a['tanggal']);
         });
 
-        echo json_encode(['status' => 'success', 'data' => $results]);
+        send_json_response($results, $cache_key, 300);
 
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $input = json_decode(file_get_contents('php://input'), true);
@@ -108,15 +113,15 @@ try {
             repost_transaction($conn, $ref_type, $ref_id, $user_id, $logged_in_user_id);
 
             $conn->commit();
-            echo json_encode(['status' => 'success', 'message' => 'Transaksi berhasil diposting ulang ke Buku Besar.']);
+            RedisManager::getInstance()->flushReports(); // Flush karena repost mengubah GL
+            send_json_response(['status' => 'success', 'message' => 'Transaksi berhasil diposting ulang ke Buku Besar.']);
         }
     }
 } catch (Exception $e) {
     if (isset($conn) && $conn->in_transaction()) {
         $conn->rollback();
     }
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 400);
 }
 
 /**

@@ -18,9 +18,11 @@ try {
         $anggota_id = (int)($_GET['anggota_id'] ?? 0);
         $tahun = (int)($_GET['tahun'] ?? date('Y'));
 
-        if ($anggota_id <= 0) {
-            throw new Exception("ID Anggota tidak valid.");
-        }
+        if ($anggota_id <= 0) throw new Exception("ID Anggota tidak valid.");
+
+        // ── Logika Caching Redis ───────────────────────────────────────
+        $cache_key = "report:wb:history:{$anggota_id}:{$tahun}";
+        check_redis_cache($cache_key);
 
         $stmt = $conn->prepare("SELECT * FROM transaksi_wajib_belanja WHERE anggota_id = ? AND YEAR(tanggal) = ? ORDER BY tanggal DESC");
         $stmt->bind_param('ii', $anggota_id, $tahun);
@@ -28,12 +30,16 @@ try {
         $history = stmt_fetch_all($stmt);
         $stmt->close();
 
-        echo json_encode(['status' => 'success', 'data' => $history]);
-        exit;
+        send_json_response($history, $cache_key, 300);
     }
 
     $tahun = isset($_GET['tahun']) ? (int)$_GET['tahun'] : date('Y');
     $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+    $only_arrears = isset($_GET['only_arrears']) && $_GET['only_arrears'] === 'true';
+
+    // ── Logika Caching Redis ───────────────────────────────────────
+    $cache_key = "report:wb:annual:{$user_id}:{$tahun}:" . md5($search . ($only_arrears ? '1' : '0'));
+    check_redis_cache($cache_key);
 
     // 1. Ambil semua anggota aktif
     $sql_members = "SELECT id, nomor_anggota, nama_lengkap FROM anggota WHERE status = 'aktif'";
@@ -94,18 +100,15 @@ try {
 
     // 3. Gabungkan data anggota dengan data transaksi
     $report_data = [];
-    $totals_per_month = array_fill(1, 12, 0); // Untuk baris total di bawah
+    $totals_per_month = array_fill(1, 12, 0);
     $grand_total = 0;
     $grand_total_tunggakan = 0;
     $grand_total_belanja = 0;
     $grand_total_saldo = 0;
 
-    // Ambil nominal wajib belanja dari setting
     $nominal_wajib_belanja = (float)get_setting('nominal_wajib_belanja', 50000, $conn);
     $current_year = (int)date('Y');
     $current_month = (int)date('n');
-
-    $only_arrears = isset($_GET['only_arrears']) && $_GET['only_arrears'] === 'true';
 
     foreach ($members as $member) {
         $row = [
@@ -123,29 +126,14 @@ try {
             $row['total_tahun'] += $amount;
         }
 
-        // Hitung Sisa Tunggakan
-        // Target bulan: Jika tahun lalu, target 12 bulan. Jika tahun ini, target sampai bulan ini.
-        $target_months = 0;
-        if ($tahun < $current_year) {
-            $target_months = 12;
-        } elseif ($tahun == $current_year) {
-            $target_months = $current_month;
-        }
-        
+        $target_months = ($tahun < $current_year) ? 12 : (($tahun == $current_year) ? $current_month : 0);
         $target_amount = $target_months * $nominal_wajib_belanja;
-        // Tunggakan tidak boleh negatif (jika bayar lebih, tunggakan 0)
         $tunggakan = max(0, $target_amount - $row['total_tahun']);
         $row['sisa_tunggakan'] = $tunggakan;
 
-        // Filter: Jika hanya ingin yang menunggak dan anggota ini tidak menunggak, lewati
-        if ($only_arrears && $tunggakan <= 0) {
-            continue;
-        }
+        if ($only_arrears && $tunggakan <= 0) continue;
 
-        // Akumulasi total global (hanya untuk data yang lolos filter)
-        for ($m = 1; $m <= 12; $m++) {
-            $totals_per_month[$m] += $row['bulan_' . $m];
-        }
+        for ($m = 1; $m <= 12; $m++) $totals_per_month[$m] += $row['bulan_' . $m];
         $grand_total += $row['total_tahun'];
         $grand_total_tunggakan += $tunggakan;
         $grand_total_belanja += $row['total_belanja'];
@@ -154,8 +142,7 @@ try {
         $report_data[] = $row;
     }
 
-    echo json_encode([
-        'status' => 'success', 
+    send_json_response([
         'data' => $report_data,
         'summary' => [
             'totals_per_month' => $totals_per_month,
@@ -167,9 +154,8 @@ try {
         'meta' => [
             'nominal_wajib_belanja' => $nominal_wajib_belanja
         ]
-    ]);
+    ], $cache_key, 300);
 
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 500);
 }

@@ -120,9 +120,6 @@ if (file_exists($changelog_file)) {
             <!-- Right side: Clock, Search, Profile -->
             <div class="flex items-center space-x-2">
                 <div id="live-clock" class="text-gray-600 dark:text-gray-400 text-sm font-semibold hidden md:block"></div>
-                <button onclick="openModal('globalSearchModal')" class="text-gray-500 dark:text-gray-400 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" title="Pencarian Global">
-                    <i class="bi bi-search text-lg"></i>
-                </button>
 
                 <!-- Profile Dropdown -->
                 <div class="relative" data-controller="dropdown">
@@ -153,28 +150,3 @@ if (file_exists($changelog_file)) {
 
         <!-- Main Scrollable Area -->
         <main id="main-content" class="main-content flex-1 overflow-y-auto p-4 sm:p-6">
-
-<!-- Global Search Modal -->
-<div id="globalSearchModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-start justify-center min-h-screen pt-16 px-4 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('globalSearchModal')"></div>
-        <!-- Modal panel -->
-        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-            <div class="p-4">
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3">
-                        <i class="bi bi-search text-gray-400"></i>
-                    </span>
-                    <input type="text" class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary" id="global-search-input" placeholder="Ketik disini apa yang dicari..." autocomplete="off">
-                    <span class="absolute inset-y-0 right-0 flex items-center pr-3" id="global-search-spinner" style="display: none;">
-                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    </span>
-                </div>
-            </div>
-            <div id="global-search-results" class="px-4 pb-4 max-h-[60vh] overflow-y-auto">
-                <p class="text-gray-500 text-center py-8">Masukkan kata kunci untuk memulai pencarian.</p>
-            </div>
-        </div>
-    </div>
-</div>

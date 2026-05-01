@@ -23,16 +23,7 @@ $end_date2 = $_GET['end2'] ?? '';
 
 // ── Logika Caching Redis ───────────────────────────────────────
 $cache_key = "report:labarugi:{$user_id}:{$start_date}:{$end_date}:" . ($is_comparison ? "1:{$start_date2}:{$end_date2}" : "0") . ":" . ($is_common_size ? '1' : '0') . ":" . ($include_closing ? '1' : '0');
-
-if ($redis->isAvailable()) {
-    $cached_data = $redis->get($cache_key);
-    if ($cached_data) {
-        header('Content-Type: application/json; charset=UTF-8');
-        if (ob_get_length()) ob_clean();
-        echo json_encode(['status' => 'success', 'data' => $cached_data, 'cached' => true], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-        die();
-    }
-}
+check_redis_cache($cache_key);
 
 try {
     $repo = new LaporanRepository($conn);
@@ -67,20 +58,8 @@ try {
         if ($is_comparison && isset($response_data['previous'])) $calculate_percentages($response_data['previous']);
     }
 
-    // Simpan ke cache selama 5 menit
-    if ($redis->isAvailable()) {
-        $redis->set($cache_key, $response_data, 300);
-    }
-
-    header('Content-Type: application/json; charset=UTF-8');
-    if (ob_get_length()) ob_clean();
-    echo json_encode(['status' => 'success', 'data' => $response_data, 'cached' => false], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-    die();
+    send_json_response($response_data, $cache_key, 300);
 
 } catch (Exception $e) {
-    header('Content-Type: application/json; charset=UTF-8');
-    if (ob_get_length()) ob_clean();
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-    die();
-}
+    send_error_response($e->getMessage(), 500);
+}

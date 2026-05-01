@@ -8,13 +8,16 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     exit;
 }
 
-$conn = Database::getInstance()->getConnection();
 $user_id = 1; // Semua user mengakses data yang sama
-
 $bulan = (int)($_GET['bulan'] ?? date('m'));
 $tahun = (int)($_GET['tahun'] ?? date('Y'));
 
+// ── Logika Caching Redis ───────────────────────────────────────
+$cache_key = "dashboard:main:{$user_id}:{$bulan}:{$tahun}";
+check_redis_cache($cache_key);
+
 try {
+    $conn = Database::getInstance()->getConnection();
     $response_data = [];
 
     // 0. Ambil status keseimbangan Neraca untuk hari ini
@@ -210,10 +213,9 @@ try {
         ]
     ];
 
-    echo json_encode(['status' => 'success', 'data' => $response_data]);
+    send_json_response($response_data, $cache_key, 300);
 
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 500);
 }
 ?>

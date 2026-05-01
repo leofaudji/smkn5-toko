@@ -893,7 +893,6 @@ document.addEventListener('DOMContentLoaded', function () {
     checkAdminNotifications();
 
     // --- Initialize Global Components ---
-    initGlobalSearch();
     initRecurringModal();
 });
 
@@ -967,86 +966,6 @@ function openRecurringModal(type, data, existingTemplate = null) {
     openModal('recurringModal');
 }
 
-function initGlobalSearch() {
-    const searchModalEl = document.getElementById('globalSearchModal');
-    if (!searchModalEl) return;
-
-    const searchInput = document.getElementById('global-search-input');
-    const resultsContainer = document.getElementById('global-search-results');
-    const spinner = document.getElementById('global-search-spinner');
-
-    let debounceTimer;
-
-    const performSearch = async () => {
-        const term = searchInput.value.trim();
-
-        if (term.length < 3) {
-            resultsContainer.innerHTML = '<p class="text-muted text-center">Masukkan minimal 3 karakter untuk mencari.</p>';
-            spinner.style.display = 'none';
-            return;
-        }
-
-        spinner.style.display = 'block';
-
-        try {
-            const response = await fetch(`${basePath}/api/global-search?term=${encodeURIComponent(term)}`);
-            const result = await response.json();
-
-            resultsContainer.innerHTML = '';
-            if (result.status === 'success' && result.data.length > 0) {
-                result.data.forEach(item => {
-                    const resultItem = `
-                        <a href="${basePath}${item.link}" class="search-result-item block p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                            <div class="d-flex align-items-center">
-                                <i class="bi ${item.icon} fs-4 me-3 text-primary"></i>
-                                <div>
-                                    <div class="fw-bold">${item.title}</div>
-                                    <small class="text-muted">${item.subtitle}</small>
-                                </div>
-                                <span class="badge bg-secondary ms-auto">${item.type}</span>
-                            </div>
-                        </a>
-                    `;
-                    resultsContainer.insertAdjacentHTML('beforeend', resultItem);
-                });
-            } else if (result.status === 'success') {
-                resultsContainer.innerHTML = `<p class="text-muted text-center">Tidak ada hasil ditemukan untuk "<strong>${term}</strong>".</p>`;
-            } else {
-                throw new Error(result.message);
-            }
-        } catch (error) {
-            resultsContainer.innerHTML = `<p class="text-danger text-center">Terjadi kesalahan: ${error.message}</p>`;
-        } finally {
-            spinner.style.display = 'none';
-        }
-    };
-
-    searchInput.addEventListener('input', () => {
-        clearTimeout(debounceTimer);
-        spinner.style.display = 'block';
-        debounceTimer = setTimeout(performSearch, 500); // Debounce for 500ms
-    });
-
-    resultsContainer.addEventListener('click', (e) => {
-        const link = e.target.closest('a.search-result-item');
-        if (link) {
-            e.preventDefault();
-            const url = link.href;
-            closeModal('globalSearchModal');
-            // Gunakan fungsi navigate SPA untuk pindah halaman dan menangani hash
-            navigate(url);
-        }
-    });
-
-    // Add keyboard shortcut (Ctrl+K or Cmd+K)
-    document.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-            e.preventDefault(); // Prevent default browser action (e.g., search)
-            openModal('globalSearchModal');
-            setTimeout(() => searchInput.focus(), 50);
-        }
-    });
-}
 /**
  * Renders pagination controls.
  * @param {HTMLElement} container The container element for the pagination.

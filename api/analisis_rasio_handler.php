@@ -16,11 +16,13 @@ try {
     $date = $_GET['date'] ?? date('Y-m-d');
     $compare_date = $_GET['compare_date'] ?? null;
 
+    $cache_key = "report:ratio:{$user_id}:{$date}:" . ($compare_date ?: 'none');
+    check_redis_cache($cache_key);
+
     $repo = new LaporanRepository($conn);
     $current_data = $repo->getFinancialSummaryData($user_id, $date);
     $previous_data = $compare_date ? $repo->getFinancialSummaryData($user_id, $compare_date) : null;
 
-    // --- Hitung Rasio ---
     function calculateRatios(array $data): array
     {
         $ratios = [];
@@ -44,10 +46,9 @@ try {
         'previous' => $previous_ratios,
     ];
 
-    echo json_encode(['status' => 'success', 'data' => $response]);
+    send_json_response($response, $cache_key, 300);
 
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 500);
 }
 ?>

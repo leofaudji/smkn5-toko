@@ -30,8 +30,7 @@ try {
             throw new Exception("Aksi tidak valid.");
     }
 } catch (Exception $e) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 400);
 }
 
 /**
@@ -40,6 +39,9 @@ try {
 function get_top_shoppers($db, $user_id) {
     $period_days = isset($_GET['days']) ? (int)$_GET['days'] : 30;
     
+    $cache_key = "leaderboard:shoppers:{$user_id}:{$period_days}";
+    check_redis_cache($cache_key);
+
     $sql = "
         SELECT 
             a.id, a.nama_lengkap, a.nomor_anggota,
@@ -60,7 +62,7 @@ function get_top_shoppers($db, $user_id) {
     $data = stmt_fetch_all($stmt);
     $stmt->close();
 
-    echo json_encode(['success' => true, 'data' => $data]);
+    send_json_response($data, $cache_key, 300);
 }
 
 /**
@@ -68,9 +70,11 @@ function get_top_shoppers($db, $user_id) {
  * Skor = jumlah bulan di mana bayar SETOR sebelum tanggal 10.
  */
 function get_top_loyalists($db, $user_id) {
-    // Menghitung poin: 1 poin per bulan jika ada pembayaran setor sebelum/pada tanggal 10
     $limit_day = 10;
     
+    $cache_key = "leaderboard:loyalists:{$user_id}";
+    check_redis_cache($cache_key);
+
     $sql = "
         SELECT 
             a.id, a.nama_lengkap, a.nomor_anggota,
@@ -92,7 +96,7 @@ function get_top_loyalists($db, $user_id) {
     $data = stmt_fetch_all($stmt);
     $stmt->close();
 
-    echo json_encode(['success' => true, 'data' => $data]);
+    send_json_response($data, $cache_key, 300);
 }
 
 /**
@@ -128,12 +132,9 @@ function get_member_history($db, $user_id) {
     $wb = stmt_fetch_all($stmt_wb);
     $stmt_wb->close();
 
-    echo json_encode([
-        'success' => true, 
-        'data' => [
-            'penjualan' => $penjualan,
-            'wajib_belanja' => $wb
-        ]
+    send_json_response([
+        'penjualan' => $penjualan,
+        'wajib_belanja' => $wb
     ]);
 }
 
@@ -160,6 +161,6 @@ function get_sale_details($db, $user_id) {
     $data = stmt_fetch_all($stmt);
     $stmt->close();
 
-    echo json_encode(['success' => true, 'data' => $data]);
+    send_json_response($data);
 }
 ?>

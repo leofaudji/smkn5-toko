@@ -551,3 +551,80 @@ function check_permission($required, $type = 'role') {
         exit;
     }
 }
+
+/**
+ * Memeriksa apakah data tersedia di cache Redis.
+ */
+function check_redis_cache($cache_key, $raw = false) {
+    $redis = RedisManager::getInstance();
+    if ($redis->isAvailable()) {
+        $cached = $redis->get($cache_key);
+        if ($cached) {
+            send_json_response($cached, null, 0, true, $raw);
+        }
+    }
+}
+
+/**
+ * Mengirim respons JSON yang bersih dan aman.
+ */
+function send_json_response($data, $cache_key = null, $ttl = 300, $is_from_cache = false, $raw = false) {
+    if ($cache_key) {
+        $redis = RedisManager::getInstance();
+        if ($redis->isAvailable()) {
+            $redis->set($cache_key, $data, $ttl);
+        }
+    }
+
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
+    
+    if ($raw) {
+        $response = $data;
+    } else {
+        // Tentukan apakah ini sudah merupakan objek respons atau baru sekadar data mentah/baris DB
+        $isResponse = false;
+        if (is_array($data)) {
+            $respKeys = ['data', 'pagination', 'success', 'message'];
+            foreach ($respKeys as $k) {
+                if (isset($data[$k])) { $isResponse = true; break; }
+            }
+            // Jika hanya punya 'status', pastikan nilainya adalah status standar API
+            if (!$isResponse && isset($data['status'])) {
+                if (in_array($data['status'], ['success', 'error', 'warning', 'info', 'danger'])) {
+                    $isResponse = true;
+                }
+            }
+        }
+
+        if ($isResponse) {
+            $response = $data;
+            if (!isset($response['status'])) $response['status'] = 'success';
+            if (!isset($response['success'])) $response['success'] = true;
+        } else {
+            $response = [
+                'status' => 'success',
+                'success' => true,
+                'data' => $data
+            ];
+        }
+            
+        if (!isset($response['cached'])) {
+            $response['cached'] = $is_from_cache;
+        }
+    }
+
+    echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
+}
+
+/**
+ * Mengirim respons error JSON.
+ */
+function send_error_response($message, $code = 400) {
+    header('Content-Type: application/json; charset=UTF-8');
+    if (ob_get_length()) ob_clean();
+    http_response_code($code);
+    echo json_encode(['status' => 'error', 'success' => false, 'message' => $message], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    die();
+}
