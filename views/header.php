@@ -28,6 +28,7 @@ if (file_exists($changelog_file)) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $app_name ?></title>    
+    <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?>">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Icons -->

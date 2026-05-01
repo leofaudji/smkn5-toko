@@ -161,7 +161,7 @@ if (!isset($app_name)) {
     document.addEventListener('click', function (event) {
         document.querySelectorAll('[data-controller="dropdown"]').forEach(function (dropdown) {
             if (!dropdown.contains(event.target)) {
-                dropdown.querySelector('.dropdown-menu').classList.add('hidden');
+                dropdown.querySelector('.dropdown-menu')?.classList.add('hidden');
             }
         });
 

@@ -1,6 +1,33 @@
 <?php
+// Define project root path for reliable file includes.
+if (!defined('PROJECT_ROOT')) {
+    define('PROJECT_ROOT', dirname(__DIR__));
+}
+
+// Load configuration and environment variables first
+require_once __DIR__ . '/Config.php';
+Config::load(PROJECT_ROOT . '/.env');
+
+// --- Session Configuration ---
+if (Config::get('SESSION_DRIVER') === 'redis' && class_exists('Redis')) {
+    $redis_host = Config::get('REDIS_HOST') ?: '127.0.0.1';
+    $redis_port = Config::get('REDIS_PORT') ?: 6379;
+    $redis_pass = Config::get('REDIS_PASSWORD');
+    $session_lifetime = Config::get('SESSION_LIFETIME') ?: 3600;
+
+    ini_set('session.save_handler', 'redis');
+    
+    // Format: tcp://host:port?auth=password
+    $save_path = "tcp://{$redis_host}:{$redis_port}";
+    if ($redis_pass && $redis_pass !== 'null') {
+        $save_path .= "?auth=" . urlencode($redis_pass);
+    }
+    
+    ini_set('session.save_path', $save_path);
+    ini_set('session.gc_maxlifetime', $session_lifetime);
+}
+
 // Mulai atau lanjutkan sesi.
-// Ini harus menjadi baris pertama sebelum output apa pun.
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -8,19 +35,39 @@ if (session_status() === PHP_SESSION_NONE) {
 // Set default timezone for Indonesia (WIB)
 date_default_timezone_set('Asia/Jakarta');
 
-
 require_once __DIR__ . '/functions.php';
+// Inisialisasi CSRF Token
+generate_csrf_token();
+
+/**
+ * OTOMATISASI CSRF PROTECTION
+ * Memeriksa token CSRF secara global untuk semua permintaan POST/PUT/DELETE.
+ */
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    $csrf_whitelist = [
+        'api/run_recurring.php',
+        'api/syn_stok.php'
+    ];
+
+    $is_whitelisted = false;
+    $current_script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
+    
+    foreach ($csrf_whitelist as $white_path) {
+        if (strpos($current_script, $white_path) !== false) {
+            $is_whitelisted = true;
+            break;
+        }
+    }
+
+    if (!$is_whitelisted) {
+        verify_csrf_token();
+    }
+}
+
 // Muat autoloader Composer
 if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';
 }
-require_once __DIR__ . '/Config.php';
-
-// Load environment variables from the root directory before anything else
-if (!defined('PROJECT_ROOT')) {
-    define('PROJECT_ROOT', dirname(__DIR__));
-}
-Config::load(PROJECT_ROOT . '/.env');
 
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/RateLimiter.php';

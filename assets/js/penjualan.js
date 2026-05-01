@@ -6,10 +6,10 @@ function initPenjualanPage() {
         // Parent dari suggestions harus memiliki posisi 'relative'
         // agar 'absolute' child diposisikan relatif terhadapnya.
         if (parent) {
-            parent.classList.add('relative');
+            parent?.classList.add('relative');
         }
         // Tambahkan kelas untuk positioning, z-index, dan styling.
-        suggestionsContainer.classList.add(
+        suggestionsContainer?.classList.add(
             'absolute',      // Atur posisi absolut
             'w-full',        // Lebar penuh sesuai parent
             'top-full',      // Posisikan dropdown tepat di bawah elemen input.
@@ -20,7 +20,7 @@ function initPenjualanPage() {
             'border',        // Tambahkan border
             'border-gray-200',
             'dark:border-gray-600',
-            'rounded-b-md',  // Sudut bawah yang membulat
+            'rounded-b-md',  // Sudut bawah yang melengkung
             'shadow-lg',     // Beri bayangan agar terlihat melayang
             'hidden'         // Sembunyikan secara default agar tidak menghalangi klik (Critical Fix)
         );
@@ -495,7 +495,7 @@ function initPenjualanPage() {
         const suggestionsContainer = document.getElementById('product-suggestions');
         if (suggestionsContainer) {
             suggestionsContainer.innerHTML = '';
-            suggestionsContainer.classList.add('hidden');
+            suggestionsContainer?.classList.add('hidden');
         }
         searchProdukInput.value = '';
 
@@ -585,8 +585,8 @@ function initPenjualanPage() {
         
         // Reset Member Info
         anggotaIdInput.value = '';
-        wbPaymentContainer.classList.add('hidden');
-        memberInfoDiv.classList.add('hidden');
+        wbPaymentContainer?.classList.add('hidden');
+        memberInfoDiv?.classList.add('hidden');
         currentMemberBalance = 0;
         
         cart = [];
@@ -624,7 +624,7 @@ function initPenjualanPage() {
         const method = e.target.value;
         const isTransferOrQris = method === 'transfer' || method === 'qris';
         
-        document.getElementById('account-select-container').classList.toggle('hidden', !isTransferOrQris);
+        document.getElementById('account-select-container')?.classList.toggle('hidden', !isTransferOrQris);
         const accSelect = document.getElementById('payment_account_id');
         accSelect.required = isTransferOrQris;
         if (!isTransferOrQris) accSelect.value = '';
@@ -720,10 +720,10 @@ function initPenjualanPage() {
                     </a>`;
                 }).join('');
                 suggestionsContainer.innerHTML = list;
-                suggestionsContainer.classList.remove('hidden');
+                suggestionsContainer?.classList.remove('hidden');
             } else {
                 suggestionsContainer.innerHTML = '<div class="p-3 text-gray-500 text-center">Produk tidak ditemukan.</div>';
-                suggestionsContainer.classList.remove('hidden');
+                suggestionsContainer?.classList.remove('hidden');
             }
         } catch (error) {
             console.error('Error fetching search results:', error);
@@ -759,19 +759,19 @@ function initPenjualanPage() {
             case 'ArrowDown':
                 e.preventDefault();
                 if (suggestions.length === 0) return;
-                if (activeSuggestion) activeSuggestion.classList.remove('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
+                if (activeSuggestion) activeSuggestion?.classList.remove('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
                 currentIndex = (currentIndex + 1) % suggestions.length;
-                suggestions[currentIndex].classList.add('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
-                suggestions[currentIndex].scrollIntoView({ block: 'nearest', inline: 'start' });
+                suggestions[currentIndex]?.classList.add('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
+                suggestions[currentIndex]?.scrollIntoView({ block: 'nearest', inline: 'start' });
                 break;
 
             case 'ArrowUp':
                 e.preventDefault();
                 if (suggestions.length === 0) return;
-                if (activeSuggestion) activeSuggestion.classList.remove('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
+                if (activeSuggestion) activeSuggestion?.classList.remove('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
                 currentIndex = (currentIndex - 1 + suggestions.length) % suggestions.length;
-                suggestions[currentIndex].classList.add('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
-                suggestions[currentIndex].scrollIntoView({ block: 'nearest', inline: 'start' });
+                suggestions[currentIndex]?.classList.add('active-suggestion', 'bg-blue-100', 'dark:bg-gray-700');
+                suggestions[currentIndex]?.scrollIntoView({ block: 'nearest', inline: 'start' });
                 break;
 
             case 'Enter':
@@ -908,7 +908,7 @@ function initPenjualanPage() {
     memberSearchInput?.addEventListener('input', async (e) => {
         const term = e.target.value;
         if (term.length < 2) {
-            memberSuggestions.classList.add('hidden');
+            memberSuggestions?.classList.add('hidden');
             return;
         }
 
@@ -924,9 +924,9 @@ function initPenjualanPage() {
                         <div class="text-xs text-gray-500">No: ${m.nomor_anggota} | Saldo WB: ${formatRupiah(m.saldo_wajib_belanja)}</div>
                     </div>
                 `).join('');
-                memberSuggestions.classList.remove('hidden');
+                memberSuggestions?.classList.remove('hidden');
             } else {
-                memberSuggestions.classList.add('hidden');
+                memberSuggestions?.classList.add('hidden');
             }
         } catch (err) {
             console.error(err);
@@ -945,15 +945,15 @@ function initPenjualanPage() {
             currentMemberBalance = saldo;
             
             memberInfoDiv.textContent = `Saldo Wajib Belanja: ${formatRupiah(saldo)}`;
-            memberInfoDiv.classList.remove('hidden');
+            memberInfoDiv?.classList.remove('hidden');
             
             if (saldo > 0) {
-                wbPaymentContainer.classList.remove('hidden');
+                wbPaymentContainer?.classList.remove('hidden');
             } else {
-                wbPaymentContainer.classList.add('hidden');
+                wbPaymentContainer?.classList.add('hidden');
             }
             
-            memberSuggestions.classList.add('hidden');
+            memberSuggestions?.classList.add('hidden');
             updateSummary();
         }
     });
@@ -1157,27 +1157,27 @@ function initPenjualanPage() {
                 
                 // Check if it's transfer/qris to show account selector
                 if (paymentMethod === 'transfer' || paymentMethod === 'qris') {
-                    document.getElementById('account-select-container').classList.remove('hidden');
+                    document.getElementById('account-select-container')?.classList.remove('hidden');
                     // We need to ensure accounts are loaded before setting the value
                     const accountSelect = document.getElementById('payment_account_id');
-                    if (accountSelect.options.length <= 1) {
+                    if (accountSelect && accountSelect.options.length <= 1) {
                         // If not loaded, load them then set value
                         loadPaymentAccounts().then(() => {
                             accountSelect.value = detail.payment_account_id || '';
                         });
-                    } else {
+                    } else if (accountSelect) {
                         accountSelect.value = detail.payment_account_id || '';
                     }
                 } else {
-                    document.getElementById('account-select-container').classList.add('hidden');
+                    document.getElementById('account-select-container')?.classList.add('hidden');
                 }
 
                 // If customer is member, show member info
                 if (detail.customer_id) {
                     memberInfoDiv.textContent = `Pelanggan: ${detail.customer_name}`;
-                    memberInfoDiv.classList.remove('hidden');
+                    memberInfoDiv?.classList.remove('hidden');
                 } else {
-                    memberInfoDiv.classList.add('hidden');
+                    memberInfoDiv?.classList.add('hidden');
                 }
 
                 // Populate Cart

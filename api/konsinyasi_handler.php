@@ -17,9 +17,15 @@ try {
 
     // --- SUPPLIER ACTIONS ---
     if ($action === 'list_suppliers') {
+        $cache_key = "report:consignment:suppliers:{$user_id}";
+        check_redis_cache($cache_key);
+
         $result = $conn->query("SELECT * FROM suppliers WHERE user_id = $user_id ORDER BY nama_pemasok ASC");
-        echo json_encode(['status' => 'success', 'data' => $result->fetch_all(MYSQLI_ASSOC)]);
+        send_json_response($result->fetch_all(MYSQLI_ASSOC), $cache_key, 3600);
     } elseif ($action === 'list_payments') {
+        $cache_key = "report:consignment:payments:{$user_id}";
+        check_redis_cache($cache_key);
+
         $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
         if (empty($payable_acc_id)) {
             echo json_encode(['status' => 'success', 'data' => [], 'debug' => 'Account ID not set']);
@@ -42,16 +48,7 @@ try {
         $data = stmt_fetch_all($stmt);
         $stmt->close();
 
-        echo json_encode([
-            'status' => 'success',
-            'data' => $data,
-            'debug' => [
-                'user_id' => $user_id,
-                'account_id' => $payable_acc_id,
-                'count' => count($data)
-            ]
-        ]);
-        exit;
+        send_json_response($data, $cache_key, 600);
     } elseif ($action === 'save_supplier') {
         $id = (int) ($_POST['id'] ?? 0);
         $nama = trim($_POST['nama_pemasok'] ?? '');
@@ -68,6 +65,8 @@ try {
         }
         $stmt->execute();
         $stmt->close();
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
         echo json_encode(['status' => 'success', 'message' => 'Pemasok berhasil disimpan.']);
     } elseif ($action === 'delete_supplier') {
         $id = (int) ($_POST['id'] ?? 0);
@@ -80,6 +79,8 @@ try {
         $stmt->bind_param('ii', $id, $user_id);
         $stmt->execute();
         $stmt->close();
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
         echo json_encode(['status' => 'success', 'message' => 'Pemasok berhasil dihapus.']);
     }
 
@@ -88,6 +89,9 @@ try {
         $search = trim($_GET['search'] ?? '');
         $supplier_id = (int) ($_GET['supplier_id'] ?? 0);
         $stock_status = $_GET['stock_status'] ?? 'all'; // all, available, out_of_stock
+
+        $cache_key = "report:consignment:items:{$user_id}:" . md5($search . $supplier_id . $stock_status);
+        check_redis_cache($cache_key);
 
         $where = ["ci.user_id = $user_id"];
         if (!empty($search)) {
@@ -126,7 +130,7 @@ try {
         $sql .= " ORDER BY nama_barang ASC";
 
         $result = $conn->query($sql);
-        echo json_encode(['status' => 'success', 'data' => $result->fetch_all(MYSQLI_ASSOC)]);
+        send_json_response($result->fetch_all(MYSQLI_ASSOC), $cache_key, 600);
 
     } elseif ($action === 'add_restock') {
         $item_id = (int) $_POST['item_id'];
@@ -142,6 +146,7 @@ try {
         $stmt->bind_param('iiissi', $user_id, $item_id, $qty, $tanggal, $keterangan, $logged_in_user_id);
 
         if ($stmt->execute()) {
+            RedisManager::getInstance()->flushReports();
             echo json_encode(['status' => 'success', 'message' => 'Stok berhasil ditambahkan.']);
         } else {
             throw new Exception("Gagal menyimpan data stok: " . $stmt->error);
@@ -180,6 +185,8 @@ try {
 
         }
         $conn->commit();
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
         echo json_encode(['status' => 'success', 'message' => 'Barang konsinyasi berhasil disimpan.']);
     } elseif ($action === 'delete_item') {
         $id = (int) ($_POST['id'] ?? 0);
@@ -192,6 +199,8 @@ try {
         $stmt->bind_param('ii', $id, $user_id);
         $stmt->execute();
         $stmt->close();
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
         echo json_encode(['status' => 'success', 'message' => 'Barang berhasil dihapus.']);
     } elseif ($action === 'get_single_item') {
         $id = (int) ($_GET['id'] ?? 0);
@@ -294,6 +303,8 @@ try {
 
         $stmt_gl->close();
         $conn->commit();
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
 
         echo json_encode(['status' => 'success', 'message' => "Penjualan {$item['nama_barang']} berhasil dicatat."]);
     }
@@ -342,6 +353,8 @@ try {
 
         $stmt_gl->close();
         $conn->commit();
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
 
         echo json_encode(['status' => 'success', 'message' => 'Pembayaran utang konsinyasi berhasil dicatat.']);
 
@@ -395,6 +408,8 @@ try {
         $stmt_rev->close();
         $stmt_upd->close();
         $conn->commit();
+        RedisManager::getInstance()->flushReports();
+        RedisManager::getInstance()->flushSearchCache();
         log_activity($_SESSION['username'], 'Batal Bayar Konsinyasi (Jurnal Balik)', "Pembatalan pelunasan dengan referensi {$no_ref}.");
 
         echo json_encode(['status' => 'success', 'message' => 'Pembayaran berhasil dibatalkan dengan jurnal balik.']);
@@ -405,6 +420,9 @@ try {
         $page = (int) ($_GET['page'] ?? 1);
         $limit = (int) ($_GET['limit'] ?? 10);
         $offset = ($page - 1) * $limit;
+
+        $cache_key = "report:consignment:sales:{$user_id}:" . md5($start_date . $end_date . $page . $limit);
+        check_redis_cache($cache_key);
 
         // 1. Hitung TOTAL records untuk paging
         $stmt_total = $conn->prepare("
@@ -446,8 +464,7 @@ try {
         $data = stmt_fetch_all($stmt);
         $stmt->close();
 
-        echo json_encode([
-            'status' => 'success',
+        send_json_response([
             'data' => $data,
             'pagination' => [
                 'current_page' => $page,
@@ -455,7 +472,7 @@ try {
                 'total_records' => $total_records,
                 'total_pages' => ceil($total_records / $limit)
             ]
-        ]);
+        ], $cache_key, 600);
     }
 
     // --- REPORT ACTION ---
@@ -464,6 +481,9 @@ try {
         $end_date = $_GET['end_date'] ?? date('Y-m-t');
         $supplier_id = !empty($_GET['supplier_id']) ? (int) $_GET['supplier_id'] : null;
         $status = $_GET['status'] ?? 'Semua';
+
+        $cache_key = "report:consignment:sales_report:{$user_id}:" . md5($start_date . $end_date . $supplier_id . $status);
+        check_redis_cache($cache_key);
 
         $where = "WHERE gl.user_id = ? AND gl.tanggal BETWEEN ? AND ? AND gl.ref_type IN ('jurnal', 'penjualan') AND gl.consignment_item_id IS NOT NULL AND gl.account_id = (SELECT setting_value FROM settings WHERE setting_key = 'consignment_payable_account')";
         $params = [$user_id, $start_date, $end_date];
@@ -513,8 +533,9 @@ try {
         $report = stmt_fetch_all($stmt);
         $stmt->close();
 
-        echo json_encode(['status' => 'success', 'data' => $report]);
-    } elseif ($action === 'import_items_csv') {
+        send_json_response($report, $cache_key, 600);
+    }
+ elseif ($action === 'import_items_csv') {
         if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
             throw new Exception("File tidak terunggah dengan benar.");
         }
@@ -592,6 +613,8 @@ try {
             }
             fclose($handle);
             $conn->commit();
+            RedisManager::getInstance()->flushReports();
+            RedisManager::getInstance()->flushSearchCache();
 
             echo json_encode([
                 'status' => 'success',
@@ -631,6 +654,7 @@ try {
         $stmt->bind_param('issii', $qty, $tanggal, $keterangan, $id, $user_id);
 
         if ($stmt->execute()) {
+            RedisManager::getInstance()->flushReports();
             echo json_encode(['status' => 'success', 'message' => 'Stok berhasil diperbarui.']);
         } else {
             throw new Exception("Gagal memperbarui data stok: " . $stmt->error);
@@ -645,6 +669,7 @@ try {
         $stmt->bind_param('ii', $id, $user_id);
 
         if ($stmt->execute()) {
+            RedisManager::getInstance()->flushReports();
             echo json_encode(['status' => 'success', 'message' => 'Data restock berhasil dihapus.']);
         } else {
             throw new Exception("Gagal menghapus data restock.");
@@ -657,6 +682,9 @@ try {
         $page = (int) ($_GET['page'] ?? 1);
         $limit = (int) ($_GET['limit'] ?? 20);
         $offset = ($page - 1) * $limit;
+
+        $cache_key = "report:consignment:mutations:{$user_id}:" . md5($supplier_id . $start_date . $end_date . $page . $limit);
+        check_redis_cache($cache_key);
 
         $where_ci = "WHERE ci.user_id = ?";
         $where_cr = "WHERE cr.user_id = ?";
@@ -800,8 +828,7 @@ try {
         $mutations = stmt_fetch_all($stmt);
         $stmt->close();
 
-        echo json_encode([
-            'status' => 'success',
+        send_json_response([
             'data' => $mutations,
             'pagination' => [
                 'current_page' => $page,
@@ -809,8 +836,12 @@ try {
                 'total_records' => $total_records,
                 'total_pages' => ceil($total_records / $limit)
             ]
-        ]);
+        ], $cache_key, 600);
     } elseif ($action === 'get_debt_summary_report') {
+        $end_date = $_GET['end_date'] ?? date('Y-m-d');
+        $cache_key = "report:consignment:debt_summary:{$user_id}:{$end_date}";
+        check_redis_cache($cache_key);
+
         $payable_acc_id = get_setting('consignment_payable_account', null, $conn);
         $cogs_acc_id = get_setting('consignment_cogs_account', null, $conn);
 
@@ -899,7 +930,7 @@ try {
             ];
         }
 
-        echo json_encode(['status' => 'success', 'data' => $report_data, 'meta' => ['total_balance_audit' => $total_audit_balance]]);
+        send_json_response($report_data, $cache_key, 600, ['total_balance_audit' => $total_audit_balance]);
     }
 
 } catch (Exception $e) {

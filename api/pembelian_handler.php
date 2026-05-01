@@ -381,7 +381,7 @@ try {
                 $log_message = ($action === 'add') ? "Pembelian #{$pembelian_id} sejumlah {$total_pembelian} ditambahkan." : "Pembelian #{$pembelian_id} diperbarui.";
                 $success_message = ($action === 'add') ? 'Pembelian berhasil disimpan.' : 'Pembelian berhasil diperbarui.';
                 log_activity($_SESSION['username'], 'Simpan Pembelian', $log_message);
-                
+
                 send_json_response(['status' => 'success', 'message' => $success_message, 'pembelian_id' => $pembelian_id]);
                 break;
 

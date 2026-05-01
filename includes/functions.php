@@ -11,6 +11,52 @@ function base_url(string $uri = ''): string {
 }
 
 /**
+ * Generate a CSRF token and store it in session.
+ */
+function generate_csrf_token() {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Verify the CSRF token from request headers or POST data.
+ */
+function verify_csrf_token() {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    $token = null;
+    
+    // Check Header first (X-CSRF-TOKEN)
+    if (isset($_SERVER['HTTP_X_CSRF_TOKEN'])) {
+        $token = $_SERVER['HTTP_X_CSRF_TOKEN'];
+    } 
+    // Then check POST data
+    elseif (isset($_POST['csrf_token'])) {
+        $token = $_POST['csrf_token'];
+    }
+    // For JSON requests
+    else {
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (isset($input['csrf_token'])) {
+            $token = $input['csrf_token'];
+        }
+    }
+
+    if (!$token || $token !== $_SESSION['csrf_token']) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'CSRF token validation failed.']);
+        exit;
+    }
+}
+
+/**
  * Pengganti mysqli_stmt::get_result()->fetch_assoc() untuk server tanpa mysqlnd.
  */
 function stmt_fetch_assoc($stmt) {

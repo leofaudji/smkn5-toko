@@ -66,6 +66,7 @@ require_once __DIR__ . '/includes/bootstrap.php';
                             </div>
                         <?php endif; ?>
                         <form id="login-form" action="<?= base_url('/login') ?>" method="POST" class="space-y-5">
+                            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                             <div>
                                 <input class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-btn focus:border-transparent transition duration-200" type="text" id="username" name="username" autocomplete="username" placeholder="Username" required autofocus>
                             </div>

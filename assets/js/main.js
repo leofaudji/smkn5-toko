@@ -1,6 +1,34 @@
 // =================================================================================
 // APLIKASI KEUANGAN - SINGLE PAGE APPLICATION (SPA) CORE
 // =================================================================================
+
+// --- CSRF Protection Interceptor ---
+(function() {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+        let [resource, config] = args;
+        
+        // Cek jika config ada dan metode bukan GET (case insensitive)
+        const method = config?.method?.toUpperCase() || 'GET';
+        
+        if (method !== 'GET') {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (csrfToken) {
+                if (!config) config = {};
+                if (!config.headers) config.headers = {};
+                
+                // Tambahkan header CSRF
+                if (config.headers instanceof Headers) {
+                    config.headers.set('X-CSRF-TOKEN', csrfToken);
+                } else {
+                    config.headers['X-CSRF-TOKEN'] = csrfToken;
+                }
+            }
+        }
+        
+        return originalFetch(resource, config);
+    };
+})();
 /**
  * Displays a toast notification.
  * @param {string} message The message to display.

@@ -10,8 +10,12 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $tahun = isset($_GET['tahun']) ? intval($_GET['tahun']) : date('Y');
+$user_id = 1; // ID Pemilik Data (Toko)
 
 try {
+    $cache_key = "report:growth:inventory:{$user_id}:{$tahun}";
+    check_redis_cache($cache_key);
+
     $conn = Database::getInstance()->getConnection();
     $data_bulanan = [];
     $nilai_bulan_sebelumnya = 0;
@@ -19,9 +23,6 @@ try {
     for ($bulan = 1; $bulan <= 12; $bulan++) {
         $tanggal_akhir_bulan = date("Y-m-t", strtotime("$tahun-$bulan-01"));
 
-        // Query untuk menghitung total nilai persediaan pada akhir bulan tertentu.
-        // Ini menjumlahkan nilai dari semua item, di mana stok setiap item dihitung dari semua transaksi
-        // (pembelian dan penyesuaian) hingga akhir bulan tersebut.
         $stmt = $conn->prepare("
             SELECT 
                 SUM(
@@ -33,7 +34,6 @@ try {
             FROM items i
             WHERE i.user_id = ?
         ");
-        $user_id = 1; // ID Pemilik Data (Toko)
         $stmt->bind_param('ssi', $tanggal_akhir_bulan, $tanggal_akhir_bulan, $user_id);
         $stmt->execute();
         $hasil = stmt_fetch_assoc($stmt);
@@ -49,17 +49,14 @@ try {
             'selisih' => $selisih,
         ];
 
-        // Simpan nilai bulan ini untuk perhitungan selisih di bulan berikutnya
         if ($nilai_bulan_ini > 0) {
             $nilai_bulan_sebelumnya = $nilai_bulan_ini;
         }
     }
 
-    echo json_encode(['status' => 'success', 'data' => $data_bulanan]);
+    send_json_response($data_bulanan, $cache_key, 3600); // Cache 1 jam
 
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 500);
 }
-
 ?>

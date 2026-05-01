@@ -19,6 +19,10 @@ try {
         throw new Exception("Rentang tanggal wajib diisi.");
     }
 
+    // ── Logika Caching Redis ───────────────────────────────────────
+    $cache_key = "report:stock:{$user_id}:{$start_date}:{$end_date}";
+    check_redis_cache($cache_key);
+
     // Single Optimized Query for all stock data
     $main_query = "
         SELECT 
@@ -82,14 +86,12 @@ try {
         ];
     }
 
-    echo json_encode([
-        'status' => 'success',
+    send_json_response([
         'data' => $report_data,
         'summary' => ['total_nilai_persediaan' => $total_nilai_persediaan]
-    ]);
+    ], $cache_key, 600); // TTL 10 menit
 
 } catch (Exception $e) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    send_error_response($e->getMessage(), 400);
 }
 ?>
