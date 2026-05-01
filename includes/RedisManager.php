@@ -15,7 +15,8 @@ class RedisManager
             try {
                 $this->redis = new Redis();
                 $host = Config::get('REDIS_HOST') ?: '127.0.0.1';
-                $port = (int)(Config::get('REDIS_PORT') ?: 6379);
+                $port_val = Config::get('REDIS_PORT');
+                $port = ($port_val !== null) ? (int)$port_val : 6379;
                 $pass = Config::get('REDIS_PASSWORD');
 
                 // Jika port 0, asumsikan host adalah path ke unix socket
