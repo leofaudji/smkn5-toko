@@ -39,6 +39,7 @@ switch ($action) {
 function get_all_penjualan($db)
 {
     try {
+        $user_id = 1; // ID Pemilik Data (Toko)
         $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
         $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 10;
         $searchTerm = $_GET['search'] ?? '';
