@@ -119,7 +119,7 @@ class RedisManager
     {
         if ($this->available) {
             // Bersihkan semua cache laporan, dashboard, dan audit
-            $prefixes = ['report:*', 'dashboard:*', 'audit:*'];
+            $prefixes = ['report:*', 'dashboard:*', 'audit:*', 'sales:*', 'stock:*', 'transaction:*'];
             foreach ($prefixes as $prefix) {
                 $keys = $this->redis->keys($prefix);
                 if (!empty($keys)) {

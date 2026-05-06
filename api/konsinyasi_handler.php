@@ -316,6 +316,7 @@ try {
         $jumlah = (float) $_POST['jumlah'];
         $kas_account_id = (int) $_POST['kas_account_id'];
         $keterangan = trim($_POST['keterangan']);
+        $reset_stock = isset($_POST['reset_stock']) && ($_POST['reset_stock'] === 'true' || $_POST['reset_stock'] === 'on' || $_POST['reset_stock'] === '1');
         $created_by = $_SESSION['user_id'];
 
         if ($supplier_id <= 0 || empty($tanggal) || $jumlah <= 0 || $kas_account_id <= 0) {
@@ -352,6 +353,39 @@ try {
         $stmt_gl->execute();
 
         $stmt_gl->close();
+
+        // --- RESET STOCK LOGIC ---
+        if ($reset_stock) {
+            // Ambil semua item dari supplier ini yang memiliki stok > 0
+            $payable_acc_id_val = (int)$payable_acc_id;
+            $stmt_items = $conn->prepare("
+                SELECT ci.id, ci.nama_barang,
+                    (
+                        ci.stok_awal 
+                        + COALESCE((SELECT SUM(qty) FROM consignment_restocks WHERE consignment_item_id = ci.id), 0)
+                        - COALESCE((SELECT SUM(IF(debit > 0, -qty, qty)) FROM general_ledger WHERE consignment_item_id = ci.id AND ref_type IN ('jurnal', 'penjualan') AND account_id = ?), 0)
+                    ) as stok_saat_ini
+                FROM consignment_items ci
+                WHERE ci.supplier_id = ? AND ci.user_id = ?
+                HAVING stok_saat_ini > 0
+            ");
+            $stmt_items->bind_param('iii', $payable_acc_id_val, $supplier_id, $user_id);
+            $stmt_items->execute();
+            $items_to_reset = stmt_fetch_all($stmt_items);
+            $stmt_items->close();
+
+            if (!empty($items_to_reset)) {
+                $stmt_ins_rs = $conn->prepare("INSERT INTO consignment_restocks (user_id, consignment_item_id, qty, tanggal, keterangan, created_by) VALUES (?, ?, ?, ?, ?, ?)");
+                $ket_rs = "Retur Sisa (Otomatis Pelunasan)";
+                foreach ($items_to_reset as $item) {
+                    $neg_qty = -1 * (int)$item['stok_saat_ini'];
+                    $stmt_ins_rs->bind_param('iiissi', $user_id, $item['id'], $neg_qty, $tanggal, $ket_rs, $created_by);
+                    $stmt_ins_rs->execute();
+                }
+                $stmt_ins_rs->close();
+            }
+        }
+
         $conn->commit();
         RedisManager::getInstance()->flushReports();
         RedisManager::getInstance()->flushSearchCache();

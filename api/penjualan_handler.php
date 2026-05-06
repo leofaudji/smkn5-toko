@@ -93,7 +93,7 @@ function get_all_penjualan($db)
         $sql .= " ORDER BY p.tanggal_penjualan DESC, p.id DESC LIMIT ? OFFSET ?";
 
         // ── Logika Caching Redis ───────────────────────────────────────
-        $cache_key = "sales:list:{$user_id}:" . md5($sql . implode('', $params));
+        $cache_key = "sales:list:{$user_id}:" . md5($sql . implode('', $params) . "_{$limit}_{$offset}");
         check_redis_cache($cache_key);
 
         $stmt = $db->prepare($sql);

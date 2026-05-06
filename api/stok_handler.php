@@ -50,7 +50,7 @@ try {
             $where_sql = 'WHERE ' . implode(' AND ', $where_clauses);
 
             // ── Logika Caching Redis ───────────────────────────────────────
-            $cache_key = "stock:list:{$user_id}:" . md5($where_sql . "_{$limit}_{$offset}");
+            $cache_key = "stock:list:{$user_id}:" . md5($where_sql . implode('', $params) . "_{$limit}_{$offset}");
             check_redis_cache($cache_key);
 
             $total_stmt = $conn->prepare("SELECT COUNT(*) as total FROM items i $where_sql");
@@ -268,7 +268,7 @@ try {
             if ($action === 'save' && $stok > 0) {
                 $keterangan_awal = "Saldo Awal Barang";
                 $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, user_id) VALUES (CURDATE(), ?, ?, 0, ?, ?)");
-                $stmt_ks->bind_param('iisi', $new_item_id, $stok, $keterangan_awal, $logged_in_user_id);
+                $stmt_ks->bind_param('iisi', $new_item_id, $stok, $keterangan_awal, $user_id);
                 $stmt_ks->execute();
                 $stmt_ks->close();
             }
@@ -382,7 +382,7 @@ try {
                 $stmt_ks = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
                 $debit = $selisihKuantitas > 0 ? $selisihKuantitas : 0;
                 $kredit = $selisihKuantitas < 0 ? abs($selisihKuantitas) : 0;
-                $stmt_ks->bind_param('siiisii', $tanggal, $itemId, $debit, $kredit, $keteranganJurnal, $journalId, $userId);
+                $stmt_ks->bind_param('siiisii', $tanggal, $itemId, $debit, $kredit, $keteranganJurnal, $journalId, $user_id);
                 $stmt_ks->execute();
                 $stmt_ks->close();
 
@@ -485,7 +485,7 @@ try {
                     $debit = $selisihKuantitas > 0 ? $selisihKuantitas : 0;
                     $kredit = $selisihKuantitas < 0 ? abs($selisihKuantitas) : 0;
                     $keterangan_ks = "Stok Opname Batch: " . $keterangan;
-                    $kartuStokStmt->bind_param('siiisii', $tanggal, $itemId, $debit, $kredit, $keterangan_ks, $journalId, $userId);
+                    $kartuStokStmt->bind_param('siiisii', $tanggal, $itemId, $debit, $kredit, $keterangan_ks, $journalId, $user_id);
                     $kartuStokStmt->execute();
                 }
 
@@ -696,7 +696,7 @@ try {
                     // Catat ke kartu stok sebagai saldo awal/penyesuaian
                     $debit = $selisih_kuantitas > 0 ? $selisih_kuantitas : 0;
                     $kredit = $selisih_kuantitas < 0 ? abs($selisih_kuantitas) : 0;
-                    $stmt_ks->bind_param('siiisii', $tanggal_import, $item_id, $debit, $kredit, $keterangan_impor, $journalId, $logged_in_user_id);
+                    $stmt_ks->bind_param('siiisii', $tanggal_import, $item_id, $debit, $kredit, $keterangan_impor, $journalId, $user_id);
                     $stmt_ks->execute();
                 }
 

@@ -297,6 +297,8 @@ function initPelunasanKonsinyasiPage() {
             if (paySupplierSelect) paySupplierSelect.value = id || "";
             const payJumlah = document.getElementById('pk-pay-jumlah');
             if (payJumlah) { payJumlah.value = Math.max(0, parseInt(sisa)); payJumlah.focus(); }
+            const payResetStock = document.getElementById('pk-pay-reset-stock');
+            if (payResetStock) payResetStock.checked = false;
             window.switchTabPK('pelunasan'); 
         }
     });

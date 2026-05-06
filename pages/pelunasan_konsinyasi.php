@@ -152,6 +152,12 @@ check_permission('konsinyasi', 'menu'); // Reuse consignment permission
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Catatan</label>
                         <textarea name="keterangan" class="block w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" rows="2" placeholder="Keterangan tambahan..."></textarea>
                     </div>
+                    <div class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-xl">
+                        <input type="checkbox" id="pk-pay-reset-stock" name="reset_stock" class="rounded text-amber-600 focus:ring-amber-500 h-4 w-4 cursor-pointer">
+                        <label for="pk-pay-reset-stock" class="text-xs font-bold text-amber-700 dark:text-amber-400 cursor-pointer select-none">
+                            Kosongkan sisa stok barang (Retur Sisa)
+                        </label>
+                    </div>
                     <button type="submit" class="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-primary hover:bg-primary-dark transition-all duration-300 transform hover:-translate-y-0.5 active:scale-95">
                         <i class="bi bi-check2-circle mr-2 text-lg"></i> Proses Pelunasan
                     </button>

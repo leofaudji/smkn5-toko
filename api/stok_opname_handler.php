@@ -409,7 +409,7 @@ try {
 
                         $dbt = $selisih_qty > 0 ? $selisih_qty : 0;
                         $krt = $selisih_qty < 0 ? abs($selisih_qty) : 0;
-                        $ins_ks->bind_param('siiisii', $tanggal, $item_id, $dbt, $krt, $ket_jurnal, $journal_id, $logged_in_user_id);
+                        $ins_ks->bind_param('siiisii', $tanggal, $item_id, $dbt, $krt, $ket_jurnal, $journal_id, $owner_user_id);
                         $ins_ks->execute();
                     }
 

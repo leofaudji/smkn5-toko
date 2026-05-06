@@ -115,7 +115,7 @@ try {
         $where_sql = 'WHERE ' . implode(' AND ', $where_clauses);
 
         // ── Logika Caching Redis ───────────────────────────────────────
-        $cache_key = "transaction:list:{$user_id}:" . md5($where_sql . "_{$limit}_{$offset}");
+        $cache_key = "transaction:list:{$user_id}:" . md5($where_sql . implode('', $params) . "_{$limit}_{$offset}");
         check_redis_cache($cache_key);
 
         // Get total count for pagination
