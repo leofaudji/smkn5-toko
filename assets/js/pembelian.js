@@ -175,10 +175,10 @@ function addPembelianLine(data = {}) {
             <div class="absolute top-full left-0 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b-md shadow-lg z-50 hidden purchase-suggestions"></div>
         </td>
         <td class="px-4 py-2">
-            <input type="number" class="w-24 text-right bg-transparent border-none focus:ring-0 line-qty" placeholder="0" required value="${data.quantity || 1}">
+            <input type="text" inputmode="decimal" class="w-24 text-right bg-transparent border-none focus:ring-0 line-qty" placeholder="0" required value="${data.quantity || 1}">
         </td>
         <td class="px-4 py-2">
-            <input type="number" class="w-full text-right bg-transparent border-none focus:ring-0 line-price" placeholder="0" required value="${data.price || 0}">
+            <input type="text" inputmode="decimal" class="w-full text-right bg-transparent border-none focus:ring-0 line-price" placeholder="0" required value="${data.price || 0}">
         </td>
         <td class="px-4 py-2">
             <input type="number" class="w-full text-right bg-transparent border-none focus:ring-0 line-subtotal" readonly value="${(data.quantity || 1) * (data.price || 0)}">
@@ -199,8 +199,8 @@ function addPembelianLine(data = {}) {
 
     // Fungsi untuk kalkulasi subtotal
     const calculateSubtotal = () => {
-        const qty = parseFloat(qtyInput.value) || 0;
-        const price = parseFloat(priceInput.value) || 0;
+        const qty = parseFloat(qtyInput.value.replace(',', '.')) || 0;
+        const price = parseFloat(priceInput.value.replace(',', '.')) || 0;
         subtotalInput.value = qty * price;
     };
 
@@ -307,12 +307,12 @@ async function savePembelian() {
     // Kumpulkan data dari setiap baris item
     document.querySelectorAll('#pembelian-lines-body tr').forEach(row => {
         const item_id = row.querySelector('.line-item-id').value;
-        const quantity = row.querySelector('.line-qty').value;
-        const price = row.querySelector('.line-price').value;
+        const quantity = row.querySelector('.line-qty').value.replace(',', '.');
+        const price = row.querySelector('.line-price').value.replace(',', '.');
 
         // Pastikan baris tersebut valid (memiliki ID barang) sebelum ditambahkan
-        if (item_id && quantity > 0 && price >= 0) {
-            formData.lines.push({ item_id, quantity, price });
+        if (item_id && parseFloat(quantity) > 0 && parseFloat(price) >= 0) {
+            formData.lines.push({ item_id, quantity: parseFloat(quantity), price: parseFloat(price) });
         }
     });
 
