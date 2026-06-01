@@ -712,6 +712,13 @@ function initPenjualanPage() {
         const isTransferOrQris = method === 'transfer' || method === 'qris';
         
         document.getElementById('account-select-container')?.classList.toggle('hidden', !isTransferOrQris);
+
+        // Jika pilih Saldo WB, kosongkan input tunai agar user fokus ke input bayar_wb
+        if (method === 'potong_saldo') {
+            document.getElementById('bayar').value = 0;
+            document.getElementById('bayar_wb')?.focus();
+        }
+
         const accSelect = document.getElementById('payment_account_id');
         accSelect.required = isTransferOrQris;
         if (!isTransferOrQris) accSelect.value = '';
@@ -1109,7 +1116,11 @@ function initPenjualanPage() {
         const bayarWb = parseFloat(document.getElementById('bayar_wb')?.value) || 0;
 
         // Validasi tambahan untuk non-tunai
-        const paymentMethod = document.getElementById('payment_method')?.value || 'cash';
+        let paymentMethod = document.getElementById('payment_method')?.value || 'cash';
+        // Auto-switch ke potong_saldo jika bayar cash 0 dan ada bayar WB
+        if (bayar <= 0 && bayarWb > 0) {
+            paymentMethod = 'potong_saldo';
+        }
         const paymentAccountId = document.getElementById('payment_account_id')?.value;
 
         if ((paymentMethod === 'transfer' || paymentMethod === 'qris') && !paymentAccountId) {

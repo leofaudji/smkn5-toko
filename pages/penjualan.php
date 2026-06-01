@@ -196,6 +196,7 @@ check_permission('penjualan', 'menu');
                                         <option value="cash">Tunai</option>
                                         <option value="transfer">Transfer Bank</option>
                                         <option value="qris">QRIS</option>
+                                        <option value="potong_saldo">Saldo WB</option>
                                         <option value="hutang">Hutang (Tempo)</option>
                                     </select>
                                 </div>

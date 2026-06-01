@@ -90,9 +90,13 @@ function get_all_penjualan($db)
         }
 
         if (!empty($paymentMethod)) {
-            $whereClauses[] = "p.payment_method = ?";
-            $params[] = $paymentMethod;
-            $types .= "s";
+            if ($paymentMethod === 'potong_saldo') {
+                $whereClauses[] = "p.bayar_wb > 0";
+            } else {
+                $whereClauses[] = "p.payment_method = ?";
+                $params[] = $paymentMethod;
+                $types .= "s";
+            }
         }
 
         if (!empty($whereClauses)) {
