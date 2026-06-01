@@ -38,17 +38,24 @@ check_permission('stok_opname', 'menu');
                 Sesi bersama memungkinkan banyak petugas mengisi stok fisik secara bersamaan. Hanya <strong>pembuat sesi</strong> yang dapat melakukan finalisasi.
             </p>
             <form id="createSessionForm">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
                     <div>
                         <label for="cs_tanggal" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal Opname</label>
                         <input type="text" id="cs_tanggal" name="tanggal" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" placeholder="dd-mm-yyyy" required>
                     </div>
                     <div>
-                        <label for="cs_adj_account_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Akun Penyeimbang (Selisih)</label>
+                        <label for="cs_adj_account_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Akun Beban (Stok Berkurang)</label>
                         <select id="cs_adj_account_id" name="adj_account_id" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
                             <option value="">Memuat akun...</option>
                         </select>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Akun untuk mencatat selisih (Beban Kerusakan, Modal, dll).</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Akun Beban Selisih Stok (Loss).</p>
+                    </div>
+                    <div>
+                        <label for="cs_income_account_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Akun Pendapatan (Stok Bertambah)</label>
+                        <select id="cs_income_account_id" name="income_account_id" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" required>
+                            <option value="">Memuat akun...</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Akun Pendapatan Selisih Stok (Gain).</p>
                     </div>
                     <div>
                         <label for="cs_keterangan" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Keterangan</label>
@@ -103,6 +110,9 @@ check_permission('stok_opname', 'menu');
             </div>
         </div>
         <div id="supervisorActions" class="hidden flex-shrink-0 flex items-center gap-2">
+            <button id="btnScanMode" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-colors shadow-sm mr-2">
+                <i class="bi bi-camera mr-2"></i> Mode Scan HP
+            </button>
             <button id="finalizeBtn" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm">
                 <i class="bi bi-check2-all mr-2"></i> Finalisasi Sesi
             </button>
@@ -187,6 +197,132 @@ check_permission('stok_opname', 'menu');
         <div class="px-4 py-2 text-xs text-gray-400 dark:text-gray-500 border-t border-gray-200 dark:border-gray-700" id="tableFooterInfo"></div>
     </div>
 </div>
+
+<!-- ================================================================
+     MODAL SCAN HP (Quick Scan Mode)
+================================================================ -->
+<div id="scanModeModal" class="fixed inset-0 z-[60] hidden overflow-y-auto" aria-labelledby="scanModalLabel" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen p-0 sm:p-4">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-95 transition-opacity" aria-hidden="true" id="closeScanModalOverlay"></div>
+
+        <!-- Modal Panel -->
+        <div class="relative bg-white dark:bg-gray-800 w-full h-screen sm:h-auto sm:max-w-lg sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <!-- Modal Header -->
+            <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
+                        <i class="bi bi-upc-scan text-primary-600 dark:text-primary-400"></i>
+                    </div>
+                    <h5 class="text-base font-bold text-gray-900 dark:text-white" id="scanModalLabel">Quick Scan Opname</h5>
+                </div>
+                <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" id="closeScanModalBtn">
+                    <i class="bi bi-x-lg text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-0 flex flex-col">
+                <!-- Scanner Viewport -->
+                <div class="relative w-full aspect-square sm:aspect-video bg-black overflow-hidden">
+                    <div id="reader" class="w-full h-full"></div>
+                    <div id="scanOverlay" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                        <div class="w-64 h-64 border-2 border-primary-500/50 rounded-lg relative">
+                            <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary-500"></div>
+                            <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary-500"></div>
+                            <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary-500"></div>
+                            <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary-500"></div>
+                            <div class="absolute inset-x-0 top-1/2 h-0.5 bg-primary-500/30 animate-pulse"></div>
+                        </div>
+                        <p class="mt-4 text-xs text-white bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">Arahkan kamera ke Barcode / SKU</p>
+                    </div>
+                </div>
+
+                <!-- Result & Input Area -->
+                <div class="p-6">
+                    <!-- Loading / Initial State -->
+                    <div id="scanInitialState" class="text-center py-4">
+                        <i class="bi bi-camera text-4xl text-gray-300 mb-3 block"></i>
+                        <p class="text-sm text-gray-500 mb-4">Menunggu scan barcode...</p>
+                        
+                        <div class="px-4">
+                            <div class="relative group">
+                                <input type="text" id="manualScanInput" placeholder="Atau ketik SKU / Barcode..." class="block w-full h-11 rounded-xl border-gray-200 dark:border-gray-700 dark:bg-gray-900 bg-gray-50 text-sm focus:ring-primary focus:border-primary transition-all pr-10">
+                                <button id="btnManualSearch" class="absolute right-2 top-1.5 w-8 h-8 flex items-center justify-center text-gray-400 group-focus-within:text-primary transition-colors">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                            <p class="mt-2 text-[10px] text-gray-400 italic">Gunakan input ini jika barcode rusak atau kamera tidak fokus.</p>
+                        </div>
+                    </div>
+
+                    <!-- Scanned Result -->
+                    <div id="scanResultArea" class="hidden space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div class="bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-800/40 rounded-xl p-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <h6 class="font-bold text-gray-900 dark:text-white" id="scannedItemName">Nama Barang</h6>
+                                <span class="px-2 py-0.5 bg-primary-100 dark:bg-primary-800 text-primary-700 dark:text-primary-300 rounded text-[10px] font-mono" id="scannedItemSku">SKU</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mt-3">
+                                <div class="text-center p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-wider">Sistem</p>
+                                    <p class="text-lg font-bold text-gray-700 dark:text-gray-300" id="scannedItemSystem">0</p>
+                                </div>
+                                <div class="text-center p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-wider">Fisik Sblmnya</p>
+                                    <p class="text-lg font-bold text-gray-700 dark:text-gray-300" id="scannedItemPrevFisik">–</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Input Qty -->
+                        <div>
+                            <label for="scannedQty" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Jumlah Fisik yang Ditemukan:</label>
+                            <div class="flex items-center gap-3">
+                                <button type="button" class="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xl font-bold" id="btnMinusQty">–</button>
+                                <input type="number" id="scannedQty" class="flex-1 h-12 text-center text-2xl font-bold bg-white dark:bg-gray-800 border-2 border-primary-500 rounded-xl focus:ring-0" value="1" min="0">
+                                <button type="button" class="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xl font-bold" id="btnPlusQty">+</button>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button type="button" class="flex-1 py-3 bg-primary hover:bg-primary-600 text-white font-bold rounded-xl shadow-lg shadow-primary-500/30 transition-all active:scale-95" id="btnSaveScan">
+                                <i class="bi bi-save2 mr-2"></i> Simpan & Lanjut
+                            </button>
+                            <button type="button" class="px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold rounded-xl" id="btnSkipScan">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer (Log) -->
+            <div class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-[10px] text-gray-400 uppercase font-bold mb-1">Riwayat Scan Terakhir:</p>
+                <div id="scanLog" class="text-xs space-y-1 text-gray-500 dark:text-gray-400 max-h-20 overflow-y-auto">
+                    <p class="italic">Belum ada aktivitas scan.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* CSS khusus untuk Scan Mode agar lebih native di mobile */
+@media (max-width: 640px) {
+    #scanModeModal .relative {
+        border-radius: 0;
+    }
+}
+#reader {
+    background: black;
+}
+#reader video {
+    object-fit: cover !important;
+}
+</style>
+
 
 <?php
 if (!$is_spa_request) {

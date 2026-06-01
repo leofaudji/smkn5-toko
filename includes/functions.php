@@ -391,6 +391,7 @@ function find_imbalanced_ledger_groups($conn, $user_id, $per_tanggal) {
         SELECT 
             gl.ref_type, 
             gl.ref_id, 
+            MAX(gl.nomor_referensi) as nomor_referensi,
             MAX(gl.tanggal) as tanggal, 
             MAX(gl.keterangan) as keterangan, 
             SUM(gl.debit) as total_debit, 

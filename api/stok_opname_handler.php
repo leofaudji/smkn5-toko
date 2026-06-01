@@ -44,6 +44,31 @@ try {
             echo json_encode(['status' => 'success', 'data' => $session], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
             die();
 
+        // ── Cari barang berdasarkan barcode/SKU dalam sesi ──────────
+        } elseif ($action === 'get_item_by_barcode') {
+            $session_id = (int) ($_GET['session_id'] ?? 0);
+            $barcode    = trim($_GET['barcode'] ?? '');
+
+            if (!$session_id || empty($barcode)) throw new Exception("Data tidak lengkap.");
+
+            $stmt = $conn->prepare("
+                SELECT i.id, i.nama_barang, i.sku, i.barcode,
+                       d.stok_sistem, d.stok_fisik, d.dihitung_oleh
+                FROM   items i
+                LEFT JOIN stok_opname_draft_items d ON d.item_id = i.id AND d.session_id = ?
+                WHERE  (i.barcode = ? OR i.sku = ?) AND i.user_id = ?
+                LIMIT 1
+            ");
+            $stmt->bind_param('issi', $session_id, $barcode, $barcode, $owner_user_id);
+            $stmt->execute();
+            $item = stmt_fetch_assoc($stmt);
+            $stmt->close();
+
+            header('Content-Type: application/json; charset=UTF-8');
+            if (ob_get_length()) ob_clean();
+            echo json_encode(['status' => 'success', 'data' => $item], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            die();
+
         // ── Daftar barang dalam sesi ────────────────────────────────
         } elseif ($action === 'get_session_items') {
             $session_id = (int) ($_GET['session_id'] ?? 0);
@@ -230,9 +255,10 @@ try {
             $tanggal        = $data['tanggal']        ?? '';
             $keterangan     = trim($data['keterangan'] ?? '');
             $adj_account_id = (int) ($data['adj_account_id'] ?? 0);
+            $income_account_id = (int) ($data['income_account_id'] ?? 0);
 
-            if (empty($tanggal) || empty($keterangan) || !$adj_account_id) {
-                throw new Exception("Tanggal, keterangan, dan akun penyeimbang wajib diisi.");
+            if (empty($tanggal) || empty($keterangan) || !$adj_account_id || !$income_account_id) {
+                throw new Exception("Tanggal, keterangan, akun beban, dan akun pendapatan wajib diisi.");
             }
 
             // Cek sesi aktif
@@ -245,8 +271,8 @@ try {
             $conn->begin_transaction();
 
             // Buat sesi
-            $ins = $conn->prepare("INSERT INTO stok_opname_sessions (user_id, created_by, tanggal, keterangan, adj_account_id, status) VALUES (?, ?, ?, ?, ?, 'aktif')");
-            $ins->bind_param('iissi', $owner_user_id, $logged_in_user_id, $tanggal, $keterangan, $adj_account_id);
+            $ins = $conn->prepare("INSERT INTO stok_opname_sessions (user_id, created_by, tanggal, keterangan, adj_account_id, income_account_id, status) VALUES (?, ?, ?, ?, ?, ?, 'aktif')");
+            $ins->bind_param('iissii', $owner_user_id, $logged_in_user_id, $tanggal, $keterangan, $adj_account_id, $income_account_id);
             $ins->execute();
             $session_id = $conn->insert_id;
             $ins->close();
@@ -364,7 +390,8 @@ try {
             try {
                 $tanggal        = $session['tanggal'];
                 $keterangan     = $session['keterangan'];
-                $adj_acc_id     = (int) $session['adj_account_id'];
+                $adj_acc_id     = (int) $session['adj_account_id']; // Akun Beban (Loss)
+                $inc_acc_id     = (int) ($session['income_account_id'] ?? $adj_acc_id); // Akun Pendapatan (Gain)
                 $ket_jurnal     = "Stok Opname: " . $keterangan;
 
                 if (!empty($to_adjust)) {
@@ -375,7 +402,7 @@ try {
                     $ins_hist = $conn->prepare("INSERT INTO stock_adjustments (item_id, user_id, journal_id, tanggal, stok_sebelum, stok_setelah, selisih_kuantitas, selisih_nilai, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $ins_ks   = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
 
-                    $ledger = [];
+                    $inventory_net = [];
 
                     foreach ($to_adjust as $item) {
                         $item_id      = (int) $item['item_id'];
@@ -388,18 +415,8 @@ try {
 
                         if (empty($inv_acc_id)) throw new Exception("Akun persediaan item ID {$item_id} belum diatur.");
 
-                        $zero = 0.0;
-                        if ($selisih_val < 0) { // Stok berkurang
-                            add_journal_line($journal_id, $adj_acc_id,   abs($selisih_val), $zero);
-                            add_journal_line($journal_id, $inv_acc_id,   $zero, abs($selisih_val));
-                            $ledger[$adj_acc_id]['debit']   = ($ledger[$adj_acc_id]['debit']   ?? 0) + abs($selisih_val);
-                            $ledger[$inv_acc_id]['credit']  = ($ledger[$inv_acc_id]['credit']  ?? 0) + abs($selisih_val);
-                        } else { // Stok bertambah
-                            add_journal_line($journal_id, $inv_acc_id,   $selisih_val, $zero);
-                            add_journal_line($journal_id, $adj_acc_id,   $zero, $selisih_val);
-                            $ledger[$inv_acc_id]['debit']   = ($ledger[$inv_acc_id]['debit']   ?? 0) + $selisih_val;
-                            $ledger[$adj_acc_id]['credit']  = ($ledger[$adj_acc_id]['credit']  ?? 0) + $selisih_val;
-                        }
+                        // Akumulasi nilai secara neto untuk akun persediaan
+                        $inventory_net[$inv_acc_id] = ($inventory_net[$inv_acc_id] ?? 0) + $selisih_val;
 
                         $upd_stok->bind_param('ii', $stok_fisik, $item_id);
                         $upd_stok->execute();
@@ -413,11 +430,28 @@ try {
                         $ins_ks->execute();
                     }
 
-                    foreach ($ledger as $acc_id => $totals) {
-                        $d = $totals['debit']  ?? 0;
-                        $c = $totals['credit'] ?? 0;
-                        if ($d > 0 || $c > 0) {
-                            update_general_ledger($conn, $owner_user_id, $acc_id, $tanggal, $d, $c, $ket_jurnal, $nomor_ref, $journal_id);
+                    // Insert jurnal & update GL berdasarkan saldo net persediaan
+                    foreach ($inventory_net as $inv_acc_id => $net_val) {
+                        // Abaikan selisih desimal sangat kecil akibat pembulatan
+                        if (abs($net_val) < 0.01) continue; 
+
+                        if ($net_val > 0) {
+                            // Net Positif = Surplus = Pendapatan
+                            // Debit: Persediaan, Kredit: Pendapatan
+                            add_journal_line($journal_id, $inv_acc_id, $net_val, 0);
+                            add_journal_line($journal_id, $inc_acc_id, 0, $net_val);
+                            
+                            update_general_ledger($conn, $owner_user_id, $inv_acc_id, $tanggal, $net_val, 0, $ket_jurnal, $nomor_ref, $journal_id);
+                            update_general_ledger($conn, $owner_user_id, $inc_acc_id, $tanggal, 0, $net_val, $ket_jurnal, $nomor_ref, $journal_id);
+                        } else {
+                            // Net Negatif = Defisit = Beban
+                            // Debit: Beban, Kredit: Persediaan
+                            $loss = abs($net_val);
+                            add_journal_line($journal_id, $adj_acc_id, $loss, 0);
+                            add_journal_line($journal_id, $inv_acc_id, 0, $loss);
+                            
+                            update_general_ledger($conn, $owner_user_id, $adj_acc_id, $tanggal, $loss, 0, $ket_jurnal, $nomor_ref, $journal_id);
+                            update_general_ledger($conn, $owner_user_id, $inv_acc_id, $tanggal, 0, $loss, $ket_jurnal, $nomor_ref, $journal_id);
                         }
                     }
                 }

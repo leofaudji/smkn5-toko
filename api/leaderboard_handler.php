@@ -106,15 +106,28 @@ function get_member_history($db, $user_id) {
     $member_id = isset($_GET['member_id']) ? (int)$_GET['member_id'] : 0;
     if (!$member_id) throw new Exception("ID Anggota tidak valid.");
 
-    // 1. Riwayat Belanja (Penjualan)
-    $stmt_penjualan = $db->prepare("
+    $days = isset($_GET['days']) ? (int)$_GET['days'] : 0;
+
+    // 1. Riwayat Belanja (Penjualan) - Hanya yang berstatus 'completed' (tidak void)
+    $sql_penjualan = "
         SELECT id, nomor_referensi, tanggal_penjualan, total, status 
         FROM penjualan 
         WHERE customer_id = ? 
-        ORDER BY tanggal_penjualan DESC, id DESC 
-        LIMIT 20
-    ");
-    $stmt_penjualan->bind_param('i', $member_id);
+          AND status = 'completed'
+    ";
+    
+    if ($days > 0) {
+        $sql_penjualan .= " AND tanggal_penjualan >= DATE_SUB(NOW(), INTERVAL ? DAY)";
+    }
+    
+    $sql_penjualan .= " ORDER BY tanggal_penjualan DESC, id DESC LIMIT 20";
+
+    $stmt_penjualan = $db->prepare($sql_penjualan);
+    if ($days > 0) {
+        $stmt_penjualan->bind_param('ii', $member_id, $days);
+    } else {
+        $stmt_penjualan->bind_param('i', $member_id);
+    }
     $stmt_penjualan->execute();
     $penjualan = stmt_fetch_all($stmt_penjualan);
     $stmt_penjualan->close();

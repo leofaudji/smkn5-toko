@@ -31,6 +31,9 @@ switch ($action) {
     case 'update':
         update_penjualan($db);
         break;
+    case 'member_purchase_history':
+        member_purchase_history($db);
+        break;
     default:
         send_error_response('Aksi tidak valid.', 405);
         break;
@@ -45,9 +48,10 @@ function get_all_penjualan($db)
         $searchTerm = $_GET['search'] ?? '';
         $startDate = $_GET['start_date'] ?? '';
         $endDate = $_GET['end_date'] ?? '';
+        $paymentMethod = $_GET['payment_method'] ?? '';
         $offset = ($page - 1) * $limit;
 
-        $sql = "SELECT p.id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.total, p.status, u.username 
+        $sql = "SELECT p.id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.total, p.status, p.payment_method, u.username 
                 FROM penjualan p
                 LEFT JOIN users u ON p.created_by = u.id";
         $countSql = "SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id";
@@ -82,6 +86,12 @@ function get_all_penjualan($db)
         if (!empty($endDate)) {
             $whereClauses[] = "p.tanggal_penjualan <= ?";
             $params[] = $endDate . " 23:59:59";
+            $types .= "s";
+        }
+
+        if (!empty($paymentMethod)) {
+            $whereClauses[] = "p.payment_method = ?";
+            $params[] = $paymentMethod;
             $types .= "s";
         }
 
@@ -225,8 +235,8 @@ function store_penjualan($db)
 
         // 3. Insert ke tabel 'penjualan_detail' dan update stok
         $detailStmt = $db->prepare(
-            "INSERT INTO penjualan_details (penjualan_id, item_id, deskripsi_item, price, quantity, discount, subtotal, item_type) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO penjualan_details (penjualan_id, item_id, deskripsi_item, price, quantity, discount, subtotal, item_type, cost_price) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" 
         );
         $updateStokStmt = $db->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
         $kartuStokStmt = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, 0, ?, ?, ?, 'penjualan', ?)");
@@ -294,6 +304,8 @@ function store_penjualan($db)
                     $normal_inventory_totals[$inv_acc] = 0;
                 $normal_inventory_totals[$inv_acc] += $hpp_val;
 
+                $current_cost = (float)$item_db['harga_beli'];
+
             } else {
                 // 2. Logika Barang Konsinyasi (Hitung stok aktual: awal + restock - terjual di GL)
                 $stmt_cons = $db->prepare("
@@ -341,9 +353,10 @@ function store_penjualan($db)
                     'amount' => $total_harga_beli,
                     'desc' => "Penjualan Konsinyasi: {$item['qty']} x {$item['nama']} ({$item_cons['nama_pemasok']})"
                 ];
+                $current_cost = (float)$item_cons['harga_beli'];
             }
 
-            $detailStmt->bind_param('iisidids', $penjualanId, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal'], $item_type);
+            $detailStmt->bind_param('iisdiddsd', $penjualanId, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal'], $item_type, $current_cost);
             $detailStmt->execute();
         }
         $detailStmt->close();
@@ -634,7 +647,7 @@ function search_produk($db)
                 sku COLLATE utf8mb4_general_ci as sku, 
                 barcode COLLATE utf8mb4_general_ci as barcode, 
                 nama_barang COLLATE utf8mb4_general_ci as nama_barang, 
-                harga_jual, stok, 'normal' as item_type 
+                harga_jual, harga_beli, stok, 'normal' as item_type 
             FROM items 
             WHERE user_id = ? AND (nama_barang LIKE ? OR sku LIKE ? OR barcode LIKE ?) AND stok > 0";
 
@@ -644,7 +657,7 @@ function search_produk($db)
                 ci.sku COLLATE utf8mb4_general_ci as sku, 
                 ci.barcode COLLATE utf8mb4_general_ci as barcode, 
                 ci.nama_barang COLLATE utf8mb4_general_ci as nama_barang, 
-                ci.harga_jual,
+                ci.harga_jual, ci.harga_beli,
                 (
                     ci.stok_awal 
                     + COALESCE(restock.qty_masuk, 0) 
@@ -681,6 +694,44 @@ function search_produk($db)
 
         send_json_response($result, $cache_key, 60, false, true);
 
+    } catch (Exception $e) {
+        send_error_response($e->getMessage(), 500);
+    }
+}
+
+function member_purchase_history($db)
+{
+    try {
+        $user_id = 1;
+        $anggota_id = (int) ($_GET['anggota_id'] ?? 0);
+        if (!$anggota_id) {
+            send_json_response([]);
+        }
+
+        $query = "
+            SELECT 
+                pd.item_id as id, 
+                pd.deskripsi_item as nama_barang, 
+                pd.price as harga_jual, 
+                pd.item_type,
+                COALESCE(i.harga_beli, ci.harga_beli, 0) as harga_beli,
+                COUNT(*) as frequency
+            FROM penjualan_details pd
+            JOIN penjualan p ON pd.penjualan_id = p.id
+            LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
+            LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
+            WHERE p.customer_id = ? AND p.status != 'void'
+            GROUP BY pd.item_id, pd.item_type, pd.deskripsi_item, pd.price, i.harga_beli, ci.harga_beli
+            ORDER BY frequency DESC
+            LIMIT 6";
+
+        $stmt = $db->prepare($query);
+        $stmt->bind_param('i', $anggota_id);
+        $stmt->execute();
+        $result = stmt_fetch_all($stmt);
+        $stmt->close();
+
+        send_json_response($result);
     } catch (Exception $e) {
         send_error_response($e->getMessage(), 500);
     }
@@ -830,8 +881,8 @@ function update_penjualan($db)
 
         // [INSERT DETAIL BARU & UPDATE STOK]
         $detailStmt = $db->prepare(
-            "INSERT INTO penjualan_details (penjualan_id, item_id, deskripsi_item, price, quantity, discount, subtotal, item_type) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO penjualan_details (penjualan_id, item_id, deskripsi_item, price, quantity, discount, subtotal, item_type, cost_price) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $updateStokStmt = $db->prepare("UPDATE items SET stok = stok - ? WHERE id = ? AND user_id = ?");
         $kartuStokStmt = $db->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, 0, ?, ?, ?, 'penjualan', ?)");
@@ -889,6 +940,7 @@ function update_penjualan($db)
                 if (!isset($normal_inventory_totals[$inv_acc]))
                     $normal_inventory_totals[$inv_acc] = 0;
                 $normal_inventory_totals[$inv_acc] += $hpp_val;
+                $current_cost = (float)$item_db['harga_beli'];
             } else {
                 // Konsinyasi logic
                 $stmt_cons = $db->prepare("
@@ -926,7 +978,11 @@ function update_penjualan($db)
                 $gl_payable_stmt->bind_param('isssiddiii', $user_id, $tanggal, $glKetP, $old_penjualan['nomor_referensi'], $consignment_settings['payable_acc_id'], $total_beli, $id, $item['id'], $item['qty'], $logged_in_user_id);
                 $gl_payable_stmt->execute();
                 $gl_payable_stmt->close();
+                $current_cost = (float)$item_cons['harga_beli'];
             }
+
+            $detailStmt->bind_param('iisdiddsd', $id, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal'], $item_type, $current_cost);
+            $detailStmt->execute();
         }
         $detailStmt->close();
         $updateStokStmt->close();

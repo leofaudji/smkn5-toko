@@ -20,7 +20,7 @@ check_permission('penjualan', 'menu');
     </div>
     <div class="p-6">
         <div class="mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                 <div>
                     <label for="filter-start-date" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Dari Tanggal</label>
                     <input type="text" id="filter-start-date" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Mulai...">
@@ -28,6 +28,17 @@ check_permission('penjualan', 'menu');
                 <div>
                     <label for="filter-end-date" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Sampai Tanggal</label>
                     <input type="text" id="filter-end-date" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Selesai...">
+                </div>
+                <div>
+                    <label for="filter-payment-method" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Metode Bayar</label>
+                    <select id="filter-payment-method" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm">
+                        <option value="">Semua Metode</option>
+                        <option value="cash">Tunai</option>
+                        <option value="transfer">Transfer Bank</option>
+                        <option value="qris">QRIS</option>
+                        <option value="potong_saldo">Saldo WB</option>
+                        <option value="hutang">Hutang</option>
+                    </select>
                 </div>
                 <div class="md:col-span-2 flex gap-2">
                     <div class="flex-grow">
@@ -78,9 +89,14 @@ check_permission('penjualan', 'menu');
     <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('penjualanModal')"></div>
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
+        <div id="penjualanModalContent" class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
             <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                <h5 class="text-lg font-medium text-gray-900 dark:text-white" id="penjualanModalLabel">Transaksi Penjualan Baru</h5>
+                <div class="flex items-center gap-4">
+                    <h5 class="text-lg font-medium text-gray-900 dark:text-white" id="penjualanModalLabel">Transaksi Penjualan Baru</h5>
+                    <button type="button" id="btn-pos-mode" class="inline-flex items-center px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full text-xs font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        <i class="bi bi-display mr-1"></i> POS MODE
+                    </button>
+                </div>
                 <button type="button" class="text-gray-400 hover:text-gray-500 focus:outline-none" onclick="closeModal('penjualanModal')">
                     <i class="bi bi-x-lg"></i>
                 </button>
@@ -102,6 +118,11 @@ check_permission('penjualan', 'menu');
                                 <div id="member-suggestions" class="absolute z-20 w-full bg-white dark:bg-gray-700 shadow-lg rounded-md mt-1 max-h-60 overflow-y-auto hidden"></div>
                             </div>
                             <div id="member-info" class="hidden mt-1 text-xs text-green-600 dark:text-green-400 font-medium"></div>
+                            <!-- Member Purchase History Container -->
+                            <div id="member-history-container" class="hidden mt-2">
+                                <div class="text-[10px] uppercase font-bold text-gray-400 mb-1">Sering Dibeli Pelanggan:</div>
+                                <div id="member-history-list" class="flex flex-wrap gap-1"></div>
+                            </div>
                         </div>
                         <div>
                             <label for="kasir" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kasir</label>
@@ -156,6 +177,14 @@ check_permission('penjualan', 'menu');
                                 <div class="flex justify-between items-center border-t border-gray-200 dark:border-gray-600 pt-2 mt-2">
                                     <span class="text-lg font-bold text-gray-900 dark:text-white">Total</span>
                                     <span id="total" class="text-lg font-bold text-red-600">Rp 0</span>
+                                </div>
+                                <!-- Profit Calculator (Hidden by Default) -->
+                                <div id="profit-container" class="hidden mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded flex justify-between items-center transition-all animate-pulse-subtle">
+                                    <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">Estimasi Profit (Admin Only)</span>
+                                    <span id="profit-value" class="text-sm font-bold text-blue-700 dark:text-blue-300">Rp 0</span>
+                                </div>
+                                <div class="flex justify-center">
+                                    <button type="button" id="toggle-profit" class="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline">Tampilkan Profit</button>
                                 </div>
                             </div>
 
@@ -248,3 +277,70 @@ if (!$is_spa_request) {
     require_once PROJECT_ROOT . '/views/footer.php';
 }
 ?>
+
+<style>
+/* POS Mode Styling */
+.pos-mode-active #penjualanModalContent {
+    max-width: 98vw !important;
+    width: 98vw !important;
+    height: 98vh !important;
+    margin: 1vh auto !important;
+}
+
+.pos-mode-active #penjualanModal .p-6 {
+    height: calc(98vh - 130px) !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+}
+
+.pos-mode-active #cart-table thead th,
+.pos-mode-active #cart-table tbody td {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+    font-size: 1.1rem !important;
+}
+
+.pos-mode-active #total {
+    font-size: 3rem !important;
+}
+
+.pos-mode-active #search-produk {
+    font-size: 1.5rem !important;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.animate-pulse-subtle {
+    animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .8; }
+}
+
+/* Shortcuts legend */
+.pos-shortcuts {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 10px;
+    z-index: 100;
+    pointer-events: none;
+    display: none;
+}
+.pos-mode-active .pos-shortcuts { display: flex; gap: 15px; }
+</style>
+
+<div class="pos-shortcuts">
+    <span><b class="text-primary">F2</b> Cari Barang</span>
+    <span><b class="text-primary">F8</b> Member</span>
+    <span><b class="text-primary">F9</b> Simpan</span>
+    <span><b class="text-primary">F10</b> Uang Pas</span>
+    <span><b class="text-primary">ESC</b> Keluar POS</span>
+</div>

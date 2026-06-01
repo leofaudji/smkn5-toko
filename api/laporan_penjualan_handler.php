@@ -16,6 +16,7 @@ try {
     $page = (int)($_GET['page'] ?? 1);
     $offset = ($page - 1) * $limit;
 
+    $view_type = $_GET['view_type'] ?? 'summary';
     $start_date = $_GET['start_date'] ?? '';
     $end_date = $_GET['end_date'] ?? '';
     $search = $_GET['search'] ?? '';
@@ -54,11 +55,7 @@ try {
             pd.item_type,
             SUM(pd.subtotal) as total_bruto,
             SUM(pd.subtotal - (pd.subtotal / NULLIF(p.subtotal, 0) * p.discount)) as total_neto,
-            SUM(CASE 
-                WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli 
-                WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli 
-                ELSE 0 
-            END) as total_hpp
+            SUM(pd.quantity * IF(pd.cost_price > 0, pd.cost_price, COALESCE(i.harga_beli, ci.harga_beli, 0))) as total_hpp
         FROM penjualan_details pd
         JOIN penjualan p ON pd.penjualan_id = p.id
         LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
@@ -112,7 +109,7 @@ try {
         $total_records = stmt_fetch_assoc($count_stmt)['total'];
         $count_stmt->close();
 
-        $query = "SELECT p.id as penjualan_id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.payment_method, p.status, u.username, pd.id as detail_id, pd.item_id, pd.deskripsi_item, pd.quantity, pd.price, pd.discount as item_discount, pd.subtotal as item_total, pd.item_type, CASE WHEN pd.item_type = 'normal' THEN i.harga_beli WHEN pd.item_type = 'consignment' THEN ci.harga_beli ELSE 0 END as item_hpp FROM penjualan_details pd JOIN penjualan p ON pd.penjualan_id = p.id LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal' LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment' LEFT JOIN users u ON p.created_by = u.id $where_sql ORDER BY p.tanggal_penjualan DESC, p.id DESC, pd.id ASC LIMIT ? OFFSET ?";
+        $query = "SELECT p.id as penjualan_id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.payment_method, p.status, u.username, pd.id as detail_id, pd.item_id, pd.deskripsi_item, pd.quantity, pd.price, pd.discount as item_discount, pd.subtotal as item_total, pd.item_type, IF(pd.cost_price > 0, pd.cost_price, COALESCE(i.harga_beli, ci.harga_beli, 0)) as item_hpp FROM penjualan_details pd JOIN penjualan p ON pd.penjualan_id = p.id LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal' LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment' LEFT JOIN users u ON p.created_by = u.id $where_sql ORDER BY p.tanggal_penjualan DESC, p.id DESC, pd.id ASC LIMIT ? OFFSET ?";
     } else {
         $total_stmt = $conn->prepare("SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id $where_sql");
         $bind_params_total = [&$params[0]];
@@ -122,7 +119,7 @@ try {
         $total_records = stmt_fetch_assoc($total_stmt)['total'];
         $total_stmt->close();
 
-        $query = "SELECT p.id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.subtotal as gross_total, p.discount as global_discount, p.total, p.payment_method, p.status, u.username, COALESCE(cogs.total_hpp, 0) as total_hpp, (p.total - COALESCE(cogs.total_hpp, 0)) as profit, ((p.total - COALESCE(cogs.total_hpp, 0)) / NULLIF(p.total, 0) * 100) as margin_pct FROM penjualan p LEFT JOIN users u ON p.created_by = u.id LEFT JOIN (SELECT pd.penjualan_id, SUM(CASE WHEN pd.item_type = 'normal' THEN pd.quantity * i.harga_beli WHEN pd.item_type = 'consignment' THEN pd.quantity * ci.harga_beli ELSE 0 END) as total_hpp FROM penjualan_details pd LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal' LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment' GROUP BY pd.penjualan_id) as cogs ON p.id = cogs.penjualan_id $where_sql ORDER BY p.tanggal_penjualan DESC, p.id DESC LIMIT ? OFFSET ?";
+        $query = "SELECT p.id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.subtotal as gross_total, p.discount as global_discount, p.total, p.payment_method, p.status, u.username, COALESCE(cogs.total_hpp, 0) as total_hpp, (p.total - COALESCE(cogs.total_hpp, 0)) as profit, ((p.total - COALESCE(cogs.total_hpp, 0)) / NULLIF(p.total, 0) * 100) as margin_pct FROM penjualan p LEFT JOIN users u ON p.created_by = u.id LEFT JOIN (SELECT pd.penjualan_id, SUM(pd.quantity * IF(pd.cost_price > 0, pd.cost_price, COALESCE(i.harga_beli, ci.harga_beli, 0))) as total_hpp FROM penjualan_details pd LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal' LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment' GROUP BY pd.penjualan_id) as cogs ON p.id = cogs.penjualan_id $where_sql ORDER BY p.tanggal_penjualan DESC, p.id DESC LIMIT ? OFFSET ?";
     }
 
     $params[0] .= 'ii';

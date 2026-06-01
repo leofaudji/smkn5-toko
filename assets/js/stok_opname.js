@@ -44,7 +44,7 @@ function initStokOpnamePage() {
     // ── Identifikasi user yang sedang login ──────────────────────
     // Baca dari variabel global yang di-inject header.php (window scope)
     function getCurrentUserId() {
-        return (typeof window.currentUserId !== 'undefined') ? window.currentUserId : 0;
+        return (typeof currentUserId !== 'undefined') ? currentUserId : 0;
     }
 
     // ================================================================
@@ -61,10 +61,13 @@ function initStokOpnamePage() {
         try {
             const res  = await fetch(`${basePath}/api/stok?action=get_adjustment_accounts`);
             const data = await res.json();
-            const sel  = document.getElementById('cs_adj_account_id');
-            if (data.status === 'success' && sel) {
-                sel.innerHTML = '<option value="">-- Pilih Akun --</option>' +
+            const selAdj = document.getElementById('cs_adj_account_id');
+            const selInc = document.getElementById('cs_income_account_id');
+            if (data.status === 'success') {
+                const options = '<option value="">-- Pilih Akun --</option>' + 
                     data.data.map(a => `<option value="${a.id}">${a.kode_akun} - ${a.nama_akun}</option>`).join('');
+                if (selAdj) selAdj.innerHTML = options;
+                if (selInc) selInc.innerHTML = options;
             }
         } catch (e) {
             console.warn('Gagal memuat akun:', e);
@@ -109,7 +112,7 @@ function initStokOpnamePage() {
             `Tanggal: ${fmtDate(activeSession.tanggal)} · Dibuat oleh: ${activeSession.created_by_name} · Akun: ${activeSession.kode_akun} - ${activeSession.nama_akun}`;
 
         // Tampilkan tombol supervisor jika user adalah pembuat sesi atau admin
-        const _uid = window.currentUserId || 0;
+        const _uid = getCurrentUserId();
         const isSupervisor = (_uid && parseInt(activeSession.created_by, 10) === _uid) || (typeof userRole !== 'undefined' && userRole === 'admin');
         if (isSupervisor) {
             supActions.classList.remove('hidden');
@@ -372,6 +375,7 @@ function initStokOpnamePage() {
                         action: 'create_session',
                         tanggal: isoDate,
                         adj_account_id: document.getElementById('cs_adj_account_id').value,
+                        income_account_id: document.getElementById('cs_income_account_id').value,
                         keterangan: document.getElementById('cs_keterangan').value
                     })
                 });
@@ -522,6 +526,236 @@ function initStokOpnamePage() {
     });
     const _mainContent = document.getElementById('main-content');
     if (_mainContent) _observer.observe(_mainContent, { childList: true });
+
+    // ================================================================
+    //  QUICK SCAN MODE (HP SCAN)
+    // ================================================================
+    let html5QrCode = null;
+    let currentScannedItem = null;
+
+    const btnScanMode = document.getElementById('btnScanMode');
+    const scanModal  = document.getElementById('scanModeModal');
+    
+    if (btnScanMode && scanModal) {
+        btnScanMode.addEventListener('click', () => {
+            scanModal.classList.remove('hidden');
+            startScanner();
+        });
+
+        document.getElementById('closeScanModalBtn').addEventListener('click', closeScanner);
+        document.getElementById('closeScanModalOverlay').addEventListener('click', closeScanner);
+
+        // Manual Search
+        const manualInput = document.getElementById('manualScanInput');
+        const btnManual   = document.getElementById('btnManualSearch');
+        
+        if (manualInput && btnManual) {
+            const handleManualSearch = () => {
+                const val = manualInput.value.trim();
+                if (val) {
+                    onScanSuccess(val);
+                    manualInput.value = '';
+                }
+            };
+            btnManual.addEventListener('click', handleManualSearch);
+            manualInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleManualSearch();
+            });
+        }
+
+        // Qty Buttons
+        document.getElementById('btnMinusQty').addEventListener('click', () => {
+            const input = document.getElementById('scannedQty');
+            input.value = Math.max(0, parseInt(input.value || 0) - 1);
+        });
+        document.getElementById('btnPlusQty').addEventListener('click', () => {
+            const input = document.getElementById('scannedQty');
+            input.value = parseInt(input.value || 0) + 1;
+        });
+
+        // Save Button
+        document.getElementById('btnSaveScan').addEventListener('click', async () => {
+            if (!currentScannedItem) return;
+            const qty = parseInt(document.getElementById('scannedQty').value || 0);
+            
+            const btn = document.getElementById('btnSaveScan');
+            const originalContent = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="bi bi-hourglass-split animate-spin mr-2"></i> Menyimpan...`;
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save_draft_item',
+                        session_id: activeSession.id,
+                        item_id: currentScannedItem.id,
+                        stok_fisik: qty
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    addToScanLog(currentScannedItem.nama_barang, qty);
+                    showToast(`Tersimpan: ${currentScannedItem.nama_barang} (${qty})`, 'success');
+                    
+                    // Reset UI to waiting
+                    resetScanUI();
+                    
+                    // Refresh main list & progress in background
+                    loadProgress();
+                    loadItems(); 
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        });
+
+        // Skip Button
+        document.getElementById('btnSkipScan').addEventListener('click', resetScanUI);
+    }
+
+    async function startScanner() {
+        if (html5QrCode && html5QrCode.isScanning) return;
+
+        if (!html5QrCode) {
+            // Inisialisasi dengan dukungan format barcode retail secara eksplisit
+            html5QrCode = new Html5Qrcode("reader", {
+                formatsToSupport: [ 
+                    Html5QrcodeSupportedFormats.EAN_13, 
+                    Html5QrcodeSupportedFormats.EAN_8, 
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E
+                ]
+            });
+        }
+        
+        const config = { 
+            fps: 20, 
+            qrbox: (viewWidth, viewHeight) => {
+                // Box lebih lebar untuk barcode botol
+                const width = Math.min(viewWidth * 0.9, 450);
+                const height = Math.min(viewHeight * 0.4, 200);
+                return { width, height };
+            },
+            // Gunakan resolusi tinggi agar garis barcode tajam
+            videoConstraints: {
+                facingMode: "environment",
+                width: { min: 640, ideal: 1280, max: 1920 },
+                height: { min: 480, ideal: 720, max: 1080 },
+                focusMode: "continuous"
+            }
+        };
+        
+        try {
+            document.getElementById('scanInitialState').innerHTML = `
+                <div class="flex flex-col items-center py-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                    <p class="text-sm text-primary font-bold animate-pulse">Kamera Aktif: Mencari Barcode...</p>
+                    <p class="text-[10px] text-gray-400 mt-2 px-6">Dekatkan kamera ke barcode barang, pastikan tidak ada pantulan cahaya silau.</p>
+                </div>`;
+
+            await html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess
+            );
+        } catch (err) {
+            console.error("Gagal start kamera:", err);
+            showToast("Gagal mengakses kamera. Cek izin browser Anda.", "error");
+            closeScanner();
+        }
+    }
+
+    function closeScanner() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().catch(err => console.error(err));
+        }
+        scanModal.classList.add('hidden');
+        resetScanUI();
+    }
+
+    async function onScanSuccess(decodedText, decodedResult) {
+        // Play sound if possible
+        playBeep();
+
+        // Pause scanner temporarily
+        if (html5QrCode) html5QrCode.pause();
+
+        try {
+            const res = await fetch(`${API_URL}?action=get_item_by_barcode&session_id=${activeSession.id}&barcode=${encodeURIComponent(decodedText)}`);
+            const result = await res.json();
+
+            if (result.status === 'success' && result.data) {
+                showScannedItem(result.data);
+            } else {
+                showToast(`Barang tidak ditemukan: ${decodedText}`, "warning");
+                if (html5QrCode) html5QrCode.resume();
+            }
+        } catch (err) {
+            console.error(err);
+            if (html5QrCode) html5QrCode.resume();
+        }
+    }
+
+    function showScannedItem(item) {
+        currentScannedItem = item;
+        document.getElementById('scannedItemName').textContent = item.nama_barang;
+        document.getElementById('scannedItemSku').textContent = item.barcode || item.sku;
+        document.getElementById('scannedItemSystem').textContent = item.stok_sistem;
+        document.getElementById('scannedItemPrevFisik').textContent = item.stok_fisik !== null ? item.stok_fisik : '–';
+        
+        const qtyInput = document.getElementById('scannedQty');
+        qtyInput.value = item.stok_fisik !== null ? item.stok_fisik : 1;
+        
+        document.getElementById('scanInitialState').classList.add('hidden');
+        document.getElementById('scanResultArea').classList.remove('hidden');
+        
+        qtyInput.focus();
+        qtyInput.select();
+    }
+
+    function resetScanUI() {
+        currentScannedItem = null;
+        document.getElementById('scanInitialState').classList.remove('hidden');
+        document.getElementById('scanResultArea').classList.add('hidden');
+        if (html5QrCode && html5QrCode.getState() === 3) { // 3 = PAUSED
+            html5QrCode.resume();
+        }
+    }
+
+    function addToScanLog(name, qty) {
+        const log = document.getElementById('scanLog');
+        if (log.querySelector('p.italic')) log.innerHTML = '';
+        
+        const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const entry = document.createElement('p');
+        entry.className = 'flex justify-between border-b border-gray-100 dark:border-gray-800 pb-1';
+        entry.innerHTML = `<span><span class="text-emerald-500 font-bold">${qty}</span> x ${name}</span> <span class="text-[10px] text-gray-400">${time}</span>`;
+        log.prepend(entry);
+    }
+
+    function playBeep() {
+        try {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = context.createOscillator();
+            const gainNode = context.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, context.currentTime);
+            gainNode.gain.setValueAtTime(0.1, context.currentTime);
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.1);
+        } catch (e) {}
+    }
 
     // ── escapeHtml helper ─────────────────────────────────────────
     function escapeHtml(str) {

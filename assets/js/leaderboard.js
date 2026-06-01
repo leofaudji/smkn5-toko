@@ -115,7 +115,8 @@ async function showMemberHistory(id, name, no) {
     document.getElementById('modal-content-wb').classList.add('hidden');
     
     try {
-        const response = await fetch(`${basePath}/api/leaderboard?action=get_member_history&member_id=${id}`);
+        const periodDays = document.getElementById('period-days')?.value || '30';
+        const response = await fetch(`${basePath}/api/leaderboard?action=get_member_history&member_id=${id}&days=${periodDays}`);
         const result = await response.json();
         
         if (result.success) {

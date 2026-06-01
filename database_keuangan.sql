@@ -589,6 +589,7 @@ CREATE TABLE `penjualan_details` (
   `item_id` int(11) NOT NULL COMMENT 'FK ke tabel items',
   `deskripsi_item` varchar(255) NOT NULL COMMENT 'Nama/deskripsi item saat transaksi',
   `quantity` int(11) NOT NULL COMMENT 'Jumlah item yang dijual',
+  `cost_price` decimal(15,2) NOT NULL DEFAULT 0.00 COMMENT 'HPP/Harga Beli Rata-rata saat transaksi',
   `price` decimal(15,2) NOT NULL COMMENT 'Harga jual satuan saat transaksi',
   `discount` decimal(15,2) NOT NULL DEFAULT 0.00 COMMENT 'Diskon per item',
   `subtotal` decimal(15,2) NOT NULL COMMENT 'Subtotal (quantity * price)',

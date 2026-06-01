@@ -268,7 +268,7 @@ if (!$is_spa_request) {
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referensi</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">No. Faktur</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Keterangan</th>
                                 <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Debit</th>
                                 <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Kredit</th>

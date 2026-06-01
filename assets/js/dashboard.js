@@ -182,7 +182,7 @@ function initDashboardPage() {
                                     tr.className = 'hover:bg-gray-50 transition-colors';
                                     tr.innerHTML = `
                                         <td class="px-4 py-3 whitespace-nowrap">${new Date(g.tanggal).toLocaleDateString('id-ID')}</td>
-                                        <td class="px-4 py-3 font-mono text-xs text-gray-600">${g.ref_type.toUpperCase()}-${g.ref_id}</td>
+                                        <td class="px-4 py-3 font-mono text-xs text-gray-600">${g.nomor_referensi || `${g.ref_type.toUpperCase()}-${g.ref_id}`}</td>
                                         <td class="px-4 py-3 max-w-xs truncate" title="${g.keterangan}">${g.keterangan}</td>
                                         <td class="px-4 py-3 text-right">${currencyFormatter.format(g.total_debit)}</td>
                                         <td class="px-4 py-3 text-right">${currencyFormatter.format(g.total_kredit)}</td>

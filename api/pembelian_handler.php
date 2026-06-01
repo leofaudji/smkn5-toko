@@ -326,7 +326,9 @@ try {
                 $stmt_kartu_stok = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, 0, ?, ?, 'pembelian', ?)");
 
                 // Jurnal Sisi Debit (Agregasi per Akun Persediaan)
-                $stmt_update_stock = $conn->prepare("UPDATE items SET stok = stok + ?, harga_beli = ? WHERE id = ? AND user_id = ?");
+                // Ambil data item saat ini untuk menghitung Moving Average
+                $stmt_get_item = $conn->prepare("SELECT stok, harga_beli FROM items WHERE id = ? AND user_id = ? FOR UPDATE");
+                $stmt_update_stock = $conn->prepare("UPDATE items SET stok = ?, harga_beli = ? WHERE id = ? AND user_id = ?");
                 $aggregated_inventory_totals = [];
 
                 foreach ($lines as $line) {
@@ -340,8 +342,32 @@ try {
                     $stmt_details->bind_param('iiiddi', $pembelian_id, $item_id, $quantity, $price, $subtotal, $inventory_account_id);
                     $stmt_details->execute();
 
-                    // Update stok barang DAN harga beli otomatis
-                    $stmt_update_stock->bind_param('idii', $quantity, $price, $item_id, $user_id);
+                    // Ambil data stok dan harga beli saat ini
+                    $stmt_get_item->bind_param('ii', $item_id, $user_id);
+                    $stmt_get_item->execute();
+                    $curr_item = stmt_fetch_assoc($stmt_get_item);
+
+                    $current_stok = (float)($curr_item['stok'] ?? 0);
+                    $current_harga_beli = (float)($curr_item['harga_beli'] ?? 0);
+
+                    // Hitung Moving Average
+                    $total_stok_baru = $current_stok + $quantity;
+                    $new_avg_cost = $current_harga_beli;
+
+                    if ($total_stok_baru > 0) {
+                        if ($current_stok <= 0) {
+                            // Jika stok sebelumnya kosong atau negatif, gunakan harga baru sebagai baseline
+                            $new_avg_cost = $price;
+                        } else {
+                            // Rumus Moving Average: (Nilai Stok Lama + Nilai Pembelian Baru) / Total Stok Baru
+                            $new_avg_cost = (($current_stok * $current_harga_beli) + ($quantity * $price)) / $total_stok_baru;
+                        }
+                    } else {
+                        $new_avg_cost = $price;
+                    }
+
+                    // Update stok barang DAN harga beli (Moving Average)
+                    $stmt_update_stock->bind_param('idii', $total_stok_baru, $new_avg_cost, $item_id, $user_id);
                     $stmt_update_stock->execute();
 
                     // Catat ke Kartu Stok

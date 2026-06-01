@@ -54,6 +54,61 @@ function initPenjualanPage() {
     // Use global appSettings provided by header.php for receipt printing
     const appSettings = window.appSettings || {};
 
+    // --- POS Mode & Shortcuts Logic ---
+    const togglePosMode = (force = null) => {
+        const body = document.body;
+        const btn = document.getElementById('btn-pos-mode');
+        const isActive = force !== null ? !force : body.classList.contains('pos-mode-active');
+        
+        if (isActive) {
+            body.classList.remove('pos-mode-active');
+            btn.classList.remove('bg-primary', 'text-white');
+            btn.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-200');
+        } else {
+            body.classList.add('pos-mode-active');
+            btn.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-200');
+            btn.classList.add('bg-primary', 'text-white');
+            // Auto focus search
+            setTimeout(() => searchProdukInput.focus(), 300);
+        }
+    };
+
+    document.getElementById('btn-pos-mode')?.addEventListener('click', () => togglePosMode());
+
+    // Global keyboard shortcuts
+    const handleShortcuts = (e) => {
+        // Only active if sale modal is open
+        const modal = document.getElementById('penjualanModal');
+        if (modal.classList.contains('hidden')) return;
+
+        switch (e.key) {
+            case 'F2':
+                e.preventDefault();
+                searchProdukInput.focus();
+                break;
+            case 'F8':
+                e.preventDefault();
+                memberSearchInput.focus();
+                break;
+            case 'F9':
+                e.preventDefault();
+                document.getElementById('btn-simpan-penjualan')?.click();
+                break;
+            case 'F10':
+                e.preventDefault();
+                document.getElementById('btn-uang-pas')?.click();
+                break;
+            case 'Escape':
+                if (document.body.classList.contains('pos-mode-active')) {
+                    e.preventDefault();
+                    togglePosMode(false);
+                }
+                break;
+        }
+    };
+    window.addEventListener('keydown', handleShortcuts);
+
+
 
     // Fungsi utilitas
     const formatRupiah = (angka) => {
@@ -343,6 +398,7 @@ function initPenjualanPage() {
 
         currentPage = page;
         const search = document.getElementById('search-input')?.value || '';
+        const paymentMethod = document.getElementById('filter-payment-method')?.value || '';
         
         // Format tanggal ke YYYY-MM-DD untuk API
         const formatDateAPI = (fp) => {
@@ -355,7 +411,7 @@ function initPenjualanPage() {
         const endDate = formatDateAPI(filterEndDate);
 
         try {
-            const url = `${basePath}/api/penjualan?action=get_all&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&start_date=${startDate}&end_date=${endDate}`;
+            const url = `${basePath}/api/penjualan?action=get_all&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&start_date=${startDate}&end_date=${endDate}&payment_method=${paymentMethod}`;
             const response = await fetch(url);
             const result = await response.json();
 
@@ -411,6 +467,11 @@ function initPenjualanPage() {
         loadPenjualan(1, false);
     });
 
+    // Trigger filter saat pilihan metode bayar berubah
+    document.getElementById('filter-payment-method')?.addEventListener('change', () => {
+        loadPenjualan(1, false);
+    });
+
     // Trigger filter saat tekan Enter di input pencarian
     document.getElementById('search-input')?.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
@@ -445,7 +506,8 @@ function initPenjualanPage() {
                     <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400"><span class="${textDecoration}">${formatDateTime(item.tanggal_penjualan)}</span></td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white"><span class="${textDecoration}">${item.customer_name}</span></td>
                     <td class="px-6 py-4 whitespace-nowrap text-right font-bold text-gray-900 dark:text-white">
-                        <span class="${isVoid ? 'text-gray-400' : 'text-green-600'} ${textDecoration}">${formatRupiah(item.total)}</span>
+                        <div class="${isVoid ? 'text-gray-400' : 'text-green-600'} ${textDecoration}">${formatRupiah(item.total)}</div>
+                        <div class="text-[10px] text-gray-400 font-normal uppercase tracking-wider">${getPaymentMethodName(item.payment_method)}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400"><span class="${textDecoration}">${item.username}</span></td>
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
@@ -507,7 +569,7 @@ function initPenjualanPage() {
                 showToast('Stok tidak mencukupi.', 'warning');
             }
         } else {
-            cart.push({ ...product, qty: 1 });
+            cart.push({ ...product, qty: 1, discount: 0 });
         }
 
         renderCart();
@@ -559,6 +621,15 @@ function initPenjualanPage() {
         const totalDiscount = itemDiscounts + totalDiscountInput;
         const total = subtotal - totalDiscount;
         
+        // Profit Calculation
+        const totalCost = cart.reduce((sum, item) => {
+            const cost = parseFloat(item.harga_beli) || 0;
+            return sum + (cost * item.qty);
+        }, 0);
+        // Profit = Total Selling (after discounts) - Total Cost
+        // itemDiscounts are already deducted from subtotal to get total, but totalDiscount includes global discount.
+        const profit = total - totalCost;
+
         const bayarWb = parseFloat(bayarWbInput?.value) || 0;
         
         // Auto-fill bayar jika metode pembayaran bukan tunai (Transfer/QRIS)
@@ -574,7 +645,23 @@ function initPenjualanPage() {
         document.getElementById('subtotal').textContent = formatRupiah(subtotal);
         document.getElementById('total').textContent = formatRupiah(total);
         document.getElementById('kembali').textContent = formatRupiah(kembali >= 0 ? kembali : 0);
+        
+        // Update profit display
+        const profitValue = document.getElementById('profit-value');
+        if (profitValue) {
+            profitValue.textContent = formatRupiah(profit);
+            profitValue.classList.toggle('text-red-500', profit < 0);
+            profitValue.classList.toggle('text-blue-700', profit >= 0);
+        }
     };
+
+    // Toggle Profit Visibility
+    document.getElementById('toggle-profit')?.addEventListener('click', function() {
+        const container = document.getElementById('profit-container');
+        const isHidden = container.classList.contains('hidden');
+        container.classList.toggle('hidden');
+        this.textContent = isHidden ? 'Sembunyikan Profit' : 'Tampilkan Profit';
+    });
 
     // Event Listeners
     document.getElementById('btn-tambah-penjualan').addEventListener('click', () => {
@@ -907,6 +994,17 @@ function initPenjualanPage() {
     // --- Member Search Logic ---
     memberSearchInput?.addEventListener('input', async (e) => {
         const term = e.target.value;
+        
+        // Reset anggota_id and member info if search field is cleared or empty
+        if (term.trim() === '') {
+            anggotaIdInput.value = '';
+            currentMemberBalance = 0;
+            wbPaymentContainer?.classList.add('hidden');
+            memberInfoDiv?.classList.add('hidden');
+            memberSuggestions?.classList.add('hidden');
+            updateSummary();
+        }
+
         if (term.length < 2) {
             memberSuggestions?.classList.add('hidden');
             return;
@@ -1100,6 +1198,13 @@ function initPenjualanPage() {
 
                     // Otomatis reset form dan buka kembali modal untuk transaksi berikutnya
                     document.getElementById('form-penjualan').reset();
+                    
+                    // Reset Member Info (Hidden input is not cleared by form.reset())
+                    anggotaIdInput.value = '';
+                    wbPaymentContainer?.classList.add('hidden');
+                    memberInfoDiv?.classList.add('hidden');
+                    currentMemberBalance = 0;
+
                     tanggalPicker.setDate(new Date()); // Reset tanggal ke hari ini
                     cart = [];
                     renderCart(); // Bersihkan tampilan keranjang
@@ -1206,4 +1311,84 @@ function initPenjualanPage() {
     // Muat data saat halaman pertama kali dibuka
     loadPenjualan(1, false);
     setupInfiniteScroll();
+    // --- Member History Logic ---
+    const fetchMemberHistory = async (memberId) => {
+        const container = document.getElementById('member-history-container');
+        const list = document.getElementById('member-history-list');
+        if (!container || !list) return;
+
+        try {
+            const res = await fetch(`${basePath}/api/penjualan?action=member_purchase_history&anggota_id=${memberId}`);
+            const result = await res.json();
+            
+            list.innerHTML = '';
+            if (result.success && result.data.length > 0) {
+                result.data.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'px-2 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-primary hover:text-white dark:hover:bg-primary text-[10px] rounded transition-colors border border-gray-200 dark:border-gray-600';
+                    btn.innerHTML = `<i class="bi bi-plus-circle mr-1"></i> ${item.nama_barang}`;
+                    btn.onclick = () => {
+                        // Ensure it has required fields for cart
+                        const cartItem = {
+                            id: item.id,
+                            nama_barang: item.nama_barang,
+                            harga_jual: item.harga_jual,
+                            harga_beli: item.harga_beli,
+                            item_type: item.item_type,
+                            stok: 999 // Assume available for quick add, will be validated on save
+                        };
+                        addItemToCart(cartItem);
+                    };
+                    list.appendChild(btn);
+                });
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        } catch (err) {
+            console.error("Gagal memuat histori member:", err);
+            container.classList.add('hidden');
+        }
+    };
+
+    // Update member search to trigger history
+    const originalMemberSelect = (m) => {
+        anggotaIdInput.value = m.id;
+        memberSearchInput.value = m.nama_lengkap;
+        memberSuggestions.innerHTML = '';
+        memberSuggestions?.classList.add('hidden');
+        
+        // Show info & balance
+        currentMemberBalance = parseFloat(m.saldo_wajib_belanja) || 0;
+        memberInfoDiv.innerHTML = `Member: <strong>${m.nama_lengkap}</strong> | Saldo WB: <strong>${formatRupiah(currentMemberBalance)}</strong>`;
+        memberInfoDiv?.classList.remove('hidden');
+        
+        // Show WB container
+        wbPaymentContainer?.classList.remove('hidden');
+        
+        // FETCH HISTORY
+        fetchMemberHistory(m.id);
+        
+        updateSummary();
+    };
+
+    // Replace the listener for member suggestions
+    memberSuggestions?.addEventListener('click', (e) => {
+        const item = e.target.closest('a');
+        if (item) {
+            e.preventDefault();
+            const m = JSON.parse(item.dataset.member);
+            originalMemberSelect(m);
+        }
+    });
+
+}
+
+// Pastikan initPenjualanPage dipanggil saat halaman dimuat
+// Ini biasanya ditangani oleh runPageScripts di main.js
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPenjualanPage);
+} else {
+    initPenjualanPage();
 }

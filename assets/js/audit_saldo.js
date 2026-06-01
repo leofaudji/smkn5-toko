@@ -109,6 +109,8 @@ window.initAuditSaldoPage = function () {
             endDate = document.getElementById('sync_stock_end_date').value;
         }
 
+        let confirmText = `Modul yang dipilih: <b>${modules.join(', ')}</b>.<br>Proses ini akan memakan waktu. Lanjutkan?`;
+
         if (startDate || endDate) {
             confirmText += `<br><small class="text-gray-500">Rentang: ${startDate || 'Awal'} s/d ${endDate || 'Sekarang'}</small>`;
         }

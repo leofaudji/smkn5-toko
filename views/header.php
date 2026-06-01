@@ -77,6 +77,8 @@ if (file_exists($changelog_file)) {
         .sidebar-scroll::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 10px; }
         html.dark .sidebar-scroll::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.2); }
     </style>
+    <!-- QR/Barcode Scanner -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans">
 <div id="app-container" class="flex h-screen overflow-hidden">
