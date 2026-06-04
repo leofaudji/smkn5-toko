@@ -126,14 +126,18 @@ function initPenjualanPage() {
         return methods[method] || method;
     };
 
-    // Inisialisasi Flatpickr untuk input tanggal di modal (Buat Baru)
-    const tanggalPicker = flatpickr(tanggalInput, {
-        enableTime: true,
-        dateFormat: "d-m-Y H:i:s", // Format DD-MM-YYYY HH:mm:ss
-        time_24hr: true,
-        defaultDate: "today",
-        allowInput: true
-    });
+    // Inisialisasi Flatpickr untuk input tanggal di modal (Buat Baru) - Penanganan aman
+    let tanggalPicker = null;
+    if (tanggalInput) {
+        const fp = flatpickr(tanggalInput, {
+            enableTime: true,
+            dateFormat: "d-m-Y H:i:s",
+            time_24hr: true,
+            defaultDate: "today",
+            allowInput: true
+        });
+        tanggalPicker = Array.isArray(fp) ? fp[0] : fp;
+    }
 
     // Inisialisasi Flatpickr untuk Filter Daftar Transaksi (Area Daftar)
     const filterStartDate = flatpickr("#filter-start-date", {
@@ -399,6 +403,7 @@ function initPenjualanPage() {
         currentPage = page;
         const search = document.getElementById('search-input')?.value || '';
         const paymentMethod = document.getElementById('filter-payment-method')?.value || '';
+        const status = document.getElementById('filter-status')?.value || '';
         
         // Format tanggal ke YYYY-MM-DD untuk API
         const formatDateAPI = (fp) => {
@@ -411,7 +416,7 @@ function initPenjualanPage() {
         const endDate = formatDateAPI(filterEndDate);
 
         try {
-            const url = `${basePath}/api/penjualan?action=get_all&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&start_date=${startDate}&end_date=${endDate}&payment_method=${paymentMethod}`;
+            const url = `${basePath}/api/penjualan?action=get_all&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&start_date=${startDate}&end_date=${endDate}&payment_method=${paymentMethod}&status=${status}`;
             const response = await fetch(url);
             const result = await response.json();
 
@@ -430,6 +435,12 @@ function initPenjualanPage() {
                         const { total_records, current_page, limit } = result.pagination;
                         const end = Math.min(current_page * limit, total_records);
                         info.textContent = total_records === 0 ? 'Tidak ada transaksi.' : `Menampilkan ${end} dari ${total_records} transaksi.`;
+                    }
+                    
+                    // Update total sales value summary
+                    const totalSalesSpan = document.getElementById('total-sales-value');
+                    if (totalSalesSpan && result.total_value !== undefined) {
+                        totalSalesSpan.textContent = formatRupiah(result.total_value);
                     }
                 }
             } else {
@@ -469,6 +480,11 @@ function initPenjualanPage() {
 
     // Trigger filter saat pilihan metode bayar berubah
     document.getElementById('filter-payment-method')?.addEventListener('change', () => {
+        loadPenjualan(1, false);
+    });
+
+    // Trigger filter saat pilihan status berubah
+    document.getElementById('filter-status')?.addEventListener('change', () => {
         loadPenjualan(1, false);
     });
 
@@ -665,10 +681,10 @@ function initPenjualanPage() {
 
     // Event Listeners
     document.getElementById('btn-tambah-penjualan').addEventListener('click', () => {
-        document.getElementById('form-penjualan').reset();
-        document.getElementById('penjualan_id').value = '';
-        document.getElementById('penjualanModalLabel').textContent = 'Transaksi Penjualan Baru';
-        tanggalPicker.setDate(new Date()); // Reset tanggal ke hari ini menggunakan API Flatpickr
+        document.getElementById('form-penjualan')?.reset();
+        if (document.getElementById('penjualan_id')) document.getElementById('penjualan_id').value = '';
+        if (document.getElementById('penjualanModalLabel')) document.getElementById('penjualanModalLabel').textContent = 'Transaksi Penjualan Baru';
+        tanggalPicker?.setDate(new Date()); // Reset tanggal ke hari ini menggunakan API Flatpickr
         
         // Reset Member Info
         anggotaIdInput.value = '';
@@ -1250,33 +1266,34 @@ function initPenjualanPage() {
                 const detail = result.data;
                 
                 // Set Modal State
-                document.getElementById('form-penjualan').reset();
-                document.getElementById('penjualan_id').value = id;
-                document.getElementById('penjualanModalLabel').textContent = 'Edit Transaksi #' + detail.nomor_referensi;
+                document.getElementById('form-penjualan')?.reset();
+                if (document.getElementById('penjualan_id')) document.getElementById('penjualan_id').value = id;
+                if (document.getElementById('penjualanModalLabel')) document.getElementById('penjualanModalLabel').textContent = 'Edit Transaksi #' + (detail.nomor_referensi || '');
                 
                 // Populate Headers
-                if (detail.tanggal_penjualan) {
+                if (detail.tanggal_penjualan && tanggalPicker) {
                     // Gunakan format ISO agar parsing lebih konsisten di berbagai browser
                     const dbDate = detail.tanggal_penjualan.replace(' ', 'T');
                     tanggalPicker.setDate(new Date(dbDate));
                 }
-                document.getElementById('member_search').value = detail.customer_name;
-                document.getElementById('anggota_id').value = detail.customer_id;
+                if (document.getElementById('member_search')) document.getElementById('member_search').value = detail.customer_name || '';
+                if (document.getElementById('anggota_id')) document.getElementById('anggota_id').value = detail.customer_id || '';
                 
                 // Fallback jika payment_method korup (0 atau kosong)
                 const paymentMethod = (detail.payment_method === '0' || !detail.payment_method) ? 'cash' : detail.payment_method;
-                document.getElementById('payment_method').value = paymentMethod;
+                const paymentMethodEl = document.getElementById('payment_method');
+                if (paymentMethodEl) paymentMethodEl.value = paymentMethod;
                 
-                document.getElementById('catatan').value = detail.keterangan;
-                document.getElementById('discount_total').value = detail.discount;
-                document.getElementById('bayar').value = detail.bayar;
+                if (document.getElementById('catatan')) document.getElementById('catatan').value = detail.keterangan || '';
+                if (document.getElementById('discount_total')) document.getElementById('discount_total').value = detail.discount || 0;
+                if (document.getElementById('bayar')) document.getElementById('bayar').value = detail.bayar || 0;
                 
                 // Check if it's transfer/qris to show account selector
                 if (paymentMethod === 'transfer' || paymentMethod === 'qris') {
                     document.getElementById('account-select-container')?.classList.remove('hidden');
                     // We need to ensure accounts are loaded before setting the value
                     const accountSelect = document.getElementById('payment_account_id');
-                    if (accountSelect && accountSelect.options.length <= 1) {
+                    if (accountSelect && accountSelect.options && accountSelect.options.length <= 1) {
                         // If not loaded, load them then set value
                         loadPaymentAccounts().then(() => {
                             accountSelect.value = detail.payment_account_id || '';
@@ -1394,12 +1411,4 @@ function initPenjualanPage() {
         }
     });
 
-}
-
-// Pastikan initPenjualanPage dipanggil saat halaman dimuat
-// Ini biasanya ditangani oleh runPageScripts di main.js
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPenjualanPage);
-} else {
-    initPenjualanPage();
 }

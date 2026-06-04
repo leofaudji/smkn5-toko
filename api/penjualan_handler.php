@@ -49,12 +49,14 @@ function get_all_penjualan($db)
         $startDate = $_GET['start_date'] ?? '';
         $endDate = $_GET['end_date'] ?? '';
         $paymentMethod = $_GET['payment_method'] ?? '';
+        $status = $_GET['status'] ?? '';
         $offset = ($page - 1) * $limit;
 
         $sql = "SELECT p.id, p.nomor_referensi, p.tanggal_penjualan, p.customer_name, p.total, p.status, p.payment_method, u.username 
                 FROM penjualan p
                 LEFT JOIN users u ON p.created_by = u.id";
         $countSql = "SELECT COUNT(p.id) as total FROM penjualan p LEFT JOIN users u ON p.created_by = u.id";
+        $sumSql = "SELECT SUM(p.total) as total_value FROM penjualan p LEFT JOIN users u ON p.created_by = u.id";
 
         $whereClauses = [];
         $params = [];
@@ -99,10 +101,17 @@ function get_all_penjualan($db)
             }
         }
 
+        if (!empty($status)) {
+            $whereClauses[] = "p.status = ?";
+            $params[] = $status;
+            $types .= "s";
+        }
+
         if (!empty($whereClauses)) {
             $where = " WHERE " . implode(" AND ", $whereClauses);
             $sql .= $where;
             $countSql .= $where;
+            $sumSql .= $where;
         }
 
         $sql .= " ORDER BY p.tanggal_penjualan DESC, p.id DESC LIMIT ? OFFSET ?";
@@ -113,9 +122,11 @@ function get_all_penjualan($db)
 
         $stmt = $db->prepare($sql);
         $countStmt = $db->prepare($countSql);
+        $sumStmt = $db->prepare($sumSql);
 
         if (!empty($params)) {
             $countStmt->bind_param($types, ...$params);
+            $sumStmt->bind_param($types, ...$params);
         }
 
         $mainParams = array_merge($params, [$limit, $offset]);
@@ -131,8 +142,14 @@ function get_all_penjualan($db)
         $total = $countResult['total'];
         $countStmt->close();
 
+        $sumStmt->execute();
+        $sumResult = stmt_fetch_assoc($sumStmt);
+        $totalValue = (float)($sumResult['total_value'] ?? 0);
+        $sumStmt->close();
+
         send_json_response([
             'data' => $data,
+            'total_value' => $totalValue,
             'pagination' => [
                 'current_page' => $page,
                 'total_pages' => ceil($total / $limit),
@@ -156,10 +173,16 @@ function store_penjualan($db)
 
     // Extract variables early (Pindahkan definisi variabel ke atas agar bisa divalidasi)
     $tanggal = $data['tanggal'];
-    // Jika tanggal hanya YYYY-MM-DD (10 karakter), tambahkan jam real-time transaksi
-    if (strlen($tanggal) === 10) {
-        $tanggal .= ' ' . date('H:i:s');
+
+    // Pastikan tanggal selalu memiliki waktu transaksi yang akurat (tidak boleh 00:00:00)
+    $timestamp = strtotime($tanggal);
+    if ($timestamp !== false) {
+        // Cek jika panjang string hanya tanggal (10 char) atau jamnya tepat 00:00:00
+        if (strlen(trim($tanggal)) <= 10 || date('H:i:s', $timestamp) === '00:00:00') {
+            $tanggal = date('Y-m-d', $timestamp) . ' ' . date('H:i:s');
+        }
     }
+
     $customer_name = $data['customer_name'] ?? 'Umum';
     $subtotal = $data['subtotal'];
     $discount = $data['discount'];
@@ -592,18 +615,23 @@ function void_penjualan($db)
 function get_penjualan_detail($db)
 {
     try {
-        $id = $_GET['id'] ?? 0;
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
         if (!$id) {
             send_error_response('ID tidak valid.', 400);
         }
 
-        $stmt = $db->prepare("SELECT p.*, u.username as created_by_username FROM penjualan p JOIN users u ON p.created_by = u.id WHERE p.id = ?");
+        // Gunakan LEFT JOIN agar transaksi tetap bisa dimuat meskipun user pembuatnya sudah dihapus
+        $stmt = $db->prepare("SELECT p.*, u.username as created_by_username 
+                             FROM penjualan p 
+                             LEFT JOIN users u ON p.created_by = u.id 
+                             WHERE p.id = ?");
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $penjualan = stmt_fetch_assoc($stmt);
         $stmt->close();
 
         if ($penjualan) {
+            // Query detail barang dengan penanganan tipe item yang lebih fleksibel
             $stmt = $db->prepare(
                 "SELECT 
                     pd.*, 
@@ -611,7 +639,7 @@ function get_penjualan_detail($db)
                     COALESCE(i.harga_jual, ci.harga_jual, pd.price) as harga_jual,
                     COALESCE(i.harga_beli, ci.harga_beli, 0) as harga_beli
                  FROM penjualan_details pd
-                 LEFT JOIN items i ON pd.item_id = i.id AND pd.item_type = 'normal'
+                 LEFT JOIN items i ON pd.item_id = i.id AND (pd.item_type = 'normal' OR pd.item_type IS NULL)
                  LEFT JOIN consignment_items ci ON pd.item_id = ci.id AND pd.item_type = 'consignment'
                  WHERE pd.penjualan_id = ?"
             );
@@ -619,9 +647,11 @@ function get_penjualan_detail($db)
             $stmt->execute();
             $penjualan['items'] = stmt_fetch_all($stmt);
             $stmt->close();
-            send_json_response($penjualan);
+
+            // Bungkus dalam key 'data' agar sesuai dengan ekspektasi result.data di JavaScript
+            send_json_response(['success' => true, 'data' => $penjualan]);
         } else {
-            send_error_response('Data tidak ditemukan.', 404);
+            send_error_response('Transaksi tidak ditemukan.', 404);
         }
     } catch (Exception $e) {
         send_error_response($e->getMessage(), 500);
@@ -830,9 +860,15 @@ function update_penjualan($db)
 
         // 5. UPDATE HEADER PENJUALAN
         $tanggal = $data['tanggal'];
-        // Pastikan format tanggal ke DB (tambah jam jika hanya tgl)
-        if (strlen($tanggal) === 10)
-            $tanggal .= ' ' . date('H:i:s');
+
+        // Pastikan format tanggal ke DB (tambah jam jika hanya tgl atau jam kosong)
+        $upd_timestamp = strtotime($tanggal);
+        if ($upd_timestamp !== false) {
+            // Terapkan logika yang sama untuk update agar jam tetap real-time
+            if (strlen(trim($tanggal)) <= 10 || date('H:i:s', $upd_timestamp) === '00:00:00') {
+                $tanggal = date('Y-m-d', $upd_timestamp) . ' ' . date('H:i:s');
+            }
+        }
 
         $customer_name = $data['customer_name'] ?? 'Umum';
         $subtotal = $data['subtotal'];
@@ -910,9 +946,6 @@ function update_penjualan($db)
 
         foreach ($data['items'] as $item) {
             $item_type = $item['item_type'] ?? 'normal';
-            $detailStmt->bind_param('iisdddds', $id, $item['id'], $item['nama'], $item['harga'], $item['qty'], $item['discount'], $item['subtotal'], $item_type);
-            $detailStmt->execute();
-
             if ($item_type === 'normal') {
                 $stokCheck = $db->prepare("SELECT harga_jual, revenue_account_id, inventory_account_id, cogs_account_id, harga_beli FROM items WHERE id = ?");
                 $stokCheck->bind_param('i', $item['id']);

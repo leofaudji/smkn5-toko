@@ -20,7 +20,7 @@ check_permission('penjualan', 'menu');
     </div>
     <div class="p-6">
         <div class="mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                 <div>
                     <label for="filter-start-date" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Dari Tanggal</label>
                     <input type="text" id="filter-start-date" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Mulai...">
@@ -38,6 +38,14 @@ check_permission('penjualan', 'menu');
                         <option value="qris">QRIS</option>
                         <option value="potong_saldo">Saldo WB</option>
                         <option value="hutang">Hutang</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-status" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Status</label>
+                    <select id="filter-status" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm">
+                        <option value="">Semua Status</option>
+                        <option value="completed">Sukses</option>
+                        <option value="void">Void</option>
                     </select>
                 </div>
                 <div class="md:col-span-2 flex gap-2">
@@ -70,7 +78,13 @@ check_permission('penjualan', 'menu');
             <div id="infinite-scroll-sentinel" class="h-4 w-full"></div>
         </div>
         <div class="flex justify-between items-center mt-4">
-            <div id="pagination-info" class="text-sm text-gray-700 dark:text-gray-300 italic"></div>
+            <div class="flex flex-col md:flex-row items-center gap-4">
+                <div id="pagination-info" class="text-sm text-gray-700 dark:text-gray-300 italic"></div>
+                <div class="hidden md:block h-4 w-px bg-gray-300 dark:bg-gray-600"></div>
+                <div class="text-sm font-bold text-gray-800 dark:text-white">
+                    Total Nilai Penjualan: <span id="total-sales-value" class="text-primary">Rp 0</span>
+                </div>
+            </div>
             <div id="infinite-scroll-loader" class="hidden">
                 <div class="flex items-center text-sm text-primary font-medium">
                     <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
