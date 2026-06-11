@@ -225,8 +225,16 @@ function repost_transaction($conn, $ref_type, $ref_id, $data_user_id, $logged_in
             }
         }
 
-        $piutang_portion = ($payment_method === 'hutang') ? ($total - $bayar - $bayar_wb) : 0;
-        $cash_portion = $total - $bayar_wb - $piutang_portion;
+        $is_kurang_bayar = round($bayar + $bayar_wb, 2) < round($total, 2);
+        $is_hutang = ($payment_method === 'hutang' || $is_kurang_bayar);
+
+        if ($is_hutang) {
+            $cash_portion = max(0, $bayar);
+            $piutang_portion = max(0, $total - $bayar - $bayar_wb);
+        } else {
+            $cash_portion = max(0, $total - $bayar_wb);
+            $piutang_portion = 0;
+        }
 
         if ($cash_portion > 0) {
             $cash_acc = get_setting('default_sales_cash_account_id', null, $conn);

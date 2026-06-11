@@ -2,6 +2,14 @@
 
 Seluruh pembaruan dan perbaikan pada aplikasi akan dicatat di sini untuk memudahkan Anda mengetahui fitur terbaru.
  
+## [2.0.1] - 2026-05-02
+### AKUNTANSI & PIUTANG
+- **Auto-detect Kurang Bayar**: Sistem kini otomatis mendeteksi jika total pembayaran (Tunai + Saldo WB) kurang dari total belanja, dan secara otomatis menetapkan selisihnya sebagai Hutang/Piutang.
+- **Perbaikan Jurnal Piutang**: Memperbaiki bug di mana sisa pembayaran yang tidak terbayar (hutang) tercatat sebagai "Tunai" di Buku Besar. Sekarang, nilai tersebut dipetakan dengan benar ke Akun Piutang Anggota.
+
+### PERBAIKAN BUG
+- **Fix Syntax Error**: Memperbaiki kesalahan sintaks (*parse error*) pada `penjualan_handler` yang terjadi akibat sisa karakter sinkronisasi.
+
 ## [2.0.0] - 2026-05-01
 ### INTEGRITAS DATA & STOK
 - **Sinkronisasi Laporan Stok**: Memperbaiki algoritma perhitungan saldo pada Laporan Stok dan Kartu Stok agar tetap akurat meskipun transaksi memiliki komponen waktu (jam/menit/detik).

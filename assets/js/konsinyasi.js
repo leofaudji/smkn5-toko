@@ -71,7 +71,7 @@ function initKonsinyasiPage() {
         const result = await response.json();
 
         if (result.status === 'success') {
-            let html = '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Barang</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Terjual</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">H. Beli</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Utang</th><th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th></tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
+            let html = '<div class="overflow-y-auto max-h-[400px] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Barang</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Terjual</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">H. Beli</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Utang</th><th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th></tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
             let totalUtangKeseluruhan = 0;
             if (result.data.length > 0) {
                 result.data.forEach(row => {
@@ -86,7 +86,7 @@ function initKonsinyasiPage() {
             } else {
                 html += '<tr><td colspan="6" class="text-center py-10 text-gray-500">Tidak ada data ditemukan untuk kriteria ini.</td></tr>';
             }
-            html += `</tbody><tfoot><tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="4" class="px-6 py-3 text-right text-xs uppercase tracking-wider">Total Utang Periode Ini</td><td class="px-6 py-3 text-right">${currencyFormatter.format(totalUtangKeseluruhan)}</td><td></td></tr></tfoot></table>`;
+            html += `</tbody><tfoot><tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="4" class="px-6 py-3 text-right text-xs uppercase tracking-wider">Total Utang Periode Ini</td><td class="px-6 py-3 text-right">${currencyFormatter.format(totalUtangKeseluruhan)}</td><td></td></tr></tfoot></table></div>`;
             reportBody.innerHTML = html;
         } else {
             reportBody.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">${result.message}</div>`;
@@ -551,13 +551,13 @@ function initKonsinyasiPage() {
             const result = await response.json();
             if (result.status !== 'success') throw new Error(result.message);
 
-            let html = '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Utang</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Bayar</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sisa Utang</th></tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
+            let html = '<div class="overflow-y-auto max-h-[400px] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pemasok</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Utang</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Bayar</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sisa Utang</th></tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
             let grandTotalSisa = 0;
             result.data.forEach(row => {
                 grandTotalSisa += parseFloat(row.sisa_utang);
                 html += `<tr class="text-sm"><td class="px-6 py-4">${row.nama_pemasok}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(row.total_utang)}</td><td class="px-6 py-4 text-right">${currencyFormatter.format(row.total_bayar)}</td><td class="px-6 py-4 text-right font-bold">${currencyFormatter.format(row.sisa_utang)}</td></tr>`;
             });
-            html += `</tbody><tfoot class="bg-gray-100 dark:bg-gray-700 font-bold"><tr class="text-sm"><td colspan="3" class="px-6 py-3 text-right">Total Sisa Utang Keseluruhan</td><td class="px-6 py-3 text-right">${currencyFormatter.format(grandTotalSisa)}</td></tr></tfoot></table>`;
+            html += `</tbody><tfoot class="bg-gray-100 dark:bg-gray-700 font-bold"><tr class="text-sm"><td colspan="3" class="px-6 py-3 text-right">Total Sisa Utang Keseluruhan</td><td class="px-6 py-3 text-right">${currencyFormatter.format(grandTotalSisa)}</td></tr></tfoot></table></div>`;
             reportBody.innerHTML = html;
 
         } catch (error) {
@@ -827,9 +827,43 @@ function initKonsinyasiPage() {
         switchTab('pemasok-pane'); // Initial active tab
     }
 
+    function wrapExistingTables() {
+        const tableBodyIds = [
+            'suppliers-table-body',
+            'items-table-body',
+            'payment-history-table-body',
+            'consignment-sales-history-body',
+            'mutasi-table-body'
+        ];
+
+        tableBodyIds.forEach(id => {
+            const tbody = document.getElementById(id);
+            if (tbody) {
+                const table = tbody.closest('table');
+                // Hindari pembungkusan ganda jika fungsi dipanggil ulang (SPA navigation)
+                if (table && !table.parentElement.classList.contains('overflow-y-auto')) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'overflow-y-auto max-h-[500px] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm mb-4';
+                    table.parentNode.insertBefore(wrapper, table);
+                    wrapper.appendChild(table);
+                    
+                    const thead = table.querySelector('thead');
+                    if (thead) thead.classList.add('sticky', 'top-0', 'z-10');
+
+                    // Pastikan sentinel untuk infinite scroll mutasi ikut masuk ke dalam wrapper
+                    if (id === 'mutasi-table-body') {
+                        const sentinel = document.getElementById('mutasi-sentinel');
+                        if (sentinel) wrapper.appendChild(sentinel);
+                    }
+                }
+            }
+        });
+    }
+
     // --- Initial Load ---
     loadSuppliers();
     loadItems();
     loadSuppliersForFilter();
     setupTabs();
+    wrapExistingTables();
 }

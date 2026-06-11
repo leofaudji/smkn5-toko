@@ -215,9 +215,15 @@ function store_penjualan($db)
             $stmt_cek->close();
         }
 
-        // Validasi Hutang
+        // Validasi Hutang atau Kurang Bayar
+        $is_kurang_bayar = round($bayar + $bayar_wb, 2) < round($total, 2);
+        if ($is_kurang_bayar) {
+            $is_hutang = true;
+            $payment_method = 'hutang';
+        }
+
         if ($is_hutang && empty($anggota_id)) {
-            throw new Exception("Untuk pembayaran Hutang, Anggota wajib dipilih.");
+            throw new Exception("Untuk pembayaran Hutang atau kurang bayar, Anggota wajib dipilih.");
         }
 
         // 1. Generate Nomor Faktur (lebih robust untuk mencegah duplikat)
@@ -417,8 +423,13 @@ function store_penjualan($db)
 
         // B. Debit Kas / Piutang
         $debit_acc_id = ($payment_method === 'cash' || $is_hutang) ? get_setting('default_sales_cash_account_id', null, $db) : ($payment_account_id ?: get_setting('default_sales_cash_account_id', null, $db));
-        $cash_portion = $is_hutang ? $bayar : max(0, $total - $bayar_wb);
-        $piutang_portion = $is_hutang ? max(0, $total - $bayar - $bayar_wb) : 0;
+        if ($is_hutang) {
+            $cash_portion = max(0, $bayar);
+            $piutang_portion = max(0, $total - $bayar - $bayar_wb);
+        } else {
+            $cash_portion = max(0, $total - $bayar_wb);
+            $piutang_portion = 0;
+        }
 
         if ($cash_portion > 0) {
             $stmt_gl->bind_param('isssiddiiii', $user_id, $tanggal, $keterangan, $nomor_referensi, $debit_acc_id, $cash_portion, $zero, $penjualanId, $null_val, $null_val, $logged_in_user_id);
@@ -884,6 +895,18 @@ function update_penjualan($db)
         $payment_method = $data['payment_method'] ?? 'cash';
         $payment_account_id = !empty($data['payment_account_id']) ? (int) $data['payment_account_id'] : null;
         $anggota_id = !empty($data['anggota_id']) ? (int) $data['anggota_id'] : null;
+        $is_hutang = ($payment_method === 'hutang');
+
+        // Validasi Hutang atau Kurang Bayar (Auto-detect)
+        $is_kurang_bayar = round($bayar + $bayar_wb, 2) < round($total, 2);
+        if ($is_kurang_bayar) {
+            $is_hutang = true;
+            $payment_method = 'hutang';
+        }
+
+        if ($is_hutang && empty($anggota_id)) {
+            throw new Exception("Untuk pembayaran Hutang atau kurang bayar, Anggota wajib dipilih.");
+        }
 
         $stmt_upd = $db->prepare(
             "UPDATE penjualan SET 
@@ -1041,11 +1064,15 @@ function update_penjualan($db)
         }
 
         // 7.2. Debit Kas / Piutang
-        $is_hutang = ($payment_method === 'hutang');
         $debit_acc_id = ($payment_method === 'cash' || $is_hutang) ? get_setting('default_sales_cash_account_id', null, $db) : ($payment_account_id ?: get_setting('default_sales_cash_account_id', null, $db));
         
-        $cash_portion = $is_hutang ? $bayar : max(0, $total - $bayar_wb);
-        $piutang_portion = $is_hutang ? max(0, $total - $bayar - $bayar_wb) : 0;
+        if ($is_hutang) {
+            $cash_portion = max(0, $bayar);
+            $piutang_portion = max(0, $total - $bayar - $bayar_wb);
+        } else {
+            $cash_portion = max(0, $total - $bayar_wb);
+            $piutang_portion = 0;
+        }
 
         if ($cash_portion > 0) {
             if (!$debit_acc_id) throw new Exception("Akun Kas belum diatur.");

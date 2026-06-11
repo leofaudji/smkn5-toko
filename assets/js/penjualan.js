@@ -1148,8 +1148,12 @@ function initPenjualanPage() {
             return;
         }
         if (paymentMethod !== 'hutang' && (bayar + bayarWb) < total) {
-            showToast('Jumlah bayar kurang dari total.', 'warning');
-            return;
+            const anggotaId = document.getElementById('anggota_id').value;
+            if (!anggotaId) {
+                showToast('Jumlah bayar kurang. Pilih anggota jika sisa tagihan ingin dicatat sebagai hutang.', 'warning');
+                return;
+            }
+            // Jika anggota dipilih, biarkan lolos. Backend akan otomatis mengkategorikan sisa sebagai piutang.
         }
         
         if (bayarWb > currentMemberBalance) {
