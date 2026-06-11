@@ -2,7 +2,7 @@
 
 Seluruh pembaruan dan perbaikan pada aplikasi akan dicatat di sini untuk memudahkan Anda mengetahui fitur terbaru.
  
-## [2.0.1] - 2026-05-02
+## [2.0.1] - 2026-06-11
 ### AKUNTANSI & PIUTANG
 - **Auto-detect Kurang Bayar**: Sistem kini otomatis mendeteksi jika total pembayaran (Tunai + Saldo WB) kurang dari total belanja, dan secara otomatis menetapkan selisihnya sebagai Hutang/Piutang.
 - **Perbaikan Jurnal Piutang**: Memperbaiki bug di mana sisa pembayaran yang tidak terbayar (hutang) tercatat sebagai "Tunai" di Buku Besar. Sekarang, nilai tersebut dipetakan dengan benar ke Akun Piutang Anggota.
