@@ -532,13 +532,22 @@ function void_penjualan($db)
         foreach ($details as $item) {
             $item_type = $item['item_type'] ?? 'normal';
             if ($item_type === 'normal') {
-                $stmt_update_stok->bind_param('iii', $item['quantity'], $item['item_id'], $user_id);
-                $stmt_update_stok->execute();
+                 // Pastikan item masih ada di database sebelum update stok dan kartu stok
+                 $check_item = $db->prepare("SELECT id FROM items WHERE id = ?");
+                 $check_item->bind_param('i', $item['item_id']);
+                 $check_item->execute();
+                 $item_exists = stmt_fetch_assoc($check_item);
+                 $check_item->close();
 
-                // Catat ke Kartu Stok (Barang Masuk Kembali / Reversal)
-                $ksKeterangan = "Batal Penjualan #{$penjualan['nomor_referensi']}";
-                $stmt_ks_void->bind_param('iisii', $item['item_id'], $item['quantity'], $ksKeterangan, $id, $user_id);
-                $stmt_ks_void->execute();
+                 if ($item_exists) {
+                     $stmt_update_stok->bind_param('iii', $item['quantity'], $item['item_id'], $user_id);
+                     $stmt_update_stok->execute();
+
+                     // Catat ke Kartu Stok (Barang Masuk Kembali / Reversal)
+                     $ksKeterangan = "Batal Penjualan #{$penjualan['nomor_referensi']}";
+                     $stmt_ks_void->bind_param('iisii', $item['item_id'], $item['quantity'], $ksKeterangan, $id, $user_id);
+                     $stmt_ks_void->execute();
+                 }
             }
         }
         $stmt_update_stok->close();
@@ -975,6 +984,10 @@ function update_penjualan($db)
                 $stokCheck->execute();
                 $item_db = stmt_fetch_assoc($stokCheck);
                 $stokCheck->close();
+
+                if (!$item_db) {
+                    throw new Exception("Barang '{$item['nama']}' tidak ditemukan di database (ID: {$item['id']}). Pastikan barang belum dihapus.");
+                }
 
                 // Update Stok & Kartu Stok
                 $updateStokStmt->bind_param('iii', $item['qty'], $item['id'], $user_id);
