@@ -985,27 +985,25 @@ function update_penjualan($db)
                 $item_db = stmt_fetch_assoc($stokCheck);
                 $stokCheck->close();
 
-                if (!$item_db) {
-                    throw new Exception("Barang '{$item['nama']}' tidak ditemukan di database (ID: {$item['id']}). Pastikan barang belum dihapus.");
-                }
+                 // Update Stok & Kartu Stok (hanya jika barang masih ada di database)
+                 if ($item_db) {
+                     $updateStokStmt->bind_param('iii', $item['qty'], $item['id'], $user_id);
+                     $updateStokStmt->execute();
+                     $ksKet = "Update Penjualan #{$old_penjualan['nomor_referensi']}";
+                     $kartuStokStmt->bind_param('siisii', $tanggal, $item['id'], $item['qty'], $ksKet, $id, $user_id);
+                     $kartuStokStmt->execute();
+                 }
 
-                // Update Stok & Kartu Stok
-                $updateStokStmt->bind_param('iii', $item['qty'], $item['id'], $user_id);
-                $updateStokStmt->execute();
-                $ksKet = "Update Penjualan #{$old_penjualan['nomor_referensi']}";
-                $kartuStokStmt->bind_param('siisii', $tanggal, $item['id'], $item['qty'], $ksKet, $id, $user_id);
-                $kartuStokStmt->execute();
+                 // Accounting logic (fallback ke default akun jika barang sudah dihapus)
+                 $rev_acc = $item_db ? ($item_db['revenue_account_id'] ?? $default_revenue_acc_id) : $default_revenue_acc_id;
+                 $inv_acc = $item_db ? ($item_db['inventory_account_id'] ?? $default_inventory_acc_id) : $default_inventory_acc_id;
+                 $cogs_acc = $item_db ? ($item_db['cogs_account_id'] ?? $default_cogs_acc_id) : $default_cogs_acc_id;
 
-                // Accounting logic
-                $rev_acc = $item_db['revenue_account_id'] ?? $default_revenue_acc_id;
-                $inv_acc = $item_db['inventory_account_id'] ?? $default_inventory_acc_id;
-                $cogs_acc = $item_db['cogs_account_id'] ?? $default_cogs_acc_id;
+                 if (!isset($revenue_totals[$rev_acc]))
+                     $revenue_totals[$rev_acc] = 0;
+                 $revenue_totals[$rev_acc] += ($item['harga'] * $item['qty']);
 
-                if (!isset($revenue_totals[$rev_acc]))
-                    $revenue_totals[$rev_acc] = 0;
-                $revenue_totals[$rev_acc] += ($item['harga'] * $item['qty']);
-
-                $hpp_val = $item['qty'] * (float) $item_db['harga_beli'];
+                 $hpp_val = $item['qty'] * (float) ($item_db ? $item_db['harga_beli'] : ($item['harga_beli'] ?? 0));
                 if (!isset($normal_cogs_totals[$cogs_acc]))
                     $normal_cogs_totals[$cogs_acc] = 0;
                 $normal_cogs_totals[$cogs_acc] += $hpp_val;
