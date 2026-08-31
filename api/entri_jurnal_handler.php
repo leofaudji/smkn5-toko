@@ -347,7 +347,7 @@ try {
     }
 } catch (Exception $e) {
     // Check if in transaction before rolling back, compatible with older PHP versions
-    if (method_exists($conn, 'in_transaction') && $conn->in_transaction) {
+    if (method_exists($conn, 'in_transaction') && $conn->in_transaction()) {
         $conn->rollback();
     }
     http_response_code(400);

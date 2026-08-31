@@ -250,7 +250,7 @@ try {
         throw new Exception("Aksi tidak valid.");
     }
 } catch (Exception $e) {
-    if (isset($conn) && $conn->in_transaction) $conn->rollback();
+    if (isset($conn) && method_exists($conn, 'in_transaction') && $conn->in_transaction()) $conn->rollback();
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }

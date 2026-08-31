@@ -244,7 +244,7 @@ try {
                     $old_items = stmt_fetch_all($stmt_old_details);
                     $stmt_old_details->close();
 
-                    $stmt_delete_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type IN ('pembelian', 'transaksi') AND user_id = ?");
+                    $stmt_delete_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'pembelian' AND user_id = ?");
                     $stmt_delete_gl->bind_param('ii', $id, $user_id);
                     $stmt_delete_gl->execute();
                     $stmt_delete_gl->close();
@@ -457,7 +457,7 @@ try {
                 $stmt_ks_void->close();
 
                 // Hapus dari GL
-                $stmt_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type IN ('pembelian', 'transaksi') AND user_id = ?");
+                $stmt_gl = $conn->prepare("DELETE FROM general_ledger WHERE ref_id = ? AND ref_type = 'pembelian' AND user_id = ?");
                 $stmt_gl->bind_param('ii', $id, $user_id);
                 $stmt_gl->execute();
                 $stmt_gl->close();
