@@ -247,8 +247,8 @@ try {
        POST REQUESTS
     ================================================================ */
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $data   = json_decode(file_get_contents('php://input'), true);
-        $action = $data['action'] ?? '';
+        $data   = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+        $action = $data['action'] ?? $_POST['action'] ?? '';
 
         // ── Buat sesi baru ──────────────────────────────────────────
         if ($action === 'create_session') {
@@ -359,7 +359,7 @@ try {
 
         // ── Finalisasi sesi ─────────────────────────────────────────
         } elseif ($action === 'finalize_session') {
-            $session_id = (int) ($data['session_id'] ?? 0);
+            $session_id = (int) ($data['session_id'] ?? $_POST['session_id'] ?? 0);
             if (!$session_id) throw new Exception("Session ID tidak valid.");
 
             $stmt = $conn->prepare("SELECT * FROM stok_opname_sessions WHERE id = ? AND user_id = ? AND status = 'aktif'");
@@ -402,7 +402,8 @@ try {
                     $ins_hist = $conn->prepare("INSERT INTO stock_adjustments (item_id, user_id, journal_id, tanggal, stok_sebelum, stok_setelah, selisih_kuantitas, selisih_nilai, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $ins_ks   = $conn->prepare("INSERT INTO kartu_stok (tanggal, item_id, debit, kredit, keterangan, ref_id, source, user_id) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?)");
 
-                    $inventory_net = [];
+                    $inventory_surplus = []; // [inv_acc_id => total_gain]
+                    $inventory_deficit = []; // [inv_acc_id => total_loss]
 
                     foreach ($to_adjust as $item) {
                         $item_id      = (int) $item['item_id'];
@@ -415,8 +416,11 @@ try {
 
                         if (empty($inv_acc_id)) throw new Exception("Akun persediaan item ID {$item_id} belum diatur.");
 
-                        // Akumulasi nilai secara neto untuk akun persediaan
-                        $inventory_net[$inv_acc_id] = ($inventory_net[$inv_acc_id] ?? 0) + $selisih_val;
+                        if ($selisih_val > 0) {
+                            $inventory_surplus[$inv_acc_id] = ($inventory_surplus[$inv_acc_id] ?? 0) + $selisih_val;
+                        } elseif ($selisih_val < 0) {
+                            $inventory_deficit[$inv_acc_id] = ($inventory_deficit[$inv_acc_id] ?? 0) + abs($selisih_val);
+                        }
 
                         $upd_stok->bind_param('ii', $stok_fisik, $item_id);
                         $upd_stok->execute();
@@ -430,30 +434,43 @@ try {
                         $ins_ks->execute();
                     }
 
-                    // Insert jurnal & update GL berdasarkan saldo net persediaan
-                    foreach ($inventory_net as $inv_acc_id => $net_val) {
-                        // Abaikan selisih desimal sangat kecil akibat pembulatan
-                        if (abs($net_val) < 0.01) continue; 
+                    // Prepared statement GL dengan ref_type = 'jurnal' dan nomor_referensi standar SO-{$journal_id}
+                    $stmt_gl = $conn->prepare("
+                        INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'jurnal', ?)
+                    ");
 
-                        if ($net_val > 0) {
-                            // Net Positif = Surplus = Pendapatan
-                            // Debit: Persediaan, Kredit: Pendapatan
-                            add_journal_line($journal_id, $inv_acc_id, $net_val, 0);
-                            add_journal_line($journal_id, $inc_acc_id, 0, $net_val);
-                            
-                            update_general_ledger($conn, $owner_user_id, $inv_acc_id, $tanggal, $net_val, 0, $ket_jurnal, $nomor_ref, $journal_id);
-                            update_general_ledger($conn, $owner_user_id, $inc_acc_id, $tanggal, 0, $net_val, $ket_jurnal, $nomor_ref, $journal_id);
-                        } else {
-                            // Net Negatif = Defisit = Beban
-                            // Debit: Beban, Kredit: Persediaan
-                            $loss = abs($net_val);
-                            add_journal_line($journal_id, $adj_acc_id, $loss, 0);
-                            add_journal_line($journal_id, $inv_acc_id, 0, $loss);
-                            
-                            update_general_ledger($conn, $owner_user_id, $adj_acc_id, $tanggal, $loss, 0, $ket_jurnal, $nomor_ref, $journal_id);
-                            update_general_ledger($conn, $owner_user_id, $inv_acc_id, $tanggal, 0, $loss, $ket_jurnal, $nomor_ref, $journal_id);
-                        }
+                    // 1. Catat Surplus (Stok Fisik > Stok Sistem)
+                    foreach ($inventory_surplus as $inv_acc_id => $surplus_val) {
+                        if ($surplus_val < 0.01) continue;
+                        // Debit: Persediaan, Kredit: Pendapatan
+                        add_journal_line($journal_id, $inv_acc_id, $surplus_val, 0);
+                        add_journal_line($journal_id, $inc_acc_id, 0, $surplus_val);
+
+                        $zero = 0.0;
+                        $stmt_gl->bind_param('isssiddii', $owner_user_id, $tanggal, $ket_jurnal, $nomor_ref, $inv_acc_id, $surplus_val, $zero, $journal_id, $logged_in_user_id);
+                        $stmt_gl->execute();
+
+                        $stmt_gl->bind_param('isssiddii', $owner_user_id, $tanggal, $ket_jurnal, $nomor_ref, $inc_acc_id, $zero, $surplus_val, $journal_id, $logged_in_user_id);
+                        $stmt_gl->execute();
                     }
+
+                    // 2. Catat Defisit (Stok Fisik < Stok Sistem)
+                    foreach ($inventory_deficit as $inv_acc_id => $deficit_val) {
+                        if ($deficit_val < 0.01) continue;
+                        // Debit: Beban, Kredit: Persediaan
+                        add_journal_line($journal_id, $adj_acc_id, $deficit_val, 0);
+                        add_journal_line($journal_id, $inv_acc_id, 0, $deficit_val);
+
+                        $zero = 0.0;
+                        $stmt_gl->bind_param('isssiddii', $owner_user_id, $tanggal, $ket_jurnal, $nomor_ref, $adj_acc_id, $deficit_val, $zero, $journal_id, $logged_in_user_id);
+                        $stmt_gl->execute();
+
+                        $stmt_gl->bind_param('isssiddii', $owner_user_id, $tanggal, $ket_jurnal, $nomor_ref, $inv_acc_id, $zero, $deficit_val, $journal_id, $logged_in_user_id);
+                        $stmt_gl->execute();
+                    }
+
+                    $stmt_gl->close();
                 }
 
                 // Tandai sesi selesai

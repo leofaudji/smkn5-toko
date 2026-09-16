@@ -158,8 +158,8 @@ try {
          */
         function repost_source_to_gl($conn, $ref_type, $ref_id, $data_user_id, $logged_in_user_id)
         {
-            // 1. Delete existing entries to prevent duplicates
-            $stmt_del = $conn->prepare("DELETE FROM general_ledger WHERE user_id = ? AND ref_type = ? AND ref_id = ?");
+            // 1. Delete existing entries to prevent duplicates (including legacy SO- entries with ref_type = 'transaksi')
+            $stmt_del = $conn->prepare("DELETE FROM general_ledger WHERE user_id = ? AND (ref_type = ? OR (ref_type = 'transaksi' AND nomor_referensi LIKE 'SO-%')) AND ref_id = ?");
             $stmt_del->bind_param('isi', $data_user_id, $ref_type, $ref_id);
             $stmt_del->execute();
             $stmt_del->close();
@@ -174,8 +174,10 @@ try {
 
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'jurnal', ?)");
                 $q_d = $conn->query("SELECT * FROM jurnal_details WHERE jurnal_entry_id = $ref_id");
+                $is_so = (stripos($res_h['keterangan'], 'Stok Opname') === 0 || stripos($res_h['keterangan'], 'Penyesuaian Stok') === 0);
+                $ref_no = $is_so ? ('SO-' . $ref_id) : ('JRN-' . $ref_id);
+
                 while ($d = $q_d->fetch_assoc()) {
-                    $ref_no = 'JRN-' . $ref_id;
                     $stmt_gl->bind_param('isssiddii', $data_user_id, $res_h['tanggal'], $res_h['keterangan'], $ref_no, $d['account_id'], $d['debit'], $d['kredit'], $ref_id, $logged_in_user_id);
                     $stmt_gl->execute();
                 }
@@ -392,7 +394,7 @@ try {
             $conn->begin_transaction();
 
             // Delete old ledger entries for this reference
-            $stmt_del = $conn->prepare("DELETE FROM general_ledger WHERE user_id = ? AND ref_type = ? AND ref_id = ?");
+            $stmt_del = $conn->prepare("DELETE FROM general_ledger WHERE user_id = ? AND (ref_type = ? OR (ref_type = 'transaksi' AND nomor_referensi LIKE 'SO-%')) AND ref_id = ?");
             $stmt_del->bind_param('isi', $user_id, $ref_type, $ref_id);
             $stmt_del->execute();
             $stmt_del->close();
@@ -406,8 +408,10 @@ try {
                 // Get details and re-insert
                 $stmt_gl = $conn->prepare("INSERT INTO general_ledger (user_id, tanggal, keterangan, nomor_referensi, account_id, debit, kredit, ref_id, ref_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'jurnal', ?)");
                 $q_d = $conn->query("SELECT * FROM jurnal_details WHERE jurnal_entry_id = $ref_id");
+                $is_so = (stripos($res_h['keterangan'], 'Stok Opname') === 0 || stripos($res_h['keterangan'], 'Penyesuaian Stok') === 0);
+                $ref_no = $is_so ? ('SO-' . $ref_id) : ('JRN-' . $ref_id);
+
                 while ($d = $q_d->fetch_assoc()) {
-                    $ref_no = 'JRN-' . $ref_id;
                     $stmt_gl->bind_param('isssiddii', $user_id, $res_h['tanggal'], $res_h['keterangan'], $ref_no, $d['account_id'], $d['debit'], $d['kredit'], $ref_id, $logged_in_user_id);
                     $stmt_gl->execute();
                 }
