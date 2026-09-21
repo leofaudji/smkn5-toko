@@ -27,6 +27,7 @@ require_once PROJECT_ROOT . '/includes/ReportBuilders/MutasiKonsinyasiReportBuil
 require_once PROJECT_ROOT . '/includes/ReportBuilders/AsetTetapReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukPenjualanReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPenjualanItemReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanMarginKategoriReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPenjualanReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/DetailPinjamanReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/StrukAngsuranReportBuilder.php';
@@ -39,6 +40,7 @@ require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPiutangReportBuilde
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPembelianReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanPersediaanReportBuilder.php';
 require_once PROJECT_ROOT . '/includes/ReportBuilders/LaporanStokReportBuilder.php';
+require_once PROJECT_ROOT . '/includes/ReportBuilders/AnalisisStokReorderReportBuilder.php';
 
 $conn = Database::getInstance()->getConnection();
 
@@ -75,7 +77,18 @@ function format_currency_pdf($number) {
     return $is_negative ? '(' . $formatted_number . ')' : $formatted_number;
 }
 
-$pdf = new PDF();
+// Tentukan orientasi halaman default (L untuk laporan lebar, P untuk standar)
+$orientation = 'P';
+if (!empty($params['orientation'])) {
+    $param_ori = strtolower(trim($params['orientation']));
+    if ($param_ori === 'landscape' || $param_ori === 'l') {
+        $orientation = 'L';
+    }
+} elseif (in_array($report_type, ['laporan-penjualan-item', 'laporan-margin-kategori', 'analisis-stok-reorder', 'nominatif_pinjaman'])) {
+    $orientation = 'L';
+}
+
+$pdf = new PDF($orientation, 'mm', 'A4');
 $pdf->AliasNbPages(); // Penting untuk mengetahui total halaman
 
 $params['user_id'] = 1; // ID Pemilik Data (Toko)
@@ -94,6 +107,8 @@ $builder_map = [
     'struk-penjualan' => StrukPenjualanReportBuilder::class,
     'analisis-rasio' => AnalisisRasioReportBuilder::class,
     'laporan-penjualan-item' => LaporanPenjualanItemReportBuilder::class,
+    'laporan-margin-kategori' => LaporanMarginKategoriReportBuilder::class,
+    'analisis-stok-reorder' => AnalisisStokReorderReportBuilder::class,
     'laporan-penjualan' => LaporanPenjualanReportBuilder::class,
     'buku-panduan' => BukuPanduanReportBuilder::class,
     'rekonsiliasi' => RekonsiliasiReportBuilder::class,

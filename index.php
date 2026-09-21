@@ -85,6 +85,8 @@ $router->get('/laporan-stok', 'pages/laporan_stok.php', ['auth']);
 $router->get('/laporan-penjualan', 'pages/laporan_penjualan.php', ['auth']);
 $router->get('/laporan-pembelian', 'pages/laporan_pembelian.php', ['auth']);
 $router->get('/laporan-penjualan-item', 'pages/laporan_penjualan_item.php', ['auth']);
+$router->get('/laporan-margin-kategori', 'pages/laporan_margin_kategori.php', ['auth']);
+$router->get('/analisis-stok-reorder', 'pages/analisis_stok_reorder.php', ['auth']);
 $router->get('/laporan-kartu-stok', 'pages/laporan_kartu_stok.php', ['auth']);
 $router->get('/laporan-piutang', 'pages/laporan_piutang.php', ['auth']); // Route baru
 $router->get('/laporan-wb-tahunan', 'pages/laporan_wb_tahunan.php', ['auth']);
@@ -148,6 +150,8 @@ $router->post('/api/pembelian', 'api/pembelian_handler.php', ['auth']);
 $router->get('/api/laporan-pembelian', 'api/laporan_pembelian_handler.php', ['auth']);
 $router->get('/api/laporan-penjualan', 'api/laporan_penjualan_handler.php', ['auth']);
 $router->get('/api/laporan-penjualan-item', 'api/laporan_penjualan_item_handler.php', ['auth']);
+$router->get('/api/laporan-margin-kategori', 'api/laporan_margin_kategori_handler.php', ['auth']);
+$router->get('/api/analisis-stok-reorder', 'api/analisis_stok_reorder_handler.php', ['auth']);
 $router->get('/api/laporan-piutang', 'api/laporan_piutang_handler.php', ['auth']); // API baru
 $router->post('/api/laporan-piutang', 'api/laporan_piutang_handler.php', ['auth']);
 // API untuk Penjualan

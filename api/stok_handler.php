@@ -108,7 +108,28 @@ try {
             header('Content-Type: application/json; charset=UTF-8');
             if (ob_get_length())
                 ob_clean();
-            echo json_encode(['status' => 'success', 'data' => $accounts], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+
+            // Group accounts by account type to match frontend expectations
+            $grouped = [
+                'aset' => [],
+                'beban' => [],
+                'pendapatan' => []
+            ];
+            foreach ($all_accounts as $a) {
+                $type = strtolower($a['tipe_akun'] ?? '');
+                if ($type === 'aset') {
+                    $grouped['aset'][] = $a;
+                } elseif ($type === 'beban') {
+                    $grouped['beban'][] = $a;
+                } elseif ($type === 'pendapatan') {
+                    $grouped['pendapatan'][] = $a;
+                } else {
+                    // Default to aset if unknown type
+                    $grouped['aset'][] = $a;
+                }
+            }
+
+            echo json_encode(['status' => 'success', 'data' => $grouped], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
             die();
 
         } elseif ($action === 'get_categories') {

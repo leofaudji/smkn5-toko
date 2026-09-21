@@ -22,17 +22,34 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         $user_id = $this->params['user_id'];
         $view_type = $this->params['view_type'] ?? 'summary'; // 'summary' or 'detail'
 
+        $orientation = 'P';
+        if (!empty($this->params['orientation'])) {
+            $param_ori = strtolower(trim($this->params['orientation']));
+            if ($param_ori === 'landscape' || $param_ori === 'l') {
+                $orientation = 'L';
+            }
+        }
+
         $this->pdf->SetTitle('Laporan Penjualan');
         $this->pdf->report_title = ($view_type === 'detail' ? 'Laporan Rincian Penjualan' : 'Laporan Penjualan');
         $this->pdf->report_period = 'Periode: ' . date('d M Y', strtotime($start_date)) . ' - ' . date('d M Y', strtotime($end_date));
-        $this->pdf->AddPage('P');
+        
+        if ($orientation === 'L') {
+            $this->pdf->SetMargins(15, 12, 15);
+            $this->pdf->SetAutoPageBreak(true, 15);
+            $this->pdf->AddPage('L', 'A4');
+        } else {
+            $this->pdf->SetMargins(10, 10, 10);
+            $this->pdf->SetAutoPageBreak(true, 15);
+            $this->pdf->AddPage('P', 'A4');
+        }
 
         $data = $this->fetchData($user_id, $start_date, $end_date, $search, $view_type);
         
         if ($view_type === 'detail') {
-            $this->renderDetail($data);
+            $this->renderDetail($data, $orientation);
         } else {
-            $this->renderSummary($data);
+            $this->renderSummary($data, $orientation);
         }
 
         $this->pdf->signature_date = $end_date;
@@ -107,64 +124,200 @@ class LaporanPenjualanReportBuilder implements ReportBuilderInterface
         return $methods[$method] ?? $method;
     }
 
-    private function renderSummary(array $data): void
+    private function renderSummary(array $data, string $orientation = 'P'): void
     {
-        // Faktur(25), Tgl(30), Cust(40), Bayar(25), Kasir(30), Total(40)
-        $w = [25, 30, 40, 25, 30, 40];
+        if ($orientation === 'L') {
+            // Landscape A4 (267mm)
+            // No(10), Faktur(32), Tanggal(28), Customer(48), Bayar(25), Kasir(34), Total Net(45), Status(45)
+            $w = [10, 32, 28, 48, 25, 34, 45, 45];
+            $renderHeader = function() use ($w) {
+                $this->pdf->SetFont('Helvetica', 'B', 8);
+                $this->pdf->SetFillColor(230, 236, 248);
+                $this->pdf->Cell($w[0], 8, 'No', 1, 0, 'C', true);
+                $this->pdf->Cell($w[1], 8, 'Faktur', 1, 0, 'C', true);
+                $this->pdf->Cell($w[2], 8, 'Tanggal', 1, 0, 'C', true);
+                $this->pdf->Cell($w[3], 8, 'Customer', 1, 0, 'L', true);
+                $this->pdf->Cell($w[4], 8, 'Bayar', 1, 0, 'C', true);
+                $this->pdf->Cell($w[5], 8, 'Kasir', 1, 0, 'L', true);
+                $this->pdf->Cell($w[6], 8, 'Total (Net)', 1, 0, 'R', true);
+                $this->pdf->Cell($w[7], 8, 'Status', 1, 1, 'C', true);
+            };
 
-        $this->pdf->SetFont('Helvetica', 'B', 8);
-        $this->pdf->SetFillColor(230, 230, 230);
-        $this->pdf->Cell($w[0], 8, 'Faktur', 1, 0, 'C', true);
-        $this->pdf->Cell($w[1], 8, 'Tanggal', 1, 0, 'C', true);
-        $this->pdf->Cell($w[2], 8, 'Customer', 1, 0, 'C', true);
-        $this->pdf->Cell($w[3], 8, 'Bayar', 1, 0, 'C', true);
-        $this->pdf->Cell($w[4], 8, 'Kasir', 1, 0, 'C', true);
-        $this->pdf->Cell($w[5], 8, 'Total (Net)', 1, 1, 'C', true);
+            $renderHeader();
+            $this->pdf->SetFont('Helvetica', '', 8);
 
-        $this->pdf->SetFont('Helvetica', '', 8);
-        foreach ($data as $row) {
-            $statusText = ($row['status'] === 'void' ? ' (V)' : '');
-            $this->pdf->Cell($w[0], 7, $row['nomor_referensi'] . $statusText, 1);
-            $this->pdf->Cell($w[1], 7, date('d/m/y H:i', strtotime($row['tanggal_penjualan'])), 1, 0, 'C');
-            $this->pdf->Cell($w[2], 7, substr($row['customer_name'] ?? 'Umum', 0, 25), 1);
-            $this->pdf->Cell($w[3], 7, $this->getPaymentMethodName($row['payment_method']), 1, 0, 'C');
-            $this->pdf->Cell($w[4], 7, substr($row['username'], 0, 15), 1);
-            $this->pdf->Cell($w[5], 7, format_currency_pdf($row['total']), 1, 1, 'R');
-            
-            if ($this->pdf->GetY() > 260) $this->pdf->AddPage('P');
+            $grand_total = 0;
+            foreach ($data as $idx => $row) {
+                if ($this->pdf->GetY() > 180) {
+                    $this->pdf->AddPage('L', 'A4');
+                    $renderHeader();
+                    $this->pdf->SetFont('Helvetica', '', 8);
+                }
+
+                $isVoid = ($row['status'] === 'void');
+                if (!$isVoid) {
+                    $grand_total += (float)$row['total'];
+                }
+
+                $fill = ($idx % 2 === 1);
+                $this->pdf->SetFillColor(248, 250, 253);
+
+                $this->pdf->Cell($w[0], 6.5, $idx + 1, 1, 0, 'C', $fill);
+                $this->pdf->Cell($w[1], 6.5, $row['nomor_referensi'], 1, 0, 'L', $fill);
+                $this->pdf->Cell($w[2], 6.5, date('d/m/y H:i', strtotime($row['tanggal_penjualan'])), 1, 0, 'C', $fill);
+                $this->pdf->Cell($w[3], 6.5, ' ' . substr($row['customer_name'] ?? 'Umum', 0, 30), 1, 0, 'L', $fill);
+                $this->pdf->Cell($w[4], 6.5, $this->getPaymentMethodName($row['payment_method']), 1, 0, 'C', $fill);
+                $this->pdf->Cell($w[5], 6.5, ' ' . substr($row['username'] ?? '-', 0, 20), 1, 0, 'L', $fill);
+                $this->pdf->Cell($w[6], 6.5, format_currency_pdf($row['total']), 1, 0, 'R', $fill);
+                $this->pdf->Cell($w[7], 6.5, $isVoid ? 'VOID / DIBATALKAN' : 'LUNAS / SELESAI', 1, 1, 'C', $fill);
+            }
+
+            // Total Baris
+            $this->pdf->SetFont('Helvetica', 'B', 8);
+            $this->pdf->SetFillColor(235, 240, 250);
+            $this->pdf->Cell($w[0] + $w[1] + $w[2] + $w[3] + $w[4] + $w[5], 7, 'TOTAL PENJUALAN SELESAI:', 1, 0, 'R', true);
+            $this->pdf->Cell($w[6], 7, format_currency_pdf($grand_total), 1, 0, 'R', true);
+            $this->pdf->Cell($w[7], 7, '', 1, 1, 'C', true);
+
+        } else {
+            // Portrait A4 (190mm)
+            // Faktur(25), Tgl(30), Cust(40), Bayar(25), Kasir(30), Total(40)
+            $w = [25, 30, 40, 25, 30, 40];
+            $renderHeader = function() use ($w) {
+                $this->pdf->SetFont('Helvetica', 'B', 8);
+                $this->pdf->SetFillColor(230, 230, 230);
+                $this->pdf->Cell($w[0], 8, 'Faktur', 1, 0, 'C', true);
+                $this->pdf->Cell($w[1], 8, 'Tanggal', 1, 0, 'C', true);
+                $this->pdf->Cell($w[2], 8, 'Customer', 1, 0, 'C', true);
+                $this->pdf->Cell($w[3], 8, 'Bayar', 1, 0, 'C', true);
+                $this->pdf->Cell($w[4], 8, 'Kasir', 1, 0, 'C', true);
+                $this->pdf->Cell($w[5], 8, 'Total (Net)', 1, 1, 'C', true);
+            };
+
+            $renderHeader();
+            $this->pdf->SetFont('Helvetica', '', 8);
+
+            foreach ($data as $row) {
+                if ($this->pdf->GetY() > 260) {
+                    $this->pdf->AddPage('P', 'A4');
+                    $renderHeader();
+                    $this->pdf->SetFont('Helvetica', '', 8);
+                }
+                $statusText = ($row['status'] === 'void' ? ' (V)' : '');
+                $this->pdf->Cell($w[0], 7, $row['nomor_referensi'] . $statusText, 1);
+                $this->pdf->Cell($w[1], 7, date('d/m/y H:i', strtotime($row['tanggal_penjualan'])), 1, 0, 'C');
+                $this->pdf->Cell($w[2], 7, substr($row['customer_name'] ?? 'Umum', 0, 25), 1);
+                $this->pdf->Cell($w[3], 7, $this->getPaymentMethodName($row['payment_method']), 1, 0, 'C');
+                $this->pdf->Cell($w[4], 7, substr($row['username'], 0, 15), 1);
+                $this->pdf->Cell($w[5], 7, format_currency_pdf($row['total']), 1, 1, 'R');
+            }
         }
         $this->renderFinalSummary();
     }
 
-    private function renderDetail(array $data): void
+    private function renderDetail(array $data, string $orientation = 'P'): void
     {
-        // Tgl(22), Faktur(28), Barang(55), Qty(10), Harga(25), Total(25), Bayar(25)
-        $w = [22, 28, 55, 10, 25, 25, 25];
+        if ($orientation === 'L') {
+            // Landscape A4 (267mm)
+            // No(8), Tanggal(20), Faktur(26), Pelanggan(38), Kasir(22), Barang(60), Qty(12), Harga(25), Diskon(18), Total(24), Bayar(14)
+            $w = [8, 20, 26, 38, 22, 60, 12, 25, 18, 24, 14];
+            $renderHeader = function() use ($w) {
+                $this->pdf->SetFont('Helvetica', 'B', 7.5);
+                $this->pdf->SetFillColor(230, 236, 248);
+                $this->pdf->Cell($w[0], 8, 'No', 1, 0, 'C', true);
+                $this->pdf->Cell($w[1], 8, 'Tanggal', 1, 0, 'C', true);
+                $this->pdf->Cell($w[2], 8, 'Faktur', 1, 0, 'C', true);
+                $this->pdf->Cell($w[3], 8, 'Pelanggan', 1, 0, 'L', true);
+                $this->pdf->Cell($w[4], 8, 'Kasir', 1, 0, 'L', true);
+                $this->pdf->Cell($w[5], 8, 'Barang / Item', 1, 0, 'L', true);
+                $this->pdf->Cell($w[6], 8, 'Qty', 1, 0, 'C', true);
+                $this->pdf->Cell($w[7], 8, 'Harga', 1, 0, 'R', true);
+                $this->pdf->Cell($w[8], 8, 'Diskon', 1, 0, 'R', true);
+                $this->pdf->Cell($w[9], 8, 'Total', 1, 0, 'R', true);
+                $this->pdf->Cell($w[10], 8, 'Bayar', 1, 1, 'C', true);
+            };
 
-        $this->pdf->SetFont('Helvetica', 'B', 7);
-        $this->pdf->SetFillColor(230, 230, 230);
-        $this->pdf->Cell($w[0], 8, 'Tanggal', 1, 0, 'C', true);
-        $this->pdf->Cell($w[1], 8, 'Faktur', 1, 0, 'C', true);
-        $this->pdf->Cell($w[2], 8, 'Barang', 1, 0, 'C', true);
-        $this->pdf->Cell($w[3], 8, 'Qty', 1, 0, 'C', true);
-        $this->pdf->Cell($w[4], 8, 'Harga', 1, 0, 'C', true);
-        $this->pdf->Cell($w[5], 8, 'Total', 1, 0, 'C', true);
-        $this->pdf->Cell($w[6], 8, 'Bayar', 1, 1, 'C', true);
+            $renderHeader();
+            $this->pdf->SetFont('Helvetica', '', 7);
 
-        $this->pdf->SetFont('Helvetica', '', 7);
-        foreach ($data as $row) {
-            $statusText = ($row['status'] === 'void' ? '*' : '');
-            $this->pdf->Cell($w[0], 7, date('d/m/y', strtotime($row['tanggal_penjualan'])), 1, 0, 'C');
-            $this->pdf->Cell($w[1], 7, $row['nomor_referensi'] . $statusText, 1);
-            $itemDesc = $row['deskripsi_item'];
-            if ($row['item_discount'] > 0) $itemDesc .= ' (Disc: -'.number_format($row['item_discount']).')';
-            $this->pdf->Cell($w[2], 7, ' ' . substr($itemDesc, 0, 40), 1);
-            $this->pdf->Cell($w[3], 7, $row['quantity'], 1, 0, 'C');
-            $this->pdf->Cell($w[4], 7, format_currency_pdf($row['price']), 1, 0, 'R');
-            $this->pdf->Cell($w[5], 7, format_currency_pdf($row['item_total']), 1, 0, 'R');
-            $this->pdf->Cell($w[6], 7, $this->getPaymentMethodName($row['payment_method']), 1, 1, 'C');
+            $grand_qty = 0;
+            $grand_total = 0;
 
-            if ($this->pdf->GetY() > 260) $this->pdf->AddPage('P');
+            foreach ($data as $idx => $row) {
+                if ($this->pdf->GetY() > 180) {
+                    $this->pdf->AddPage('L', 'A4');
+                    $renderHeader();
+                    $this->pdf->SetFont('Helvetica', '', 7);
+                }
+
+                $isVoid = ($row['status'] === 'void');
+                if (!$isVoid) {
+                    $grand_qty += (int)$row['quantity'];
+                    $grand_total += (float)$row['item_total'];
+                }
+
+                $fill = ($idx % 2 === 1);
+                $this->pdf->SetFillColor(248, 250, 253);
+
+                $statusText = $isVoid ? ' *' : '';
+                $this->pdf->Cell($w[0], 6, $idx + 1, 1, 0, 'C', $fill);
+                $this->pdf->Cell($w[1], 6, date('d/m/y', strtotime($row['tanggal_penjualan'])), 1, 0, 'C', $fill);
+                $this->pdf->Cell($w[2], 6, $row['nomor_referensi'] . $statusText, 1, 0, 'L', $fill);
+                $this->pdf->Cell($w[3], 6, ' ' . substr($row['customer_name'] ?? 'Umum', 0, 24), 1, 0, 'L', $fill);
+                $this->pdf->Cell($w[4], 6, ' ' . substr($row['username'] ?? '-', 0, 14), 1, 0, 'L', $fill);
+                $this->pdf->Cell($w[5], 6, ' ' . substr($row['deskripsi_item'], 0, 38), 1, 0, 'L', $fill);
+                $this->pdf->Cell($w[6], 6, number_format($row['quantity']), 1, 0, 'C', $fill);
+                $this->pdf->Cell($w[7], 6, format_currency_pdf($row['price']), 1, 0, 'R', $fill);
+                $this->pdf->Cell($w[8], 6, $row['item_discount'] > 0 ? ('-' . format_currency_pdf($row['item_discount'])) : '-', 1, 0, 'R', $fill);
+                $this->pdf->Cell($w[9], 6, format_currency_pdf($row['item_total']), 1, 0, 'R', $fill);
+                $this->pdf->Cell($w[10], 6, $this->getPaymentMethodName($row['payment_method']), 1, 1, 'C', $fill);
+            }
+
+            // Baris Total
+            $this->pdf->SetFont('Helvetica', 'B', 7.5);
+            $this->pdf->SetFillColor(235, 240, 250);
+            $this->pdf->Cell($w[0] + $w[1] + $w[2] + $w[3] + $w[4] + $w[5], 7, 'TOTAL RINCIAN:', 1, 0, 'R', true);
+            $this->pdf->Cell($w[6], 7, number_format($grand_qty), 1, 0, 'C', true);
+            $this->pdf->Cell($w[7] + $w[8], 7, '', 1, 0, 'C', true);
+            $this->pdf->Cell($w[9], 7, format_currency_pdf($grand_total), 1, 0, 'R', true);
+            $this->pdf->Cell($w[10], 7, '', 1, 1, 'C', true);
+
+        } else {
+            // Portrait A4 (190mm)
+            // Tgl(22), Faktur(28), Barang(55), Qty(10), Harga(25), Total(25), Bayar(25)
+            $w = [22, 28, 55, 10, 25, 25, 25];
+            $renderHeader = function() use ($w) {
+                $this->pdf->SetFont('Helvetica', 'B', 7);
+                $this->pdf->SetFillColor(230, 230, 230);
+                $this->pdf->Cell($w[0], 8, 'Tanggal', 1, 0, 'C', true);
+                $this->pdf->Cell($w[1], 8, 'Faktur', 1, 0, 'C', true);
+                $this->pdf->Cell($w[2], 8, 'Barang', 1, 0, 'C', true);
+                $this->pdf->Cell($w[3], 8, 'Qty', 1, 0, 'C', true);
+                $this->pdf->Cell($w[4], 8, 'Harga', 1, 0, 'C', true);
+                $this->pdf->Cell($w[5], 8, 'Total', 1, 0, 'C', true);
+                $this->pdf->Cell($w[6], 8, 'Bayar', 1, 1, 'C', true);
+            };
+
+            $renderHeader();
+            $this->pdf->SetFont('Helvetica', '', 7);
+
+            foreach ($data as $row) {
+                if ($this->pdf->GetY() > 260) {
+                    $this->pdf->AddPage('P', 'A4');
+                    $renderHeader();
+                    $this->pdf->SetFont('Helvetica', '', 7);
+                }
+                $statusText = ($row['status'] === 'void' ? '*' : '');
+                $this->pdf->Cell($w[0], 7, date('d/m/y', strtotime($row['tanggal_penjualan'])), 1, 0, 'C');
+                $this->pdf->Cell($w[1], 7, $row['nomor_referensi'] . $statusText, 1);
+                $itemDesc = $row['deskripsi_item'];
+                if ($row['item_discount'] > 0) $itemDesc .= ' (Disc: -'.number_format($row['item_discount']).')';
+                $this->pdf->Cell($w[2], 7, ' ' . substr($itemDesc, 0, 40), 1);
+                $this->pdf->Cell($w[3], 7, $row['quantity'], 1, 0, 'C');
+                $this->pdf->Cell($w[4], 7, format_currency_pdf($row['price']), 1, 0, 'R');
+                $this->pdf->Cell($w[5], 7, format_currency_pdf($row['item_total']), 1, 0, 'R');
+                $this->pdf->Cell($w[6], 7, $this->getPaymentMethodName($row['payment_method']), 1, 1, 'C');
+            }
         }
         $this->renderFinalSummary();
     }

@@ -410,6 +410,10 @@ function runPageScripts(path) {
         loadScript(`${basePath}/assets/js/analisis_rasio.js`)
             .then(() => initAnalisisRasioPage())
             .catch(err => console.error(err));
+    } else if (cleanPath === '/analisis-stok-reorder') {
+        loadScript(`${basePath}/assets/js/analisis_stok_reorder.js`)
+            .then(() => typeof initAnalisisStokReorderPage === 'function' ? initAnalisisStokReorderPage() : null)
+            .catch(err => console.error(err));
     } else if (cleanPath === '/activity-log') {
         loadScript(`${basePath}/assets/js/activity_log.js`)
             .then(() => initActivityLogPage())
@@ -473,6 +477,10 @@ function runPageScripts(path) {
     } else if (cleanPath === '/laporan-penjualan-item') {
         loadScript(`${basePath}/assets/js/laporan_penjualan_item.js`)
             .then(() => initLaporanPenjualanItemPage())
+            .catch(err => console.error(err));
+    } else if (cleanPath === '/laporan-margin-kategori') {
+        loadScript(`${basePath}/assets/js/laporan_margin_kategori.js`)
+            .then(() => initLaporanMarginKategoriPage())
             .catch(err => console.error(err));
     } else if (cleanPath === '/laporan-kesehatan-bank') {
         loadScript(`${basePath}/assets/js/laporan_kesehatan_bank.js`)
@@ -1041,7 +1049,6 @@ function renderPagination(container, pagination, onPageClick) {
     if (!container) return;
     container.innerHTML = '';
     if (!pagination || pagination.total_pages <= 1) {
-        // Optional: show info even for single page
         const info = document.getElementById(container.id.replace('pagination', 'pagination-info'));
         if (info && pagination && pagination.total_records > 0) {
             info.textContent = `Menampilkan ${pagination.total_records} dari ${pagination.total_records} data.`;
@@ -1052,73 +1059,89 @@ function renderPagination(container, pagination, onPageClick) {
     const { current_page, total_pages } = pagination;
 
     const createPageItem = (page, text, isDisabled = false, isActive = false) => {
-        const a = document.createElement('a');
-        a.href = '#';
-        a.dataset.page = page;
-        a.innerHTML = text;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.page = page;
+        btn.setAttribute('data-spa-ignore', 'true');
+        btn.innerHTML = text;
+        if (isDisabled || isActive) {
+            btn.disabled = true;
+        }
 
-        let baseClasses = 'flex items-center justify-center px-3 h-8 leading-tight';
+        let baseClasses = 'flex items-center justify-center px-3 h-8 leading-tight transition-colors focus:outline-none';
         let stateClasses = '';
         if (isDisabled) {
-            stateClasses = 'text-gray-500 bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 cursor-not-allowed';
+            stateClasses = 'text-gray-400 bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500 cursor-not-allowed opacity-60';
         } else if (isActive) {
-            stateClasses = 'text-white bg-primary border border-primary z-10';
+            stateClasses = 'text-white bg-primary border border-primary z-10 font-bold';
         } else {
-            stateClasses = 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white';
+            stateClasses = 'text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-800 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white cursor-pointer';
         }
-        a.className = `${baseClasses} ${stateClasses}`;
-        return a;
+        btn.className = `${baseClasses} ${stateClasses}`;
+
+        if (!isDisabled && !isActive && typeof onPageClick === 'function') {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (page && page !== current_page) {
+                    onPageClick(page);
+                }
+            });
+        }
+
+        const li = document.createElement('li');
+        li.appendChild(btn);
+        return li;
     };
 
-    const ul = document.createElement('ul');
-    ul.className = 'inline-flex -space-x-px text-sm';
+    const targetList = (container.tagName === 'UL') ? container : document.createElement('ul');
+    targetList.className = 'inline-flex -space-x-px text-sm';
 
-    const prevItem = createPageItem(current_page - 1, 'Prev', current_page === 1);
-    prevItem.classList.add('rounded-l-lg');
-    ul.appendChild(document.createElement('li')).appendChild(prevItem);
+    const prevLi = createPageItem(current_page - 1, '<i class="bi bi-chevron-left text-xs mr-1"></i> Prev', current_page <= 1);
+    prevLi.firstElementChild.classList.add('rounded-l-lg');
+    targetList.appendChild(prevLi);
 
     const maxPagesToShow = 5;
     let startPage, endPage;
     if (total_pages <= maxPagesToShow) {
-        startPage = 1; endPage = total_pages;
+        startPage = 1; 
+        endPage = total_pages;
     } else {
         const maxPagesBeforeCurrent = Math.floor(maxPagesToShow / 2);
         const maxPagesAfterCurrent = Math.ceil(maxPagesToShow / 2) - 1;
-        if (current_page <= maxPagesBeforeCurrent) { startPage = 1; endPage = maxPagesToShow; } 
-        else if (current_page + maxPagesAfterCurrent >= total_pages) { startPage = total_pages - maxPagesToShow + 1; endPage = total_pages; } 
-        else { startPage = current_page - maxPagesBeforeCurrent; endPage = current_page + maxPagesAfterCurrent; }
+        if (current_page <= maxPagesBeforeCurrent) { 
+            startPage = 1; 
+            endPage = maxPagesToShow; 
+        } else if (current_page + maxPagesAfterCurrent >= total_pages) { 
+            startPage = total_pages - maxPagesToShow + 1; 
+            endPage = total_pages; 
+        } else { 
+            startPage = current_page - maxPagesBeforeCurrent; 
+            endPage = current_page + maxPagesAfterCurrent; 
+        }
     }
 
     if (startPage > 1) {
-        ul.appendChild(document.createElement('li')).appendChild(createPageItem(1, '1'));
-        if (startPage > 2) ul.appendChild(document.createElement('li')).appendChild(createPageItem(0, '...', true));
+        targetList.appendChild(createPageItem(1, '1'));
+        if (startPage > 2) targetList.appendChild(createPageItem(0, '...', true));
     }
 
     for (let i = startPage; i <= endPage; i++) {
-        ul.appendChild(document.createElement('li')).appendChild(createPageItem(i, i, false, i === current_page));
+        targetList.appendChild(createPageItem(i, String(i), false, i === current_page));
     }
 
     if (endPage < total_pages) {
-        if (endPage < total_pages - 1) ul.appendChild(document.createElement('li')).appendChild(createPageItem(0, '...', true));
-        ul.appendChild(document.createElement('li')).appendChild(createPageItem(total_pages, total_pages));
+        if (endPage < total_pages - 1) targetList.appendChild(createPageItem(0, '...', true));
+        targetList.appendChild(createPageItem(total_pages, String(total_pages)));
     }
 
-    const nextItem = createPageItem(current_page + 1, 'Next', current_page === total_pages);
-    nextItem.classList.add('rounded-r-lg');
-    ul.appendChild(document.createElement('li')).appendChild(nextItem);
+    const nextLi = createPageItem(current_page + 1, 'Next <i class="bi bi-chevron-right text-xs ml-1"></i>', current_page >= total_pages);
+    nextLi.firstElementChild.classList.add('rounded-r-lg');
+    targetList.appendChild(nextLi);
 
-    container.appendChild(ul);
-
-    container.addEventListener('click', (e) => {
-        e.preventDefault();
-        const pageLink = e.target.closest('a[data-page]');
-        if (pageLink && !pageLink.classList.contains('cursor-not-allowed')) {
-            const page = parseInt(pageLink.dataset.page, 10);
-            if (page && page !== current_page) {
-                onPageClick(page);
-            }
-        }
-    });
+    if (container !== targetList) {
+        container.appendChild(targetList);
+    }
 }
 
 function formatNumber(value) {

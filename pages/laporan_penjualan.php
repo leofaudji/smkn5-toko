@@ -41,6 +41,13 @@ check_permission('laporan_penjualan', 'menu');
                         <option value="detail">Detail (Per Barang)</option>
                     </select>
                 </div>
+                <div class="md:col-span-3">
+                    <label for="penjualan-orientation" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Format Kertas PDF</label>
+                    <select id="penjualan-orientation" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
+                        <option value="landscape" selected>Landscape (Lebar - Anti Terpotong)</option>
+                        <option value="portrait">Portrait (Tegak)</option>
+                    </select>
+                </div>
                 <div class="md:col-span-12">
                     <div class="flex justify-end">
                         <button type="submit" class="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" id="penjualan-tampilkan-btn">

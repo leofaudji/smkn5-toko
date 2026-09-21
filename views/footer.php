@@ -127,7 +127,7 @@ if (!isset($app_name)) {
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<?php $v = date("YmdH"); ?>
+<?php $v = file_exists(PROJECT_ROOT . '/assets/js/main.js') ? filemtime(PROJECT_ROOT . '/assets/js/main.js') : time(); ?>
 <!-- Main App Logic -->
 <script src="<?= base_url('assets/js/main.js?v=' . $v) ?>"></script>
 <script>

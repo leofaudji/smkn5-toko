@@ -100,7 +100,9 @@ return [
         'icon' => 'bi bi-bar-chart-line-fill',
         'children' => [
             ['key' => 'laporan_harian', 'label' => 'Laporan Harian', 'url' => '/laporan-harian'],
-            ['key' => 'penjualan_item', 'label' => 'Penjualan per Item', 'url' => '/laporan-penjualan-item'],
+            ['key' => 'penjualan_item', 'label' => 'Penjualan & Margin Stok', 'url' => '/laporan-penjualan-item'],
+            ['key' => 'margin_kategori', 'label' => 'Margin per Kategori', 'url' => '/laporan-margin-kategori'],
+            ['key' => 'analisis_stok_reorder', 'label' => 'Analisis ABC & Reorder Stok', 'url' => '/analisis-stok-reorder'],
             ['key' => 'laporan_penjualan', 'label' => 'Laporan Penjualan', 'url' => '/laporan-penjualan'],
             ['key' => 'laporan_pembelian', 'label' => 'Laporan Pembelian', 'url' => '/laporan-pembelian'],
             ['key' => 'laporan_piutang', 'label' => 'Laporan Piutang', 'url' => '/laporan-piutang'],

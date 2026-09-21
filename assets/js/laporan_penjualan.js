@@ -451,6 +451,8 @@ function initLaporanPenjualanPage() {
         const endDate = endDateInput.value.split('-').reverse().join('-');
         const search = searchInput.value;
         const viewType = viewTypeSelect.value;
+        const orientationSelect = document.getElementById('penjualan-orientation');
+        const orientation = orientationSelect ? orientationSelect.value : 'landscape';
 
         if (!startDate || !endDate) {
             showToast('Harap pilih rentang tanggal untuk export.', 'error');
@@ -459,6 +461,7 @@ function initLaporanPenjualanPage() {
 
         printPdf({
             report: 'laporan-penjualan',
+            orientation: orientation,
             start_date: startDate,
             end_date: endDate,
             search: search,

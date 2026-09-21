@@ -2,6 +2,20 @@
 
 Seluruh pembaruan dan perbaikan pada aplikasi akan dicatat di sini untuk memudahkan Anda mengetahui fitur terbaru.
  
+## [2.0.2] - 2026-09-21
+### PERBAIKAN BUG
+- Memperbaiki error "Undefined variable $accounts" pada `api/stok_handler.php` dan mengembalikan daftar akun dalam struktur yang sesuai untuk frontend.
+- Memperbaiki pemuatan halaman SPA `Analisis ABC & Reorder Stok` — script sekarang dimuat saat navigasi tanpa perlu refresh.
+- Mengganti penggunaan PHP inline di file JavaScript (`analisis_stok_reorder.js`) menjadi penggunaan `basePath` runtime untuk mencegah error saat script dimuat secara dinamis.
+- Perbaikan tautan ekspor (CSV/PDF) dan URL API agar berfungsi konsisten melalui SPA.
+
+### PENINGKATAN
+- Menambahkan defensive checks dan konsistensi respons API untuk mengurangi kemungkinan error pada frontend.
+
+### FITUR BARU
+- Menambahkan menu **Laporan Margin Stok** untuk melihat ringkasan margin per SKU.
+- Menambahkan menu **Margin per Kategori** untuk analisis margin teragregasi berdasarkan kategori produk.
+
 ## [2.0.1] - 2026-06-11
 ### AKUNTANSI & PIUTANG
 - **Auto-detect Kurang Bayar**: Sistem kini otomatis mendeteksi jika total pembayaran (Tunai + Saldo WB) kurang dari total belanja, dan secara otomatis menetapkan selisihnya sebagai Hutang/Piutang.

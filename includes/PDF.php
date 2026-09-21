@@ -1,6 +1,17 @@
 <?php
 require_once PROJECT_ROOT . '/includes/fpdf.php';
 
+if (!function_exists('format_currency_pdf')) {
+    function format_currency_pdf($number) {
+        if (!is_numeric($number)) {
+            return 'Rp 0';
+        }
+        $is_negative = $number < 0;
+        $formatted_number = 'Rp ' . number_format(abs($number), 0, ',', '.');
+        return $is_negative ? '(' . $formatted_number . ')' : $formatted_number;
+    }
+}
+
 class PDF extends FPDF
 {
     public $report_title = '';
@@ -71,13 +82,38 @@ class PDF extends FPDF
         $this->Cell(0, 10, 'Halaman ' . $this->PageNo() . '/{nb}', 0, 0, 'C');
     }
     
+    function _endpage()
+    {
+        parent::_endpage();
+        $this->PageInfo[$this->page]['size'] = array($this->wPt, $this->hPt);
+        $this->PageInfo[$this->page]['rotation'] = $this->CurRotation;
+    }
+
+    function GetPageWidth()
+    {
+        return $this->w;
+    }
+
+    function GetPageHeight()
+    {
+        return $this->h;
+    }
+
+    function GetOrientation()
+    {
+        return $this->CurOrientation;
+    }
+    
     function RenderSignatureBlock()
     {
-        // Cek apakah ruang tersisa cukup untuk blok tanda tangan (sekitar 80mm).
+        // Cek apakah ruang tersisa cukup untuk blok tanda tangan (~45mm).
         // Jika tidak, tambahkan halaman baru secara otomatis.
-        // PageBreakTrigger adalah posisi Y di mana halaman baru akan dibuat.
-        if ($this->GetY() > ($this->PageBreakTrigger - 80)) {
+        $needed_space = 45;
+        if ($this->GetY() > ($this->PageBreakTrigger - $needed_space)) {
             $this->AddPage($this->CurOrientation, $this->CurPageSize, $this->CurRotation);
+            $this->SetY($this->tMargin + 5);
+        } else {
+            $this->Ln(6);
         }
         $this->SignatureBlock();
     }
@@ -115,43 +151,42 @@ class PDF extends FPDF
 
         $formattedDate = $day . ' ' . $indonesian_month_name . ' ' . $year;
 
-        // Atur posisi Y untuk blok tanda tangan, misal 80mm dari bawah
-        $this->SetY(-80);
+        // Lebar kolom dinamis menyesuaikan lebar halaman aktual (baik Portrait maupun Landscape)
+        $usable_width = $this->w - $this->lMargin - $this->rMargin;
+        $col_width = $usable_width / 2;
 
         $this->SetFont('Helvetica', '', 10);
 
-        // Tanggal
-        $this->Cell(95, 5, '', 0, 0); // Sel kosong untuk kolom kiri
-        $this->Cell(95, 5, $city . ', ' . $formattedDate, 0, 1, 'C'); // Tanggal di kolom kanan, rata tengah
-        $this->Ln(5);
+        // Tanggal di kolom kanan, rata tengah
+        $this->Cell($col_width, 5, '', 0, 0);
+        $this->Cell($col_width, 5, $city . ', ' . $formattedDate, 0, 1, 'C');
+        $this->Ln(3);
 
         // Kolom Tanda Tangan
-        $this->Cell(95, 5, $ketua_title, 0, 0, 'C');
-        $this->Cell(95, 5, $bendahara_title, 0, 1, 'C');
+        $this->Cell($col_width, 5, $ketua_title, 0, 0, 'C');
+        $this->Cell($col_width, 5, $bendahara_title, 0, 1, 'C');
 
         // Simpan posisi Y saat ini sebelum menambahkan gambar
         $y_pos_before_images = $this->GetY();
 
         // Render Stempel di kolom kiri (Ketua)
         if ($full_stamp_path && file_exists($full_stamp_path)) {
-            // Posisi X: 10mm (margin) + (95mm (lebar kolom) - 35mm (lebar gambar)) / 2 = 40mm
-            // Posisi Y: sedikit di bawah judul
-            $this->Image($full_stamp_path, 40, $y_pos_before_images + 2, 35, 0, 'PNG');
+            $stamp_x = $this->lMargin + ($col_width - 35) / 2;
+            $this->Image($full_stamp_path, $stamp_x, $y_pos_before_images + 1, 35, 0, 'PNG');
         }
 
         // Render Tanda Tangan di kolom kanan (Bendahara)
         if ($full_signature_path && file_exists($full_signature_path)) {
-            // Posisi X: 105mm (awal kolom kanan) + (95mm (lebar kolom) - 40mm (lebar gambar)) / 2 = 132.5mm
-            // Posisi Y: sedikit di bawah judul
-            $this->Image($full_signature_path, 132.5, $y_pos_before_images + 2, 40, 0, 'PNG');
+            $sig_x = $this->lMargin + $col_width + ($col_width - 40) / 2;
+            $this->Image($full_signature_path, $sig_x, $y_pos_before_images + 1, 40, 0, 'PNG');
         }
 
         // Kembalikan posisi Y ke bawah gambar untuk mencetak nama
-        $this->SetY($y_pos_before_images + 20); // Spasi 20mm untuk area tanda tangan
+        $this->SetY($y_pos_before_images + 18);
 
         $this->SetFont('Helvetica', 'B', 10);
-        $this->Cell(95, 5, $ketua_name, 0, 0, 'C');
-        $this->Cell(95, 5, $bendahara_name, 0, 1, 'C');
+        $this->Cell($col_width, 5, $ketua_name, 0, 0, 'C');
+        $this->Cell($col_width, 5, $bendahara_name, 0, 1, 'C');
     }
 
     function Row($w, $data, $align = 'L', $height = 6, $border = 1, $fill = false)
